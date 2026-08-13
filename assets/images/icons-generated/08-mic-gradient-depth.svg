@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="g8" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="100%" stop-color="#006680"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="#0A1628" rx="224"/>
+  <g transform="translate(512,470)">
+    <!-- Depth: mic with shadow layers -->
+    <path d="M0-180 C-70-180,-110-130,-110-60 L-110 30 C-110,100,-70,150,0,150 C70,150,110,100,110,30 L110-60 C110-130,70-180,0-180Z" fill="url(#g8)" opacity="0.3"/>
+    <path d="M0-160 C-60-160,-95-115,-95-50 L-95 25 C-95,85,-60,130,0,130 C60,130,95,85,95,25 L95-50 C95-115,60-160,0-160Z" fill="url(#g8)" opacity="0.6"/>
+    <path d="M0-140 C-50-140,-80-100,-80-40 L-80 20 C-80,70,-50,110,0,110 C50,110,80,70,80,20 L80-40 C80-100,50-140,0-140Z" fill="url(#g8)"/>
+    <rect x="-25" y="110" width="50" height="110" rx="8" fill="url(#g8)" opacity="0.7"/>
+    <rect x="-70" y="220" width="140" height="22" rx="11" fill="url(#g8)" opacity="0.4"/>
+  </g>
+</svg>

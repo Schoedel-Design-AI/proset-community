@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#0A1628" rx="224"/>
+  <!-- Flat: waveform bars -->
+  <g transform="translate(512,512)">
+    <rect x="-240" y="-120" width="40" height="240" rx="12" fill="#00B4D8"/>
+    <rect x="-180" y="-200" width="40" height="400" rx="12" fill="#00B4D8"/>
+    <rect x="-120" y="-80" width="40" height="160" rx="12" fill="#00B4D8"/>
+    <rect x="-60" y="-260" width="40" height="520" rx="12" fill="#00B4D8" opacity="0.9"/>
+    <rect x="0" y="-160" width="40" height="320" rx="12" fill="#00B4D8"/>
+    <rect x="60" y="-280" width="40" height="560" rx="12" fill="#00B4D8" opacity="0.9"/>
+    <rect x="120" y="-100" width="40" height="200" rx="12" fill="#00B4D8"/>
+    <rect x="180" y="-220" width="40" height="440" rx="12" fill="#00B4D8"/>
+    <rect x="240" y="-60" width="40" height="120" rx="12" fill="#00B4D8"/>
+  </g>
+</svg>

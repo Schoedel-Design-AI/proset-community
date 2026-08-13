@@ -1,0 +1,24 @@
+apply plugin: "com.android.library"
+
+android {
+    namespace = "ms.aifor.app.firebaseauth"
+    compileSdk = rootProject.ext.compileSdkVersion
+
+    defaultConfig {
+        minSdkVersion rootProject.ext.minSdkVersion
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // Keep this exactly aligned with @react-native-firebase/app 26.0.0.
+    // This dependency is intentionally private to the Java-only boundary:
+    // exposing it to :app makes Kotlin 2.1.20 inspect Firebase Auth 24.1.0's
+    // Kotlin 2.3 metadata and fail before UploadWorker can compile.
+    implementation(platform("com.google.firebase:firebase-bom:34.15.0"))
+    implementation("com.google.firebase:firebase-auth")
+}

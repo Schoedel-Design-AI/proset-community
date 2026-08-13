@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#0A1628" rx="224"/>
+  <!-- Mic with neural network nodes -->
+  <g transform="translate(512,460)">
+    <rect x="-50" y="-170" width="100" height="240" rx="50" fill="#00B4D8"/>
+    <rect x="-30" y="70" width="60" height="110" rx="8" fill="#006680"/>
+    <rect x="-70" y="180" width="140" height="24" rx="12" fill="#00B4D8" opacity="0.6"/>
+    <!-- Neural nodes around mic -->
+    <circle cx="180" cy="-120" r="10" fill="#00B4D8"/>
+    <circle cx="240" cy="-40" r="8" fill="#00B4D8" opacity="0.7"/>
+    <circle cx="200" cy="60" r="10" fill="#00B4D8"/>
+    <circle cx="-180" cy="-120" r="10" fill="#00B4D8"/>
+    <circle cx="-240" cy="-40" r="8" fill="#00B4D8" opacity="0.7"/>
+    <circle cx="-200" cy="60" r="10" fill="#00B4D8"/>
+    <circle cx="0" cy="-280" r="8" fill="#00B4D8" opacity="0.5"/>
+    <circle cx="140" cy="160" r="7" fill="#00B4D8" opacity="0.5"/>
+    <circle cx="-140" cy="160" r="7" fill="#00B4D8" opacity="0.5"/>
+    <!-- Connections -->
+    <line x1="180" y1="-120" x2="100" y2="-100" stroke="#00B4D8" stroke-width="3" opacity="0.4"/>
+    <line x1="180" y1="-120" x2="240" y2="-40" stroke="#00B4D8" stroke-width="3" opacity="0.4"/>
+    <line x1="240" y1="-40" x2="200" y2="60" stroke="#00B4D8" stroke-width="3" opacity="0.4"/>
+    <line x1="-180" y1="-120" x2="-100" y2="-100" stroke="#00B4D8" stroke-width="3" opacity="0.4"/>
+    <line x1="-180" y1="-120" x2="-240" y2="-40" stroke="#00B4D8" stroke-width="3" opacity="0.4"/>
+    <line x1="-240" y1="-40" x2="-200" y2="60" stroke="#00B4D8" stroke-width="3" opacity="0.4"/>
+    <line x1="-180" y1="-120" x2="0" y2="-280" stroke="#00B4D8" stroke-width="3" opacity="0.4"/>
+    <line x1="180" y1="-120" x2="0" y2="-280" stroke="#00B4D8" stroke-width="3" opacity="0.4"/>
+  </g>
+</svg>

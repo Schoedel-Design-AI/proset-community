@@ -1,0 +1,54 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+  ext {
+    // Keep Android SDK levels in android/gradle.properties only. Duplicating
+    // these values here and in app/build.gradle previously allowed target SDK
+    // drift (34 in one file while the release actually targeted 35).
+    buildToolsVersion = "36.0.0"
+    compileSdkVersion = Integer.parseInt(project.property("android.compileSdkVersion").toString())
+    minSdkVersion = Integer.parseInt(project.property("android.minSdkVersion").toString())
+    targetSdkVersion = Integer.parseInt(project.property("android.targetSdkVersion").toString())
+    ndkVersion = "27.1.12297006"
+    kotlinVersion = "2.1.20"
+  }
+  repositories {
+    google()
+    mavenCentral()
+  }
+  dependencies {
+    classpath('com.android.tools.build:gradle')
+    classpath('com.facebook.react:react-native-gradle-plugin')
+    classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
+    // Enables the @react-native-firebase native modules to read the default
+    // FirebaseApp config from android/app/google-services.json. Harmless when
+    // the plugin isn't applied (see app/build.gradle guard).
+    classpath('com.google.gms:google-services:4.4.2')
+  }
+}
+
+allprojects {
+  repositories {
+    google()
+    mavenCentral()
+    // Async Storage 3 ships its Android backend through this package-local
+    // Maven repository. This is the official bare React Native v3 setup.
+    maven {
+      url = uri(project(":react-native-async-storage_async-storage").file("local_repo"))
+    }
+    maven { url = uri('https://www.jitpack.io') }
+  }
+}
+
+// Force all subprojects to use the app's AGP version, not their own
+// buildscript-declared versions. Fixes "No variants exist" from
+// older native packages that request stale Android build tools
+subprojects { sub ->
+  afterEvaluate {
+    if (sub.hasProperty('android')) {
+      sub.android.compileSdkVersion = rootProject.ext.compileSdkVersion
+    }
+  }
+}
+
+apply plugin: "com.facebook.react.rootproject"

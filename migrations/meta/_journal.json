@@ -1,0 +1,48 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1773575700000,
+      "tag": "0001_add_passkey_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1773836400000,
+      "tag": "0002_add_force_password_change",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1774000000000,
+      "tag": "0003_add_cloud_sync_subscription",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1774100000000,
+      "tag": "0004_add_cached_tier",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1774200000000,
+      "tag": "0005_add_spending_cap",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1774300000000,
+      "tag": "0006_add_plan_selection",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "lib": ["esnext", "dom"],
+    "allowJs": true,
+    "jsx": "react-native",
+    "noEmit": true,
+    "strict": true,
+    "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "@shared/*": ["./shared/*"],
+      "expo": ["lib/shims/expo.ts"],
+      "expo-av": ["lib/shims/expo-av.ts"],
+      "expo/fetch": ["lib/shims/expo-fetch.ts"],
+      "expo-file-system/legacy": ["lib/shims/file-system.ts"],
+      "expo-file-system": ["lib/shims/file-system.ts"],
+      "expo-sharing": ["lib/shims/expo-sharing.ts"],
+      "expo-haptics": ["lib/shims/expo-haptics.ts"],
+      "expo-clipboard": ["lib/shims/expo-clipboard.ts"],
+      "expo-document-picker": ["lib/shims/expo-document-picker.ts"],
+      "expo-secure-store": ["lib/shims/expo-secure-store.ts"],
+      "expo-linear-gradient": ["lib/shims/expo-linear-gradient.tsx"],
+      "@expo/vector-icons": ["lib/shims/expo-vector-icons.tsx"],
+      "expo-localization": ["lib/shims/expo-localization.ts"],
+      "expo-splash-screen": ["lib/shims/expo-dummies.tsx"],
+      "expo-status-bar": ["lib/shims/expo-dummies.tsx"],
+      "expo-symbols": ["lib/shims/expo-dummies.tsx"],
+      "expo-system-ui": ["lib/shims/expo-dummies.tsx"],
+      "expo-linking": ["lib/shims/expo-dummies.tsx"],
+      "expo-web-browser": ["lib/shims/expo-dummies.tsx"],
+      "expo-print": ["lib/shims/expo-dummies.tsx"],
+      "expo-constants": ["lib/shims/expo-dummies.tsx"],
+      "@expo-google-fonts/inter": ["lib/shims/expo-dummies.tsx"],
+      "expo-font": ["lib/shims/expo-dummies.tsx"]
+    },
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "web-build",
+    "scripts",
+    "docs-site"
+  ]
+}

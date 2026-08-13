@@ -1,0 +1,35 @@
+{
+  "name": "aiforms-native",
+  "displayName": "Proset",
+  "version": "1.0.40",
+  "android": {
+    "package": "ms.aifor.app",
+    "versionCode": 75,
+    "adaptiveIcon": {
+      "foregroundImage": "./android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_foreground.png",
+      "backgroundColor": "#001E33"
+    },
+    "permissions": [
+      "RECORD_AUDIO",
+      "INTERNET",
+      "POST_NOTIFICATIONS",
+      "VIBRATE",
+      "FOREGROUND_SERVICE",
+      "FOREGROUND_SERVICE_MICROPHONE",
+      "READ_EXTERNAL_STORAGE",
+      "WRITE_EXTERNAL_STORAGE"
+    ],
+    "intentFilters": [
+      {
+        "action": "VIEW",
+        "autoVerify": true,
+        "data": [
+          { "scheme": "https", "host": "proset.ai" },
+          { "scheme": "barryai" },
+          { "scheme": "ms.aifor.app" }
+        ],
+        "category": ["BROWSABLE", "DEFAULT"]
+      }
+    ]
+  }
+}

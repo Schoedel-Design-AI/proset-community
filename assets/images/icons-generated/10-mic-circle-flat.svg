@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#0A1628" rx="224"/>
+  <!-- Flat: mic in a circle badge -->
+  <circle cx="512" cy="450" r="280" fill="none" stroke="#00B4D8" stroke-width="16"/>
+  <circle cx="512" cy="450" r="250" fill="#0E1A30"/>
+  <g transform="translate(512,460)">
+    <rect x="-45" y="-150" width="90" height="220" rx="45" fill="#00B4D8"/>
+    <rect x="-25" y="-165" width="50" height="30" rx="15" fill="#0E1A30"/>
+    <rect x="-25" y="70" width="50" height="100" rx="6" fill="#00B4D8" opacity="0.6"/>
+    <rect x="-55" y="170" width="110" height="18" rx="9" fill="#00B4D8" opacity="0.35"/>
+  </g>
+</svg>

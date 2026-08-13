@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#0A1628" rx="224"/>
+  <g transform="translate(512,480)">
+    <!-- Flat geometric mic -->
+    <rect x="-60" y="-180" width="120" height="260" rx="60" fill="#00B4D8"/>
+    <rect x="-40" y="-200" width="80" height="40" rx="20" fill="#0A1628"/>
+    <rect x="-36" y="-196" width="72" height="32" rx="16" fill="#0098B8"/>
+    <rect x="-30" y="80" width="60" height="140" rx="8" fill="#006680"/>
+    <rect x="-90" y="220" width="180" height="30" rx="15" fill="#00B4D8"/>
+    <!-- Sound waves right -->
+    <path d="M180-100 Q230-80,230-40 Q230,0,180 20" stroke="#00B4D8" stroke-width="12" fill="none" stroke-linecap="round"/>
+    <path d="M220-140 Q290-100,290-40 Q290,20,220 60" stroke="#00B4D8" stroke-width="10" fill="none" stroke-linecap="round" opacity="0.7"/>
+    <path d="M260-180 Q350-110,350-40 Q350,30,260 100" stroke="#00B4D8" stroke-width="8" fill="none" stroke-linecap="round" opacity="0.4"/>
+  </g>
+</svg>

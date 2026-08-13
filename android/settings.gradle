@@ -1,0 +1,11 @@
+pluginManagement { includeBuild("../node_modules/@react-native/gradle-plugin") }
+plugins { id("com.facebook.react.settings") }
+extensions.configure(com.facebook.react.ReactSettingsExtension) { ex -> ex.autolinkLibrariesFromCommand() }
+
+rootProject.name = 'Proset'
+
+include ':app'
+include ':firebase-token-provider'
+project(':firebase-token-provider').projectDir = file('firebase-token-provider')
+
+includeBuild('../node_modules/@react-native/gradle-plugin')

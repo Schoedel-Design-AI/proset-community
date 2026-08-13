@@ -1,0 +1,136 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "recordings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "userLearnings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "confidence", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "userLearnings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "category", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "conversions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "userFiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "bucketFiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "userKnowledgebases",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "connectorProviders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "providerId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "connectorProviders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "providerId", "order": "ASCENDING" },
+        { "fieldPath": "accountId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "userSkills",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "identifier", "order": "ASCENDING" },
+        { "fieldPath": "value", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "usageLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "actionType", "order": "ASCENDING" },
+        { "fieldPath": "dateKey", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "userSkillLinks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "conversionType", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "connectors",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "conversionType", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "thoughtThreadRunChunks",
+      "fieldPath": "text",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "thoughtThreadRuns",
+      "fieldPath": "sourceSnapshot",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "thoughtThreadRuns",
+      "fieldPath": "preparedSource",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "thoughtThreadContexts",
+      "fieldPath": "text",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "recordingContexts",
+      "fieldPath": "text",
+      "indexes": []
+    }
+  ]
+}

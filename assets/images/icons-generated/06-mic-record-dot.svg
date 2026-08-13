@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#0A1628" rx="224"/>
+  <!-- Flat: mic with recording dot -->
+  <g transform="translate(512,460)">
+    <rect x="-55" y="-180" width="110" height="260" rx="55" fill="#00B4D8"/>
+    <rect x="-35" y="80" width="70" height="120" rx="8" fill="#003040"/>
+    <rect x="-80" y="200" width="160" height="24" rx="12" fill="#00B4D8" opacity="0.5"/>
+    <circle cx="0" cy="-260" r="35" fill="#FF3333"/>
+    <circle cx="0" cy="-260" r="22" fill="#CC0000"/>
+  </g>
+</svg>

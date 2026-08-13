@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Background - dark navy edge to edge, sharp corners -->
+  <rect width="1024" height="1024" fill="#0A1628"/>
+
+  <!-- Cyan ring (thin, flat) -->
+  <circle cx="512" cy="450" r="220" fill="none" stroke="#00B4D8" stroke-width="14"/>
+
+  <!-- Red record button body -->
+  <circle cx="512" cy="450" r="210" fill="#D6242E"/>
+
+  <!-- Inner indent (classic record button look) -->
+  <circle cx="512" cy="450" r="130" fill="none" stroke="#B01C26" stroke-width="6"/>
+  <circle cx="512" cy="450" r="124" fill="#C4202A" opacity="0.3"/>
+  <circle cx="512" cy="450" r="60" fill="#A01822" opacity="0.25"/>
+
+  <!-- Lightning bolt - diagonal top-right to bottom-left -->
+  <!-- Split: orange (top portion) and yellow (bottom portion) -->
+  <!-- The bolt is drawn as a single thick jagged shape, then split horizontally at center -->
+
+  <defs>
+    <clipPath id="orangeHalf">
+      <rect x="0" y="0" width="1024" height="450"/>
+    </clipPath>
+    <clipPath id="yellowHalf">
+      <rect x="0" y="450" width="1024" height="574"/>
+    </clipPath>
+  </defs>
+
+  <!-- Full lightning bolt shape (both halves) -->
+  <g>
+    <!-- Orange upper half -->
+    <g clip-path="url(#orangeHalf)">
+      <polygon points="350,170 380,170 420,290 450,180 540,180 570,290 610,170 640,170 660,280 690,300 630,500 600,480 560,600 510,450 440,550 400,380 370,280" fill="#FF6B00"/>
+      <polygon points="350,170 380,170 420,290 450,180 540,180 570,290 610,170 640,170" fill="#FF8C00"/>
+    </g>
+    <!-- Yellow lower half -->
+    <g clip-path="url(#yellowHalf)">
+      <polygon points="350,170 380,170 420,290 450,180 540,180 570,290 610,170 640,170 660,280 690,300 630,500 600,480 560,600 510,450 440,550 400,380 370,280" fill="#FFD600"/>
+      <polygon points="630,500 600,480 560,600 510,450 440,550 400,380 370,280" fill="#FFC400"/>
+    </g>
+  </g>
+</svg>

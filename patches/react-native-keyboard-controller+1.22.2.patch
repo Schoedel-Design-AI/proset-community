@@ -1,0 +1,74 @@
+diff --git a/node_modules/react-native-keyboard-controller/android/src/main/java/com/reactnativekeyboardcontroller/modules/statusbar/StatusBarManagerCompatModuleImpl.kt b/node_modules/react-native-keyboard-controller/android/src/main/java/com/reactnativekeyboardcontroller/modules/statusbar/StatusBarManagerCompatModuleImpl.kt
+index a3c84b0..d3b6895 100644
+--- a/node_modules/react-native-keyboard-controller/android/src/main/java/com/reactnativekeyboardcontroller/modules/statusbar/StatusBarManagerCompatModuleImpl.kt
++++ b/node_modules/react-native-keyboard-controller/android/src/main/java/com/reactnativekeyboardcontroller/modules/statusbar/StatusBarManagerCompatModuleImpl.kt
+@@ -1,10 +1,6 @@
+ package com.reactnativekeyboardcontroller.modules.statusbar
+
+-import android.animation.ArgbEvaluator
+-import android.animation.ValueAnimator
+-import android.annotation.SuppressLint
+ import android.app.Activity
+-import android.os.Build
+ import androidx.core.view.WindowInsetsCompat
+ import androidx.core.view.WindowInsetsControllerCompat
+ import com.facebook.react.bridge.ReactApplicationContext
+@@ -38,47 +34,14 @@ class StatusBarManagerCompatModuleImpl(
+     }
+   }
+
+-  @SuppressLint("ObsoleteSdkInt")
+-  @Suppress("detekt:ReturnCount")
+   fun setColor(
+     color: Int,
+     animated: Boolean,
+   ) {
+-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+-      if (!isEnabled()) {
+-        return original.setColor(color.toDouble(), animated)
+-      }
+-
+-      if (BuildConfig.IS_EDGE_TO_EDGE_ENABLED) {
+-        Logger.w(TAG, "StatusBarModule: Ignored status bar change, current activity is edge-to-edge.")
+-        return
+-      }
+-
+-      val activity = mReactContext.currentActivity
+-      if (activity == null) {
+-        Logger.w(
+-          TAG,
+-          "StatusBarManagerCompatModule: Ignored status bar change, current activity is null.",
+-        )
+-        return
+-      }
+-
+-      UiThreadUtil.runOnUiThread {
+-        val window = activity.window
+-
+-        if (animated) {
+-          val curColor: Int = window.statusBarColor
+-          val colorAnimation = ValueAnimator.ofObject(ArgbEvaluator(), curColor, color)
+-          colorAnimation.addUpdateListener { animator ->
+-            window.statusBarColor = animator.animatedValue as Int
+-          }
+-          colorAnimation.setDuration(DEFAULT_ANIMATION_TIME).startDelay = 0
+-          colorAnimation.start()
+-        } else {
+-          window.statusBarColor = color
+-        }
+-      }
+-    }
++    Logger.w(
++      TAG,
++      "StatusBarModule: Ignored status bar color change because Proset is always edge-to-edge.",
++    )
+   }
+
+   fun setTranslucent(translucent: Boolean) {
+@@ -135,6 +98,5 @@ class StatusBarManagerCompatModuleImpl(
+
+   companion object {
+     const val NAME = "StatusBarManager"
+-    private const val DEFAULT_ANIMATION_TIME = 300L
+   }
+ }

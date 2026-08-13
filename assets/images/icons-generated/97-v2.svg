@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Background - dark navy edge to edge, sharp corners -->
+  <rect width="1024" height="1024" fill="#0A1628"/>
+
+  <!-- Larger layout: move everything up slightly to center -->
+  <g transform="translate(0, -30)">
+
+    <!-- Cyan ring (thin, flat) -->
+    <circle cx="512" cy="450" r="260" fill="none" stroke="#00B4D8" stroke-width="14"/>
+
+    <!-- Red record button body - larger -->
+    <circle cx="512" cy="450" r="250" fill="#D6242E"/>
+
+    <!-- Inner indent rings - deeper indentation -->
+    <circle cx="512" cy="450" r="170" fill="none" stroke="#B01C26" stroke-width="8"/>
+    <circle cx="512" cy="450" r="162" fill="none" stroke="#A01822" stroke-width="4"/>
+    <circle cx="512" cy="450" r="155" fill="#C4202A" opacity="0.35"/>
+    <circle cx="512" cy="450" r="100" fill="#A01822" opacity="0.3"/>
+    <circle cx="512" cy="450" r="60" fill="#8A141E" opacity="0.25"/>
+  </g>
+
+  <!-- Lightning bolt - diagonal top-right to bottom-left -->
+  <!-- Drawn as a single continuous jagged polygon, split apex-to-apex -->
+  <!-- Upper/right portion = orange, lower/left portion = yellow -->
+
+  <!-- The bolt spans from ~top-right to ~bottom-left of the button area -->
+  <!-- Top-right point: ~750,150 | Bottom-left point: ~250,750 -->
+  <!-- Center split at ~500,450 -->
+
+  <polygon points="
+    620,120 
+    660,120 
+    590,320 
+    550,220 
+    480,220 
+    440,360 
+    380,280 
+    350,300
+    390,430
+    320,480
+    380,570
+    430,620
+    500,520
+    580,680
+    640,600
+    700,720
+    740,680
+    660,550
+    600,480
+    630,380
+    690,320
+    650,260
+    720,280
+    740,260
+  " fill="#FF6B00" opacity="0"/>
+
+  <!-- Orange top-right portion of the bolt (above/right of center split) -->
+  <polygon points="
+    680,120 
+    660,120 
+    590,320 
+    550,220 
+    480,220 
+    440,360 
+    500,310
+    560,240
+    620,280
+    650,260
+    720,280
+    740,260
+  " fill="#FF6B00"/>
+
+  <polygon points="
+    440,360
+    380,280
+    350,300
+    390,430
+    320,480
+    380,570
+    430,620
+    500,520
+    500,450
+    440,400
+  " fill="#FF8C00"/>
+
+  <!-- Yellow bottom-left portion of the bolt (below/left of center split) -->
+  <polygon points="
+    500,450
+    440,400
+    320,480
+    380,570
+    430,620
+    500,520
+    580,680
+    640,600
+    700,720
+    740,680
+    660,550
+    600,480
+    630,380
+    690,320
+    500,420
+  " fill="#FFD600"/>
+
+  <polygon points="
+    500,520
+    580,680
+    640,600
+    700,720
+    740,680
+    660,550
+    600,480
+    500,450
+  " fill="#FFC400"/>
+
+</svg>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#0A1628" rx="224"/>
+  <g transform="translate(512,470)">
+    <path d="M0-160 C-60-160,-100-110,-100-50 L-100 30 C-100,90,-60,140,0,140 C60,140,100,90,100,30 L100-50 C100-110,60-160,0-160Z" fill="#00B4D8" opacity="0.95"/>
+    <rect x="-30" y="140" width="60" height="120" rx="10" fill="#00B4D8" opacity="0.85"/>
+    <rect x="-80" y="260" width="160" height="30" rx="15" fill="#00B4D8" opacity="0.55"/>
+    <rect x="-120" y="310" width="240" height="20" rx="10" fill="#00B4D8" opacity="0.3"/>
+    <path d="M-200-130 L-140-160 L-140 0 L-200-30Z" fill="#00B4D8" opacity="0.6"/>
+    <path d="M200-130 L140-160 L140 0 L200-30Z" fill="#00B4D8" opacity="0.6"/>
+    <path d="M-160-200 L-120-250 L-100-240 L-140-190Z" fill="#00B4D8" opacity="0.5"/>
+    <path d="M160-200 L120-250 L100-240 L140-190Z" fill="#00B4D8" opacity="0.5"/>
+  </g>
+</svg>

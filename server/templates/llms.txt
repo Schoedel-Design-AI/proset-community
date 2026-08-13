@@ -1,0 +1,11 @@
+# Proset
+
+> Proset is an AI voice notes recorder that turns spoken thoughts into polished tasks, emails, and summaries. Record a thought and get an actionable result — on web and Android.
+
+## Important URLs
+
+- [Proset home](https://proset.ai/): product overview, use-case examples, and pricing
+- [Full product description](https://proset.ai/llms-full.txt): complete plain-text description, capabilities, pricing, and FAQ
+- [Documentation](https://proset.ai/documentation/): full product documentation
+- [Privacy policy](https://proset.ai/privacy): how Proset handles your data
+- [Support](https://proset.ai/support/): contact and help
