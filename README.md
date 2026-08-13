@@ -32,9 +32,11 @@ something you can actually act on.
 3. **Run**:
    ```bash
    npm install
+   npm run web:build
    npm run server:build
-   npm start
+   npm run server:prod:local
    ```
+   (or `npm run server:dev:local` for local development with hot reload)
 4. Open `http://localhost:5000`.
 
 Or with Docker:
