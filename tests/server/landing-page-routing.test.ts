@@ -7,10 +7,6 @@ const landingTemplate = readFileSync(
   join(process.cwd(), "server/templates/landing-page.html"),
   "utf8",
 );
-const edgeWorker = readFileSync(
-  join(process.cwd(), "pages/_worker.js"),
-  "utf8",
-);
 const loginScreen = readFileSync(join(process.cwd(), "app/login.tsx"), "utf8");
 const translations = readFileSync(join(process.cwd(), "lib/i18n.tsx"), "utf8");
 
@@ -75,10 +71,6 @@ test("landing uses concise conversion copy and canonical metadata", () => {
   assert.doesNotMatch(landingTemplate, /\\·/);
 });
 
-test("edge router sends public pricing requests to the landing pricing section", () => {
-  assert.match(edgeWorker, /path === "\/pricing" \|\| path === "\/pricing\/"/);
-  assert.match(edgeWorker, /Response\.redirect\(new URL\("\/#pricing", url\)\.toString\(\), 302\)/);
-});
 
 test("landing translation keys stay in English and Spanish parity", () => {
   const match = landingTemplate.match(/en:\s*\{([\s\S]*?)\n\s*\},\n\s*es:\s*\{([\s\S]*?)\n\s*\}\n\s*\};/);

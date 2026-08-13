@@ -207,8 +207,6 @@ export async function verifyFirebaseIdToken(token: string): Promise<VerifiedIden
 
 export interface AuthenticatedRequest extends Request {
   user?: any;
-  isImpersonating?: boolean;
-  impersonatingAs?: string;
   authSource?: VerifiedIdentity["source"];
   authTime?: number | null;
   authSecondFactor?: string | null;
@@ -271,19 +269,6 @@ export async function firebaseAuthMiddleware(req: AuthenticatedRequest, res: Res
         });
       }
 
-      // Admin impersonation check
-      if (user.role === "admin" || user.role === "super_admin") {
-        const impersonateEmail = req.headers["x-impersonate-user"];
-        if (impersonateEmail) {
-          const targetUser = await storage.users.getByEmail(String(impersonateEmail).toLowerCase());
-          if (targetUser) {
-            req.user = targetUser;
-            req.isImpersonating = true;
-            req.impersonatingAs = targetUser.email;
-            return next();
-          }
-        }
-      }
       req.user = user;
     } else {
       throw new Error(

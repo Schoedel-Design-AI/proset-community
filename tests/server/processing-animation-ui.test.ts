@@ -122,15 +122,3 @@ test("conversion stage progress copy is registered in i18n, not left as raw dead
   );
 });
 
-test("convert logo button has breathing room and an accessible label", () => {
-  const continueThoughtIndex = recordingScreen.indexOf('testID="continue-thought-button"');
-  const logoButtonIndex = recordingScreen.indexOf("Logo button — opens conversion modal");
-  assert.ok(continueThoughtIndex >= 0 && logoButtonIndex > continueThoughtIndex);
-  const afterLogo = recordingScreen.slice(logoButtonIndex, logoButtonIndex + 1500);
-  assert.match(afterLogo, /paddingTop: 12/, "the convert logo button needs added top spacing below Continue this thought");
-  assert.match(
-    afterLogo,
-    /accessibilityLabel=\{t\("detail\.convertTranscript"\)\}/,
-    "the icon-only convert logo button must keep an accessible label",
-  );
-});

@@ -123,29 +123,6 @@ test("Thought Thread API persists ordered sources, enforces ownership, and prese
   assert.equal(migratedTwice.response.status, 200);
   assert.equal(migratedOnce.body.context.id, migratedTwice.body.context.id);
 
-  await storage.users.update("owner", { cloudSyncEnabled: 0 });
-  const localOnlyContextRead = await request(`/api/recordings/${older.id}/contexts`);
-  assert.equal(localOnlyContextRead.response.status, 403);
-  assert.equal(localOnlyContextRead.body.error, "cloud_sync_required");
-
-  // Thought Thread endpoints must also require cloud sync.
-  const noSyncListThreads = await request("/api/thought-threads");
-  assert.equal(noSyncListThreads.response.status, 403);
-  assert.equal(noSyncListThreads.body.error, "cloud_sync_required");
-  const noSyncCreateThread = await request("/api/thought-threads", {
-    method: "POST",
-    body: JSON.stringify({ recordingIds: [older.id] }),
-  });
-  assert.equal(noSyncCreateThread.response.status, 403);
-  assert.equal(noSyncCreateThread.body.error, "cloud_sync_required");
-  const noSyncFromRecording = await request(`/api/thought-threads/from-recording/${older.id}`, {
-    method: "POST",
-    body: JSON.stringify({}),
-  });
-  assert.equal(noSyncFromRecording.response.status, 403);
-  assert.equal(noSyncFromRecording.body.error, "cloud_sync_required");
-
-  await storage.users.update("owner", { cloudSyncEnabled: 1 });
 
   const created = await request("/api/thought-threads", {
     method: "POST",

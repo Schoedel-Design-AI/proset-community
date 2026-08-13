@@ -21,7 +21,7 @@ import {
   type ThoughtThreadConversionRun,
 } from "@shared/schema";
 import { stripeService } from "./stripe-service";
-import { trackEvent, getAnalytics, getUsersList } from "./analytics-service";
+import { trackEvent } from "./analytics-service";
 import {
   getAllProviders,
   getBackupLogs,

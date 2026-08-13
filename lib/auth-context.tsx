@@ -31,7 +31,7 @@ export type AuthUser = {
   email: string;
   emailVerified?: boolean;
   forcePasswordChange?: boolean;
-  role?: "user" | "admin" | "super_admin" | "friends_of_barry";
+  role?: "user" | "admin";
   twoFactorEnabled?: boolean;
   mfaRequired?: boolean;
   passwordExpiryDays?: number | null;

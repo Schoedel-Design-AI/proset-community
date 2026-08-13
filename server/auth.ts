@@ -66,8 +66,6 @@ const AUTH_EXEMPT_PATHS = [
   "/api/auth/send-verification-email",
   "/api/auth/me",
   "/api/auth/password-requirements",
-  "/api/admin/stop-impersonate",
-  "/api/admin/impersonation-status",
 ];
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
