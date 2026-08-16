@@ -1,0 +1,15 @@
+# Dependabot version updates for the Community Edition.
+# Security updates (vulnerability alerts) are enabled at the repo level.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

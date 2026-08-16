@@ -1,0 +1,56 @@
+# Proset — AI Voice Notes Recorder
+
+Proset is a memory helper — the affordable, simpler AI voice notes recorder. When a vital idea strikes, record it and it's never lost or forgotten: Proset turns your spoken thought into a polished email, task list, or summary, on web and Android. No meeting bots, no complexity, no premium price tag.
+
+## How it works
+
+1. **Record** — tap the mic and talk.
+2. **Transcribe** — Proset turns speech into text using cloud AI speech recognition.
+3. **Use** — create emails, tasks, summaries, and more from the transcript.
+
+## Capabilities
+
+- **Respond to vital ideas** — a memory helper: never lose or forget a vital idea; the moment it strikes, it becomes action.
+- **Voice notes to emails** — dictate and receive a polished email draft.
+- **Voice notes to tasks** — extract action items from spoken thoughts.
+- **Voice notes to summaries** — condense long recordings into clear takeaways.
+- **Export** — download results as PDF, DOCX, CSV, Markdown, and more.
+- **Your data, your way** — keep or delete recordings anytime.
+- **Bilingual** — English and Spanish.
+- **Web and Android** — use Proset in your browser or on Android.
+
+## Pricing
+
+Proset is the affordable alternative: web launch pricing is roughly half the cost of the big voice-note apps (Otter, Fireflies, Fathom, and similar run $15–20+/month).
+
+- **Free** — try Proset with basic limits.
+- **Base** — everyday use, more capacity, cloud sync add-on available.
+- **Pro** — more capacity, cloud sync included.
+
+Web launch pricing: Base $5/month (or $49.95/year), Pro $10/month (or $99.95/year); regular prices $9.99 and $19.99/month.
+
+## FAQ
+
+### What is Proset?
+Proset is a memory helper: an affordable, simpler AI voice notes recorder that makes sure you never lose or forget a vital idea. Record it and get a polished email, task list, or summary.
+
+### Is Proset just a voice recorder?
+No — Proset goes beyond transcription. It turns recordings into actionable results: emails, tasks, and summaries.
+
+### How is Proset different from Otter, Fireflies, or other voice note apps?
+Proset is simpler — one tap record, no meeting bots or setup — and more affordable, at roughly half the price of the big voice-note apps.
+
+### Which platforms does Proset support?
+Proset works in any web browser and on Android.
+
+### Can I export my results?
+Yes — PDF, DOCX, CSV, Markdown, and more.
+
+### Is Proset available in Spanish?
+Yes — the app and documentation are available in English and Spanish (Mexican Spanish).
+
+### What happens to my recordings?
+You control them — keep or delete recordings anytime.
+
+### Where can I learn more?
+See the documentation at https://proset.ai/documentation/ or contact support at https://proset.ai/support/.

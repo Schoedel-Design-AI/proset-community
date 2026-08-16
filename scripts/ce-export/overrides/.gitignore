@@ -1,0 +1,124 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# local environment / secrets
+.env
+.env.*
+!.env.example
+
+# agent/dev dirs
+.hermes/
+.claude/
+.wrangler/
+
+# generated Firebase client config
+android/app/google-services.json
+
+# throwaway debug scripts
+.debug-deck.mjs
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+static-build/
+server_dist/
+
+# Native build outputs and local secrets.
+# Android source is release-critical and must stay trackable; do not ignore
+# android/ wholesale.
+ios/
+android/.gradle/
+android/.kotlin/
+android/build/
+android/app/.cxx/
+android/app/build/
+android/local.properties
+android/keystore.properties
+android/*.log
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+google-service-account.json
+android/app/google-services.json
+# Firebase credentials keys
+*firebase*.json
+firebase-credentials.json
+!config/firebase-auth-environments.json
+
+# Metro
+.metro-health-check*
+
+# Python
+__pycache__/
+*.py[cod]
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+.env.production*
+.local/
+.config/
+.docker-local/
+secrets.txt
+Secrets.md
+aiforms-db-dump.sql
+task85-patch.diff
+
+# typescript
+*.tsbuildinfo
+.vercel
+
+.env
+
+.ops.env
+.ops.env.*
+
+# local build and test artifacts
+playwright-report/
+test-results/
+.playwright-cli/
+output/playwright/
+.local-server*.log
+firebase-debug.log
+firestore-debug.log
+audio-uploads/
+attached_assets/
+docs-site/.docusaurus/
+.agents/
+
+# root-level manual QA screenshots; committed image assets belong in assets/
+# or play-store-assets/ instead.
+/*.png
+
+# local one-off workstation helper scripts that should not appear in routine
+# agent reports unless deliberately promoted into source control.
+scripts/fob-bulk.ts
+scripts/local-dev.sh
+scripts/seed-emulator.py
+scripts/smoke-test-android.sh
+
+# backups
+backups/
+.worktrees/
+
+# scratch directory for local scripts/experiments
+scratch/
+
+android/app/*-release.keystore
+android/keystore.properties
+render_emails.js
