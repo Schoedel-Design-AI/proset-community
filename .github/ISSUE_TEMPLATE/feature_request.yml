@@ -1,0 +1,39 @@
+name: Feature request
+description: Suggest an idea for Proset CE
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting! Two things to know:
+
+        - **Scope:** this repo is the self-hostable open core. Features that
+          need managed infrastructure (billing, multi-provider AI routing,
+          cloud sync) live in hosted Proset.ai (https://proset.ai).
+        - **Funding:** hosted Proset.ai funds development — subscribing is the
+          fastest way to get features built.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: A clear description of the need, not the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What should the feature look like? Keep it small — big features get broken down into steps.
+    validations:
+      required: false
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Where should this live?
+      options:
+        - CE (self-hostable core)
+        - Hosted-only (managed infra / billing / AI routing)
+        - Both
+        - Not sure
+    validations:
+      required: true

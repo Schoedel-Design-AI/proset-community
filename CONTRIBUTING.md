@@ -26,6 +26,14 @@ billing) is a separate private product; this repo is the open core.
 - Type-check before pushing: `npx tsc --noEmit`.
 - Run the tests in `tests/` where they touch your change.
 - If you touch `.env.example`, keep it documented and grouped.
+- Every commit must carry `Signed-off-by:` (Developer Certificate of Origin,
+  <https://developercertificate.org>) — `git commit -s` adds it automatically.
+- PRs that change user-facing behavior add a `CHANGELOG.md` entry.
+
+## Response times
+
+Issues and PRs get a first response within 48 hours (usually much faster).
+This is a small project — thank you for your patience and your help.
 
 ## Code of conduct
 

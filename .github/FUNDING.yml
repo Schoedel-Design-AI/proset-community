@@ -1,0 +1,12 @@
+# Funding for Proset CE development
+#
+# Hosted Proset.ai (https://proset.ai) is the primary funding mechanism —
+# self-hosters pay nothing, subscribers fund maintenance for everyone.
+# GitHub Sponsors is a secondary signal that the community values the CE.
+#
+# All funding goes to: maintenance, security fixes, and new CE features.
+
+github: schoedel-learn
+
+custom:
+  - https://proset.ai
