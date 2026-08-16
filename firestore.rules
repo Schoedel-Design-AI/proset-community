@@ -1,20 +1,17 @@
 rules_version = '2';
 
-// AIFor.ms Firestore security rules.
+// Proset Community Edition — Firestore security rules.
 //
-// IMPORTANT: In this app, Firestore is accessed ONLY server-side, by the
-// Express/Cloud Run backend using the Firebase Admin SDK (Application Default
-// Credentials in project barry-ai-native). The Admin SDK bypasses these rules
-// entirely. No client (mobile or web) connects to Firestore directly — the
-// clients talk to the backend over HTTP and authenticate with better-auth, not
-// Firebase Auth. There is no google-services.json bundled in the app.
+// In Proset, Firestore is accessed ONLY server-side, by the backend using the
+// Firebase Admin SDK (your own service account). The Admin SDK bypasses these
+// rules entirely. No client (mobile or web) connects to Firestore directly —
+// clients talk to the backend over HTTP and authenticate with server sessions.
+// There is no google-services.json bundled in the app.
 //
 // Therefore the correct and safe posture is to DENY all direct client access.
-// This matches the rules currently live on the barry-ai-native project.
-//
-// If direct client-to-Firestore access with Firebase Auth is ever introduced,
+// If you ever introduce direct client-to-Firestore access with Firebase Auth,
 // add per-collection rules keyed on request.auth.uid and deploy them with:
-//   firebase deploy --only firestore:rules --project barry-ai-native
+//   firebase deploy --only firestore:rules
 service cloud.firestore {
   match /databases/{database}/documents {
     match /{document=**} {

@@ -1,7 +1,0 @@
-{
-  "projects": {
-    "default": "barry-ai-native",
-    "production": "barry-ai-native",
-    "staging": "gen-lang-client-0606961859"
-  }
-}

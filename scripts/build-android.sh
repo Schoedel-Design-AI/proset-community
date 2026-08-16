@@ -3,6 +3,11 @@
 # build-android.sh
 # Deterministic Android (AAB) build for Proset.
 #
+# COMMUNITY EDITION: prod builds target YOUR OWN backend, taken from
+# AIFORMS_PUBLIC_DOMAIN (shell env or .env). The hosted proset.ai /
+# stage.proset.ai domains are REJECTED on purpose: baking them would
+# silently route CE app data to the hosted Proset API.
+#
 # The Android release bundle is produced by Gradle's `react { }` block, which
 # runs Metro/Hermes and inlines `process.env.AIFORMS_PUBLIC_*` from the *shell
 # environment* at bundle time. There is no .env auto-loading in this bare
@@ -19,7 +24,7 @@
 #   5. Verifies the chosen domain is actually baked into the AAB afterward.
 #
 # Usage:
-#   scripts/build-android.sh prod          # build release AAB against proset.ai
+#   scripts/build-android.sh prod          # build release AAB against AIFORMS_PUBLIC_DOMAIN
 #   scripts/build-android.sh dev           # build against localhost:5000
 #   scripts/build-android.sh prod --upload # build, verify, then upload to Play
 #
@@ -122,21 +127,29 @@ EOF
 # 2. Resolve the backend domain for this environment (single source of truth).
 # ---------------------------------------------------------------------------
 case "$ENVIRONMENT" in
-  prod)  DOMAIN="proset.ai" ;;
+  # CE: prod's backend domain is resolved after .env load, from the operator's
+  # AIFORMS_PUBLIC_DOMAIN (see step 4). proset.ai is never baked.
+  prod)  DOMAIN="" ;;
   dev)   DOMAIN="localhost:5000" ;;   # NB: only works in an emulator/tunnel, not a physical device
   *)     echo "Usage: $0 {dev|prod} [--upload]" >&2; exit 1 ;;
 esac
 
 if [[ "$ENVIRONMENT" == "prod" && ! -f "$GOOGLE_SERVICES_PATH" ]]; then
-  echo "Preparing the production Firebase Android client configuration..."
-  node "${SCRIPT_DIR}/prepare-firebase-client-config.mjs" production \
-    --android-out "$GOOGLE_SERVICES_PATH"
-  FIREBASE_CONFIG_CREATED="yes"
+  if [[ -f "${SCRIPT_DIR}/prepare-firebase-client-config.mjs" ]]; then
+    echo "Preparing the production Firebase Android client configuration..."
+    node "${SCRIPT_DIR}/prepare-firebase-client-config.mjs" production \
+      --android-out "$GOOGLE_SERVICES_PATH"
+    FIREBASE_CONFIG_CREATED="yes"
+  else
+    echo "NOTE: prepare-firebase-client-config.mjs is not shipped in the Community"
+    echo "      Edition. Drop in your own android/app/google-services.json if you want"
+    echo "      the Firebase Android SDK enabled; without it react-native-firebase"
+    echo "      no-ops and the app runs on legacy email/password auth."
+  fi
 fi
 
-if [[ "$ENVIRONMENT" == "prod" && ! -s "$GOOGLE_SERVICES_PATH" ]]; then
-  echo "FATAL: production Firebase Android configuration is missing." >&2
-  echo "       Register the production app in config/firebase-auth-environments.json first." >&2
+if [[ "$ENVIRONMENT" == "prod" && -f "$GOOGLE_SERVICES_PATH" && ! -s "$GOOGLE_SERVICES_PATH" ]]; then
+  echo "FATAL: google-services.json exists but is empty." >&2
   exit 1
 fi
 
@@ -170,12 +183,28 @@ else
   echo "WARNING: $ENV_FILE not found; only AIFORMS_PUBLIC_DOMAIN will be set." >&2
 fi
 
-# Force the domain for the selected environment (overrides whatever .env had).
-export AIFORMS_PUBLIC_DOMAIN="$DOMAIN"
-
 # ---------------------------------------------------------------------------
 # 4. Fail-fast validation. DOMAIN is fatal; feature keys warn.
 # ---------------------------------------------------------------------------
+if [[ "$ENVIRONMENT" == "prod" ]]; then
+  # CE: prod domain comes from the operator (shell env or .env).
+  DOMAIN="${AIFORMS_PUBLIC_DOMAIN:-}"
+  if [[ -z "${DOMAIN}" ]]; then
+    echo "FATAL: AIFORMS_PUBLIC_DOMAIN is required for a Community Edition prod build." >&2
+    echo "       Set it to YOUR server, e.g. AIFORMS_PUBLIC_DOMAIN=notes.example.com" >&2
+    exit 1
+  fi
+  case "${DOMAIN}" in
+    proset.ai|stage.proset.ai|*.proset.ai)
+      echo "FATAL: AIFORMS_PUBLIC_DOMAIN resolves to the hosted Proset (${DOMAIN})." >&2
+      echo "       CE builds must point at your own server; refusing to bake the hosted API." >&2
+      exit 1 ;;
+  esac
+  export AIFORMS_PUBLIC_DOMAIN="${DOMAIN}"
+else
+  # Force the dev domain (overrides whatever .env had).
+  export AIFORMS_PUBLIC_DOMAIN="$DOMAIN"
+fi
 if [[ -z "${AIFORMS_PUBLIC_DOMAIN:-}" ]]; then
   echo "FATAL: AIFORMS_PUBLIC_DOMAIN is empty." >&2
   exit 1
@@ -190,11 +219,7 @@ warn_if_empty() {
 # Android-relevant client config. (AIFORMS_PUBLIC_TURNSTILE_SITE_KEY is web-only —
 # app/login.tsx returns early unless Platform.OS === "web" — so it is not
 # checked here.)
-if [[ "$ENVIRONMENT" == "prod" && -z "${AIFORMS_PUBLIC_REVENUECAT_ANDROID:-}" ]]; then
-  echo "FATAL: AIFORMS_PUBLIC_REVENUECAT_ANDROID is required for a production Android build." >&2
-  exit 1
-fi
-warn_if_empty AIFORMS_PUBLIC_REVENUECAT_ANDROID
+# (CE: no RevenueCat — in-app purchases are hosted-only; lib/purchases.ts is a stub.)
 
 # ---------------------------------------------------------------------------
 # 5. Build the release AAB (Gradle inlines the exported AIFORMS_PUBLIC_* vars).
@@ -270,8 +295,12 @@ fi
 
 # Prove the React Native/keyboard source patches reached DEX. Maintained
 # Material/AndroidX calls guarded to legacy API levels are reported separately.
-echo "Auditing compiled edge-to-edge bytecode..."
-( cd "$ROOT_DIR" && python3 scripts/audit-android-edge-to-edge.py )
+if [[ -f "${ROOT_DIR}/scripts/audit-android-edge-to-edge.py" ]]; then
+  echo "Auditing compiled edge-to-edge bytecode..."
+  ( cd "$ROOT_DIR" && python3 scripts/audit-android-edge-to-edge.py )
+else
+  echo "NOTE: audit-android-edge-to-edge.py is not shipped in the Community Edition — skipping the bytecode audit."
+fi
 
 echo "============================================="
 echo "Android build complete for '$ENVIRONMENT' (backend https://$DOMAIN)."
@@ -284,7 +313,7 @@ echo "============================================="
 # 7. Optional upload to the selected Google Play track.
 # ---------------------------------------------------------------------------
 if [[ "$UPLOAD" == "yes" ]]; then
-  export PLAY_TRACK="${PLAY_TRACK:-internal}"
-  echo "Uploading to Play ${PLAY_TRACK} track..."
-  python3 "${SCRIPT_DIR}/upload-aab.py" --skip-build
+  echo "NOTE: Play upload (upload-aab.py) is hosted-only and not shipped in the"
+  echo "      Community Edition. The AAB is ready at ${AAB_PATH} — publish it"
+  echo "      from your own Google Play Console."
 fi

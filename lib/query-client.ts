@@ -55,10 +55,16 @@ export function getApiUrl(): string {
     }
   }
 
-  // Native (Android/iOS) builds target the production API.
-  // LOCAL DEV: change to "http://10.0.2.2:5000/" for Android emulator testing.
-  // REVERT to "https://proset.ai/" before committing.
-  return "https://proset.ai/";
+  // Community Edition: native builds target the OPERATOR's own server, baked
+  // at build time from AIFORMS_PUBLIC_DOMAIN (build-android.sh enforces it and
+  // rejects the hosted proset.ai domains). Local dev falls back to the Android
+  // emulator loopback — a missing domain fails closed (app cannot reach any
+  // API), never falls through to the hosted service.
+  const domain = (process.env.AIFORMS_PUBLIC_DOMAIN || "").trim().replace(/\/+$/, "");
+  if (domain) {
+    return domain.includes("://") ? `${domain}/` : `https://${domain}/`;
+  }
+  return "http://10.0.2.2:5000/";
 }
 
 type SessionExpiredListener = () => void;
