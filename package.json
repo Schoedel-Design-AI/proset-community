@@ -128,7 +128,7 @@
     "sharp": "^0.35.3",
     "stripe": "^20.0.0",
     "tesseract.js": "^7.0.0",
-    "undici": "^6.24.0",
+    "undici": "^6.28.0",
     "ws": "^8.21.0",
     "zod": "^3.25.76",
     "zod-validation-error": "^3.5.4"
