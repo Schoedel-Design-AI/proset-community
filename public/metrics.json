@@ -1,0 +1,10 @@
+{
+  "updated": "2026-08-16",
+  "users": 16,
+  "payingSubscribers": 0,
+  "mrrUsd": 0,
+  "sources": {
+    "stripe": true,
+    "firestore": true
+  }
+}

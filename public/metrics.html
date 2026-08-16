@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proset open metrics</title>
+    <meta name="description" content="Real, public numbers for Proset: users, paying subscribers, MRR, and open-source activity. Updated monthly.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://proset.ai/metrics.html">
+    <style>
+        :root {
+            --bg: #071422;
+            --surface: #0f2438;
+            --border: #1d3a55;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #00B4D8;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        main { max-width: 880px; margin: 0 auto; padding: 48px 20px 24px; width: 100%; }
+        h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; }
+        .sub { color: var(--muted); margin-top: 8px; max-width: 560px; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+            margin-top: 32px;
+        }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px;
+        }
+        .card .label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; }
+        .card .value { font-size: 1.9rem; font-weight: 800; margin-top: 6px; letter-spacing: -0.02em; }
+        .card .note { color: var(--muted); font-size: 0.75rem; margin-top: 4px; }
+        h2 { font-size: 1.15rem; font-weight: 700; margin-top: 36px; color: var(--accent); }
+        .updated { color: var(--muted); font-size: 0.85rem; margin-top: 24px; }
+        footer { margin-top: auto; padding: 24px 20px 40px; text-align: center; color: var(--muted); font-size: 0.85rem; }
+        footer a { color: var(--accent); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+        a.button {
+            display: inline-block; margin-top: 20px; background: var(--accent); color: #071422;
+            padding: 12px 28px; border-radius: 12px; font-weight: 700; text-decoration: none;
+        }
+        a.button.secondary { background: transparent; border: 1px solid var(--accent); color: var(--accent); margin-left: 10px; }
+    </style>
+</head>
+<body>
+<main>
+    <h1>Proset open metrics</h1>
+    <p class="sub">Real numbers, published because the project is funded by subscribers — you should be able to see where the money goes. Updated monthly.</p>
+
+    <h2>Product</h2>
+    <div class="grid" id="product">
+        <div class="card"><div class="label">Registered users</div><div class="value" id="m-users">—</div></div>
+        <div class="card"><div class="label">Web subscribers (Stripe)</div><div class="value" id="m-subs">—</div></div>
+        <div class="card"><div class="label">Web MRR (USD)</div><div class="value" id="m-mrr">—</div></div>
+        <div class="card"><div class="label">Updated</div><div class="value" id="m-updated" style="font-size:1.1rem;padding-top:8px">—</div></div>
+    </div>
+
+    <h2>Open source (Proset CE)</h2>
+    <div class="grid" id="oss">
+        <div class="card"><div class="label">GitHub stars</div><div class="value" id="g-stars">—</div></div>
+        <div class="card"><div class="label">Forks</div><div class="value" id="g-forks">—</div></div>
+        <div class="card"><div class="label">Open issues</div><div class="value" id="g-issues">—</div></div>
+        <div class="card"><div class="label">Latest release</div><div class="value" id="g-release" style="font-size:1.1rem;padding-top:8px">—</div></div>
+    </div>
+
+    <a class="button" href="/login?tab=signup&from=landing">Try Proset free</a>
+    <a class="button secondary" href="https://github.com/Schoedel-Design-AI/proset-community" target="_blank" rel="noopener noreferrer">View the source</a>
+
+    <p class="updated" id="note"></p>
+</main>
+<footer>
+    <a href="https://proset.ai">proset.ai</a> &middot;
+    <a href="https://proset.ai/documentation/">Documentation</a> &middot;
+    <a href="https://github.com/Schoedel-Design-AI/proset-community">GitHub</a>
+</footer>
+<script>
+    (function () {
+        var p = window.plausible = window.plausible || function () { (p.q = p.q || []).push(arguments); };
+        var s = document.createElement('script');
+        s.defer = true;
+        s.dataset.domain = 'proset.ai';
+        s.src = 'https://analytics.schoedeldesign.ai/js/script.js';
+        document.head.appendChild(s);
+    })();
+
+    function set(id, text) { var el = document.getElementById(id); if (el) el.textContent = text; }
+
+    // Business snapshot (static JSON, updated monthly)
+    fetch('/metrics.json?ts=' + Date.now())
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+        .then(function (m) {
+            set('m-users', m.users != null ? m.users.toLocaleString() : '—');
+            set('m-subs', m.payingSubscribers != null ? m.payingSubscribers.toLocaleString() : '—');
+            set('m-mrr', m.mrrUsd != null ? '$' + Number(m.mrrUsd).toLocaleString() : '—');
+            set('m-updated', m.updated || '—');
+            var missing = [];
+            if (!m.sources || !m.sources.stripe) missing.push('Stripe');
+            if (!m.sources || !m.sources.firestore) missing.push('Firestore');
+            set('note', missing.length ? 'Some numbers pending first data pull (' + missing.join(', ') + ').' : '');
+        })
+        .catch(function () { set('note', 'Product numbers will appear after the first monthly pull.'); });
+
+    // GitHub stats (live, public API)
+    fetch('https://api.github.com/repos/Schoedel-Design-AI/proset-community')
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+        .then(function (repo) {
+            set('g-stars', repo.stargazers_count != null ? repo.stargazers_count.toLocaleString() : '—');
+            set('g-forks', repo.forks_count != null ? repo.forks_count.toLocaleString() : '—');
+            set('g-issues', repo.open_issues_count != null ? repo.open_issues_count.toLocaleString() : '—');
+        })
+        .catch(function () {});
+    fetch('https://api.github.com/repos/Schoedel-Design-AI/proset-community/releases/latest')
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function (rel) { set('g-release', rel.tag_name || '—'); })
+        .catch(function () {});
+</script>
+</body>
+</html>
