@@ -1140,7 +1140,7 @@ function validateEnvironment(): void {
 
 
   const authRouter = express.Router();
-  authRouter.use(express.json({ limit: "50mb" }));
+  authRouter.use(express.json({ limit: "10mb" }));
   authRouter.use(cookieParser());
   setupAuthRoutes(authRouter);
   app.use(authRouter);

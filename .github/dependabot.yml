@@ -1,15 +1,20 @@
-# Dependabot version updates for the Community Edition.
-# Security updates (vulnerability alerts) are enabled at the repo level.
+# Dependabot is intentionally OFF for version updates in the Community
+# Edition: the weekly exporter regenerates the CE from main, so any PR merged
+# here is reverted on the next sync (observed 2026-08-16 — undici 6->8,
+# actions/checkout 4->7, etc. all got reverted). Dependency bumps must land in
+# the MAIN repo (package.json + scripts/ce-export/overrides/package-lock.json)
+# and flow into CE via the exporter.
+#
+# Security updates (vulnerability alerts) remain enabled at the repo level.
 version: 2
 updates:
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 10
-    labels:
-      - dependencies
+    open-pull-requests-limit: 0
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0

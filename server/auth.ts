@@ -204,8 +204,9 @@ async function validateTurnstileForSignup(req: Request): Promise<{ ok: true } | 
   const formData = new URLSearchParams();
   formData.append("secret", secretKey);
   formData.append("response", token);
-  const forwarded = req.headers["x-forwarded-for"];
-  const ip = typeof forwarded === "string" ? forwarded.split(",")[0].trim() : req.socket.remoteAddress || "";
+  // req.ip respects the trusted proxy chain (app.set("trust proxy", 1)) —
+  // a client-supplied X-Forwarded-For header cannot spoof it.
+  const ip = req.ip || req.socket.remoteAddress || "";
   if (ip) formData.append("remoteip", ip);
   const response = await globalThis.fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
     method: "POST",
@@ -221,9 +222,9 @@ async function validateTurnstileForSignup(req: Request): Promise<{ ok: true } | 
 export function setupAuthRoutes(app: IRouter) {
   const userKeyGenerator = (req: Request) => {
     if (req.userId) return `user:${req.userId}`;
-    const forwarded = req.headers["x-forwarded-for"];
-    if (typeof forwarded === "string") return forwarded.split(",")[0].trim();
-    return req.socket.remoteAddress || "unknown";
+    // req.ip cannot be forged via a spoofed X-Forwarded-For header (the old
+    // first-entry-of-XFF key let clients rotate the header to reset limits).
+    return req.ip || req.socket.remoteAddress || "unknown";
   };
 
   const accountChangeLimiter = rateLimit({
@@ -233,7 +234,7 @@ export function setupAuthRoutes(app: IRouter) {
     legacyHeaders: false,
     message: { error: "We've paused account changes briefly for safety. Try again in about 15 minutes." },
     keyGenerator: userKeyGenerator,
-    skip: (req) => req.hostname === "localhost" || req.hostname === "127.0.0.1" || process.env.DISABLE_RATE_LIMIT === "true",
+    skip: (req) => (process.env.NODE_ENV !== "production" && (req.hostname === "localhost" || req.hostname === "127.0.0.1")) || process.env.DISABLE_RATE_LIMIT === "true",
   });
 
   const emailChangeLimiter = rateLimit({
@@ -243,7 +244,7 @@ export function setupAuthRoutes(app: IRouter) {
     legacyHeaders: false,
     message: { error: "We've paused email changes briefly for safety. Try again in about 15 minutes." },
     keyGenerator: userKeyGenerator,
-    skip: (req) => req.hostname === "localhost" || req.hostname === "127.0.0.1" || process.env.DISABLE_RATE_LIMIT === "true",
+    skip: (req) => (process.env.NODE_ENV !== "production" && (req.hostname === "localhost" || req.hostname === "127.0.0.1")) || process.env.DISABLE_RATE_LIMIT === "true",
   });
 
   const verificationResendLimiter = rateLimit({
@@ -253,7 +254,7 @@ export function setupAuthRoutes(app: IRouter) {
     legacyHeaders: false,
     message: { error: "Please wait a minute before requesting another verification email." },
     keyGenerator: userKeyGenerator,
-    skip: (req) => req.hostname === "localhost" || req.hostname === "127.0.0.1" || process.env.DISABLE_RATE_LIMIT === "true",
+    skip: (req) => (process.env.NODE_ENV !== "production" && (req.hostname === "localhost" || req.hostname === "127.0.0.1")) || process.env.DISABLE_RATE_LIMIT === "true",
   });
 
   app.get("/api/auth/providers", (_req: Request, res: Response) => {

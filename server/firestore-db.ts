@@ -633,12 +633,6 @@ export const pool = {
             role: u.role,
             cached_tier: u.cachedTier,
             cloud_sync_enabled: u.cloudSyncEnabled,
-            friends_of_barry_granted_at: u.friendsOfBarryGrantedAt,
-            friends_of_barry_expires_at: u.friendsOfBarryExpiresAt,
-            friends_of_barry_renewed_at: u.friendsOfBarryRenewedAt,
-            friends_of_barry_active: u.role === "friends_of_barry" && u.friendsOfBarryExpiresAt && new Date(u.friendsOfBarryExpiresAt) > new Date() ? 1 : 0,
-            friends_of_barry_advanced_conversion_count: 0,
-            friends_of_barry_advanced_charge_cents: 0,
             recording_count: userRecs.length,
             last_recording_at: lastRec ? lastRec.created_at : null,
           };

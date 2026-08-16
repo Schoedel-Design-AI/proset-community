@@ -62,15 +62,17 @@ export interface PasswordRequirements {
   passwordExpiryDays: number | null;
 }
 
+// 2FA enforcement: OFF by default (the TOTP flow was locking users out on the
+// hosted service, 2026-08-13). CE operators whose own TOTP enrollment works
+// can opt in for admin accounts with REQUIRE_TWO_FACTOR=true.
+const REQUIRE_TWO_FACTOR = parseBooleanEnv("REQUIRE_TWO_FACTOR", false);
+
 export function getPasswordRequirements(role: UserRole): PasswordRequirements {
   const shared = getSharedPasswordRequirements(isAdminRole(role));
   if (isAdminRole(role)) {
     return {
       ...shared,
-      // 2FA DISABLED (2026-08-13): TOTP codes were being rejected and locking
-      // users out. requireMfa is forced false for every role so nobody is
-      // prompted to enroll until the TOTP flow is re-verified.
-      requireMfa: false,
+      requireMfa: REQUIRE_TWO_FACTOR,
       passwordExpiryDays: PASSWORD_EXPIRY_DAYS,
     };
   }

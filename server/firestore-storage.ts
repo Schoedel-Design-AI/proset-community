@@ -240,7 +240,7 @@ function normalizeDoc(data: any): any {
   
   const dateKeys = [
     "createdAt", "updatedAt", "expiresAt", "lastUsedAt", "lastBackupAt", 
-    "assignedAt", "cloudSyncGracePeriodEnd", "friendsOfBarryGrantedAt", 
+    "assignedAt", "cloudSyncGracePeriodEnd", 
     "friendsOfBarryExpiresAt", "friendsOfBarryRenewedAt", "passwordLastChanged", 
     "tierCachedAt", "completedAt", "startedAt", "leaseExpiresAt",
     "committedAt", "releasedAt", "transcriptUpdatedAt", "lastConvertedAt"
@@ -3109,7 +3109,7 @@ export class FirestoreStorage implements IStorage {
       await deleteByQuery("verifications", "identifier", user.email);
     }
 
-    // 4. Delete sessions and their impersonation verifications
+    // 4. Delete sessions and their verifications
     const sessionCol = this.getCol("sessions");
     let userSessions: any[] = [];
     if (dbClient) {
@@ -3120,7 +3120,7 @@ export class FirestoreStorage implements IStorage {
     }
 
     for (const s of userSessions) {
-      await deleteByQuery("verifications", "identifier", `impersonation:${s.id}`);
+      await deleteByQuery("verifications", "identifier", `session:${s.id}`);
     }
     await deleteByQuery("sessions", "userId", userId);
 
