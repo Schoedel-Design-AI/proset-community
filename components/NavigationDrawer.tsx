@@ -97,7 +97,13 @@ export default function NavigationDrawer({
     }
   }, [visible, overlayAnim, slideAnim]);
 
-  if (!mounted) return null;
+  // Stay mounted while the Audio Input modal is open: the drawer subtree
+  // unmounts 200ms after close starts (`setMounted(false)`), which used to
+  // destroy the modal mid-open (it flashed and died — "goes to Home"). The
+  // modal is a direct child of the root container, so keeping the component
+  // alive while showAudioModal is true lets it open reliably after the drawer
+  // closes, with no ghost modal on the next hamburger press.
+  if (!mounted && !showAudioModal) return null;
 
   const handleNav = (action: () => void) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -107,6 +113,106 @@ export default function NavigationDrawer({
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      {showAudioModal ? (
+        // Audio Input modal renders as a direct child of the drawer's root
+        // container (NOT inside the animated drawer View) so it is NOT
+        // unmounted when the drawer finishes its close animation. Previously
+        // it lived inside the drawer subtree that `if (!mounted) return null`
+        // destroyed 200ms after close started — the modal flashed and died
+        // ("goes to Home"), and the native modal window could linger and
+        // reappear when the drawer was reopened via the hamburger.
+        <Modal visible transparent animationType="fade" onRequestClose={() => setShowAudioModal(false)}>
+          <Pressable style={styles.audioOverlay} onPress={() => setShowAudioModal(false)}>
+            <Pressable style={styles.audioModal} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.audioHeader}>
+                <Text style={styles.audioTitle}>Audio Input</Text>
+                <Pressable onPress={() => setShowAudioModal(false)} hitSlop={8}>
+                  <Feather name="x" size={20} color={Colors.textSecondary} />
+                </Pressable>
+              </View>
+              <Text style={styles.audioHint}>Select the microphone to use for recording.</Text>
+              {Platform.OS === "android" ? (
+                <>
+                  <View style={[styles.audioDeviceOption, styles.audioDeviceOptionSelected]}>
+                    <Feather name="check-circle" size={18} color={Colors.primary} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.audioDeviceLabel}>Android Default</Text>
+                      <Text style={styles.audioDeviceHint}>Device switching requires a native audio pipeline update</Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.audioHint, { marginTop: 12, textAlign: "center" }]}>
+                    Android uses the system default microphone. USB and Bluetooth device switching will be available in a future update.
+                  </Text>
+                </>
+              ) : (
+                <>
+                  {/* System Default option */}
+                  <Pressable
+                    style={[
+                      styles.audioDeviceOption,
+                      audioInput.selectedDeviceId === null && styles.audioDeviceOptionSelected,
+                    ]}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      audioInput.selectDevice("default");
+                    }}
+                  >
+                    <Feather
+                      name={audioInput.selectedDeviceId === null ? "check-circle" : "circle"}
+                      size={18}
+                      color={audioInput.selectedDeviceId === null ? Colors.primary : Colors.textMuted}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.audioDeviceLabel}>System Default</Text>
+                      <Text style={styles.audioDeviceHint}>Let the OS choose the best microphone</Text>
+                    </View>
+                  </Pressable>
+                  {audioInput.loading ? (
+                    <ActivityIndicator size="small" color={Colors.primary} style={{ marginVertical: 16 }} />
+                  ) : audioInput.devices.length === 0 ? (
+                    <Text style={styles.audioHint}>No audio input devices found</Text>
+                  ) : (
+                    audioInput.devices.map((device) => (
+                      <Pressable
+                        key={device.deviceId}
+                        style={[
+                          styles.audioDeviceOption,
+                          audioInput.selectedDeviceId === device.deviceId && styles.audioDeviceOptionSelected,
+                        ]}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          audioInput.selectDevice(device.deviceId);
+                        }}
+                      >
+                        <Feather
+                          name={audioInput.selectedDeviceId === device.deviceId ? "check-circle" : "circle"}
+                          size={18}
+                          color={audioInput.selectedDeviceId === device.deviceId ? Colors.primary : Colors.textMuted}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.audioDeviceLabel}>{device.label}</Text>
+                        </View>
+                      </Pressable>
+                    ))
+                  )}
+                  {Platform.OS === "web" && audioInput.devices.length > 0 && (
+                    <Pressable style={styles.audioRefreshBtn} onPress={() => audioInput.refreshDevices()}>
+                      <Feather name="refresh-cw" size={14} color={Colors.primary} />
+                      <Text style={styles.audioRefreshText}>Refresh devices</Text>
+                    </Pressable>
+                  )}
+                </>
+              )}
+              <Pressable
+                style={({ pressed }) => [styles.audioDoneBtn, pressed && { opacity: 0.8 }]}
+                onPress={() => setShowAudioModal(false)}
+              >
+                <Text style={styles.audioDoneBtnText}>Done</Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      ) : null}
       <Animated.View
         style={[styles.overlay, { opacity: overlayAnim }]}
         pointerEvents="auto"
@@ -155,6 +261,15 @@ export default function NavigationDrawer({
         <View style={styles.drawerItems}>
           {isLoggedIn && (
             <>
+              {!isPro && (
+                <DrawerItem
+                  icon="credit-card"
+                  label={t("drawer.subscribe")}
+                  onPress={() => handleNav(() => router.push("/choose-plan" as any))}
+                  ts={ts}
+                  testID="drawer-subscribe"
+                />
+              )}
               <DrawerItem
                 icon="user"
                 label={t("settings.account")}
@@ -194,7 +309,10 @@ export default function NavigationDrawer({
             onPress={() =>
               handleNav(async () => {
                 const { getApiUrl } = await import("@/lib/query-client");
-                const docsUrl = `${getApiUrl()}/documentation`;
+                // new URL() normalizes the trailing slash from getApiUrl()
+                // (native returns https://proset.ai/) — string concat produced
+                // //documentation, which Cloudflare serves as the landing page.
+                const docsUrl = new URL("/documentation/", getApiUrl()).toString();
                 if (Platform.OS === "web") {
                   window.open(docsUrl, "_blank");
                 } else {
@@ -293,99 +411,6 @@ export default function NavigationDrawer({
           </Pressable>
         </View>
       </Animated.View>
-
-      {/* Audio Input Device Picker */}
-      <Modal visible={showAudioModal} transparent animationType="fade" onRequestClose={() => setShowAudioModal(false)}>
-        <Pressable style={styles.audioOverlay} onPress={() => setShowAudioModal(false)}>
-          <Pressable style={styles.audioModal} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.audioHeader}>
-              <Text style={styles.audioTitle}>Audio Input</Text>
-              <Pressable onPress={() => setShowAudioModal(false)} hitSlop={8}>
-                <Feather name="x" size={20} color={Colors.textSecondary} />
-              </Pressable>
-            </View>
-            <Text style={styles.audioHint}>Select the microphone to use for recording.</Text>
-            {Platform.OS === "android" ? (
-              <>
-                <View style={[styles.audioDeviceOption, styles.audioDeviceOptionSelected]}>
-                  <Feather name="check-circle" size={18} color={Colors.primary} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.audioDeviceLabel}>Android Default</Text>
-                    <Text style={styles.audioDeviceHint}>Device switching requires a native audio pipeline update</Text>
-                  </View>
-                </View>
-                <Text style={[styles.audioHint, { marginTop: 12, textAlign: "center" }]}>
-                  Android uses the system default microphone. USB and Bluetooth device switching will be available in a future update.
-                </Text>
-              </>
-            ) : (
-              <>
-            {/* System Default option */}
-            <Pressable
-              style={[
-                styles.audioDeviceOption,
-                audioInput.selectedDeviceId === null && styles.audioDeviceOptionSelected,
-              ]}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                audioInput.selectDevice("default");
-              }}
-            >
-              <Feather
-                name={audioInput.selectedDeviceId === null ? "check-circle" : "circle"}
-                size={18}
-                color={audioInput.selectedDeviceId === null ? Colors.primary : Colors.textMuted}
-              />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.audioDeviceLabel}>System Default</Text>
-                <Text style={styles.audioDeviceHint}>Let the OS choose the best microphone</Text>
-              </View>
-            </Pressable>
-            {audioInput.loading ? (
-              <ActivityIndicator size="small" color={Colors.primary} style={{ marginVertical: 16 }} />
-            ) : audioInput.devices.length === 0 ? (
-              <Text style={styles.audioHint}>No audio input devices found</Text>
-            ) : (
-              audioInput.devices.map((device) => (
-                <Pressable
-                  key={device.deviceId}
-                  style={[
-                    styles.audioDeviceOption,
-                    audioInput.selectedDeviceId === device.deviceId && styles.audioDeviceOptionSelected,
-                  ]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    audioInput.selectDevice(device.deviceId);
-                  }}
-                >
-                  <Feather
-                    name={audioInput.selectedDeviceId === device.deviceId ? "check-circle" : "circle"}
-                    size={18}
-                    color={audioInput.selectedDeviceId === device.deviceId ? Colors.primary : Colors.textMuted}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.audioDeviceLabel}>{device.label}</Text>
-                  </View>
-                </Pressable>
-              ))
-            )}
-            {Platform.OS === "web" && audioInput.devices.length > 0 && (
-              <Pressable style={styles.audioRefreshBtn} onPress={() => audioInput.refreshDevices()}>
-                <Feather name="refresh-cw" size={14} color={Colors.primary} />
-                <Text style={styles.audioRefreshText}>Refresh devices</Text>
-              </Pressable>
-            )}
-              </>
-            )}
-            <Pressable
-              style={({ pressed }) => [styles.audioDoneBtn, pressed && { opacity: 0.8 }]}
-              onPress={() => setShowAudioModal(false)}
-            >
-              <Text style={styles.audioDoneBtnText}>Done</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </View>
   );
 }

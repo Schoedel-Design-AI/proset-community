@@ -19,7 +19,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getApiUrl, getAuthHeaders } from "@/lib/query-client";
 import { sf, useTextScale, type TextScale } from "@/lib/typography";
 import { useLanguage } from "@/lib/i18n";
-import { getPlanFeatures, PLAN_PRICES } from "@shared/plan-limits";
+import { getAnnualSavings, getPlanFeatures, PLAN_PRICES } from "@shared/plan-limits";
 import { getEarlyAdopterPrice } from "@shared/stripe-catalog";
 import { trackPlausibleEvent, trackPlausibleEventOnce } from "@/lib/plausible";
 import {
@@ -90,6 +90,13 @@ const PLAN_COPY: Record<PublicTier, {
   },
 };
 
+/** Bilingual plan card copy (ES = Mexican/Latin American, tú form). */
+const PLAN_COPY_ES: Record<PublicTier, { description: string }> = {
+  free: { description: "Comienza con la captura de voz esencial y conversiones ligeras." },
+  base: { description: "Para el uso diario en todos los flujos estándar de Proset." },
+  pro: { description: "Para trabajo intenso con funciones avanzadas ya incluidas." },
+};
+
 
 function normalizePlanTier(tier?: string | null): PublicTier {
   const normalizedTier = String(tier || "").toLowerCase();
@@ -103,8 +110,8 @@ function normalizeDisplayTier(tier?: string | null, displayTier?: string | null)
   return normalizePlanTier(normalizedDisplay);
 }
 
-function formatPrice(cents: number) {
-  return cents === 0 ? "Free" : `$${(cents / 100).toFixed(2)}`;
+function formatPrice(cents: number, language: string = "en") {
+  return cents === 0 ? (language === "es" ? "Gratis" : "Free") : `$${(cents / 100).toFixed(2)}`;
 }
 
 export default function ChoosePlanScreen() {
@@ -145,9 +152,9 @@ export default function ChoosePlanScreen() {
       });
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || "Invalid promo code.");
+        throw new Error(data.error || (language === "es" ? "Código promocional no válido." : "Invalid promo code."));
       }
-      setPromoMessage({ type: "success", text: `Success! You now have ${data.tier} access.` });
+      setPromoMessage({ type: "success", text: language === "es" ? `¡Listo! Ahora tienes acceso ${data.tier}.` : `Success! You now have ${data.tier} access.` });
       setPromoCode("");
       await refreshUser();
       
@@ -164,11 +171,11 @@ export default function ChoosePlanScreen() {
           setHasActiveWebSubscription(subscription.billingSources?.stripe === true);
         }
     } catch (err: any) {
-      setPromoMessage({ type: "error", text: err?.message || "Invalid promo code." });
+      setPromoMessage({ type: "error", text: err?.message || (language === "es" ? "Código promocional no válido." : "Invalid promo code.") });
     } finally {
       setRedeemingPromo(false);
     }
-  }, [promoCode, refreshUser]);
+  }, [promoCode, refreshUser, language]);
 
   useEffect(() => {
     const loadState = async () => {
@@ -197,7 +204,7 @@ export default function ChoosePlanScreen() {
               body: JSON.stringify({ sessionId }),
             });
             if (!reconciliation.ok) {
-              throw new Error("Your payment succeeded, but Proset is still verifying the subscription. Refresh this page in a moment.");
+              throw new Error(language === "es" ? "Tu pago se completó, pero Proset aún está verificando la suscripción. Actualiza esta página en un momento." : "Your payment succeeded, but Proset is still verifying the subscription. Refresh this page in a moment.");
             }
             const confirmedSubscription = await reconciliation.json() as SubscriptionResponse;
             const confirmedTier = normalizePlanTier(confirmedSubscription.tier);
@@ -248,7 +255,7 @@ export default function ChoosePlanScreen() {
     };
 
     loadState();
-  }, [refreshUser, user?.id]);
+  }, [refreshUser, user?.id, language]);
 
   const findNativePackage = useCallback((plan: PublicTier, interval: BillingInterval): PurchasesPackage | undefined => {
     if (plan === "free") return undefined;
@@ -278,7 +285,7 @@ export default function ChoosePlanScreen() {
         });
 
         if (!response.ok) {
-          throw new Error("Could not save your plan selection.");
+          throw new Error(language === "es" ? "No se pudo guardar tu selección de plan." : "Could not save your plan selection.");
         }
 
         await refreshUser();
@@ -345,10 +352,10 @@ export default function ChoosePlanScreen() {
           await Linking.openURL(data.url);
         }
       } else {
-        setError("Could not start checkout. Please try again.");
+        setError(language === "es" ? "No se pudo iniciar el pago. Inténtalo de nuevo." : "Could not start checkout. Please try again.");
       }
     } catch (err: any) {
-      setError(err?.message || "Something went wrong. Please try again.");
+      setError(err?.message || (language === "es" ? "Algo salió mal. Inténtalo de nuevo." : "Something went wrong. Please try again."));
     } finally {
       setLoading(null);
     }
@@ -358,6 +365,14 @@ export default function ChoosePlanScreen() {
   const intervalLabel = billingInterval === "month"
     ? (language === "es" ? "/mes" : "/month")
     : (language === "es" ? "/año" : "/year");
+  // Annual plans cost 10 months' price, so annual = 2 months free ≈ 17% off.
+  const annualSavePercent = useMemo(
+    () => getAnnualSavings(PLAN_PRICES.base.monthlyPrice, PLAN_PRICES.base.yearlyPrice)?.percentOff ?? null,
+    [],
+  );
+  const annualSaveLabel = annualSavePercent != null
+    ? (language === "es" ? `Ahorra ${annualSavePercent}%` : `Save ${annualSavePercent}%`)
+    : null;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + webTopPadding }]}>
@@ -389,6 +404,11 @@ export default function ChoosePlanScreen() {
                 accessibilityState={{ selected: isActive }}
               >
                 <Text style={[styles.intervalBtnText, isActive && styles.intervalBtnTextActive]}>{option.label}</Text>
+                {option.key === "year" && annualSaveLabel ? (
+                  <View style={[styles.intervalSaveBadge, isActive && styles.intervalSaveBadgeActive]}>
+                    <Text style={[styles.intervalSaveBadgeText, isActive && styles.intervalSaveBadgeTextActive]}>{annualSaveLabel}</Text>
+                  </View>
+                ) : null}
               </Pressable>
             );
           })}
@@ -404,14 +424,14 @@ export default function ChoosePlanScreen() {
         {stateLoading ? (
           <View style={styles.loadingState}>
             <ActivityIndicator size="small" color={Colors.primary} />
-            <Text style={styles.loadingText}>Loading current plan…</Text>
+            <Text style={styles.loadingText}>{language === "es" ? "Cargando plan actual…" : "Loading current plan…"}</Text>
           </View>
         ) : null}
 
         {Platform.OS === "web" && !billingEnabled ? (
           <View style={styles.errorBanner}>
             <Feather name="info" size={16} color={Colors.textSecondary} />
-            <Text style={styles.errorText}>Billing is disabled in this Community Edition build. Use the hosted Proset at proset.ai for subscriptions.</Text>
+            <Text style={styles.errorText}>{language === "es" ? "La facturación está desactivada en esta edición comunitaria. Usa Proset alojado en proset.ai para suscripciones." : "Billing is disabled in this Community Edition build. Use the hosted Proset at proset.ai for subscriptions."}</Text>
           </View>
         ) : null}
 
@@ -420,9 +440,20 @@ export default function ChoosePlanScreen() {
             const plan = PLAN_COPY[planKey];
             const isCurrent = currentTier === planKey;
             const displayedPrice = billingInterval === "month" ? plan.monthlyPrice : plan.yearlyPrice;
+            // Annual savings: yearly is 10x monthly, so ~2 months free (~17% off).
+            const annualSavings = planKey !== "free"
+              ? getAnnualSavings(plan.monthlyPrice, plan.yearlyPrice)
+              : null;
+            const showAnnualSavings = billingInterval === "year" && annualSavings !== null && planKey !== "free";
             const billingUnavailable = Platform.OS === "web" && !billingEnabled && planKey !== "free";
             const isDiscounted = Platform.OS === "web" && billingEnabled && planKey !== "free";
             const discountedPrice = isDiscounted ? getEarlyAdopterPrice(displayedPrice) : displayedPrice;
+            // Effective monthly rate from the actually-displayed yearly price so
+            // the anchor stays accurate with or without the early-adopter discount.
+            const effectiveMonthlyCents = annualSavings ? Math.round(discountedPrice / 12) : 0;
+            // Bilingual card copy (bug fix: descriptions/features were English-only)
+            const planDescription = language === "es" ? PLAN_COPY_ES[planKey].description : plan.description;
+            const planFeatures = getPlanFeatures(planKey, language);
             const nativePackage = Platform.OS !== "web" && planKey !== "free"
               ? findNativePackage(planKey, billingInterval)
               : undefined;
@@ -433,7 +464,7 @@ export default function ChoosePlanScreen() {
             const displayedPriceLabel = nativePackage?.product.priceString
               || (nativeBillingUnavailable
                 ? (language === "es" ? "No disponible" : "Unavailable")
-                : formatPrice(discountedPrice));
+                : formatPrice(discountedPrice, language));
             const actionLabel = planKey === "free"
               ? (language === "es" ? "Continuar con Free" : "Continue with Free")
               : billingUnavailable
@@ -459,12 +490,12 @@ export default function ChoosePlanScreen() {
                   <Text style={styles.planName}>{plan.name}</Text>
                   {plan.recommended ? (
                     <View style={styles.badge}>
-                      <Text style={styles.badgeText}>Recommended</Text>
+                      <Text style={styles.badgeText}>{language === "es" ? "Recomendado" : "Recommended"}</Text>
                     </View>
                   ) : null}
                   {isCurrent ? (
                     <View style={[styles.badge, styles.currentBadge]}>
-                      <Text style={[styles.badgeText, styles.currentBadgeText]}>Current</Text>
+                      <Text style={[styles.badgeText, styles.currentBadgeText]}>{language === "es" ? "Actual" : "Current"}</Text>
                     </View>
                   ) : null}
                 </View>
@@ -480,12 +511,22 @@ export default function ChoosePlanScreen() {
                 </Text>
                 {isDiscounted ? (
                   <Text style={{ color: Colors.primary, fontFamily: "Inter_600SemiBold", fontSize: sf(13, ts), marginBottom: 8, marginTop: -4 }}>
-                    50% Early Adopter discount
+                    {language === "es" ? "Descuento de 50% para primeros usuarios" : "50% Early Adopter discount"}
                   </Text>
                 ) : null}
-                <Text style={styles.planDescription}>{plan.description}</Text>
+                {showAnnualSavings ? (
+                  <View style={styles.annualSavingsRow}>
+                    <Feather name="trending-down" size={14} color={Colors.primary} />
+                    <Text style={styles.annualSavingsText}>
+                      {language === "es"
+                        ? `${annualSavings?.monthsFree} meses gratis · equivale a ${formatPrice(effectiveMonthlyCents, language)}/mes`
+                        : `${annualSavings?.monthsFree} months free · just ${formatPrice(effectiveMonthlyCents, language)}/mo`}
+                    </Text>
+                  </View>
+                ) : null}
+                <Text style={styles.planDescription}>{planDescription}</Text>
                 <View style={styles.featuresContainer}>
-                  {plan.features.map((feature) => (
+                  {planFeatures.map((feature) => (
                     <View key={feature} style={styles.featureRow}>
                       <Feather name="check" size={14} color={plan.recommended ? Colors.primary : Colors.textSecondary} />
                       <Text style={styles.featureText}>{feature}</Text>
@@ -535,11 +576,11 @@ export default function ChoosePlanScreen() {
         ) : null}
 
         {Platform.OS === "web" && billingEnabled ? <View style={styles.promoContainer}>
-          <Text style={styles.promoTitle}>Have a promo code?</Text>
+          <Text style={styles.promoTitle}>{language === "es" ? "¿Tienes un código promocional?" : "Have a promo code?"}</Text>
           <View style={styles.promoInputRow}>
             <TextInput
               style={styles.promoInput}
-              placeholder="Enter code"
+              placeholder={language === "es" ? "Ingresa el código" : "Enter code"}
               placeholderTextColor={Colors.textMuted}
               value={promoCode}
               onChangeText={(text) => {
@@ -555,7 +596,7 @@ export default function ChoosePlanScreen() {
               onPress={handleRedeemPromo}
               disabled={!promoCode.trim() || redeemingPromo}
             >
-              {redeemingPromo ? <ActivityIndicator size="small" color={Colors.white} /> : <Text style={styles.promoButtonText}>Redeem</Text>}
+              {redeemingPromo ? <ActivityIndicator size="small" color={Colors.white} /> : <Text style={styles.promoButtonText}>{language === "es" ? "Canjear" : "Redeem"}</Text>}
             </Pressable>
           </View>
           {promoMessage && (
@@ -616,6 +657,8 @@ function makeStyles(ts: TextScale) {
       borderColor: Colors.border,
     },
     intervalBtn: {
+      flexDirection: "row",
+      alignItems: "center",
       paddingHorizontal: 18,
       paddingVertical: 10,
       borderRadius: 10,
@@ -630,6 +673,37 @@ function makeStyles(ts: TextScale) {
     },
     intervalBtnTextActive: {
       color: Colors.white,
+    },
+    intervalSaveBadge: {
+      backgroundColor: "rgba(0,180,216,0.12)",
+      borderRadius: 999,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      marginLeft: 6,
+    },
+    intervalSaveBadgeActive: {
+      backgroundColor: "rgba(255,255,255,0.22)",
+    },
+    intervalSaveBadgeText: {
+      color: Colors.primary,
+      fontFamily: "Inter_700Bold",
+      fontSize: sf(10, ts),
+    },
+    intervalSaveBadgeTextActive: {
+      color: Colors.white,
+    },
+    annualSavingsRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      marginTop: -4,
+      marginBottom: 4,
+    },
+    annualSavingsText: {
+      color: Colors.primary,
+      fontFamily: "Inter_600SemiBold",
+      fontSize: sf(13, ts),
+      flexShrink: 1,
     },
     errorBanner: {
       flexDirection: "row",

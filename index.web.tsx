@@ -1,6 +1,10 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import RootLayout from "./app/_layout";
+import { installStructuredClonePolyfill } from "./lib/structured-clone-polyfill";
+
+// No-op in modern browsers; guards older webviews that lack structuredClone.
+installStructuredClonePolyfill();
 
 // Reset some basic body styles for react-native-web
 const style = document.createElement("style");

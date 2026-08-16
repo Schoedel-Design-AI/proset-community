@@ -37,7 +37,7 @@ import FeedbackIconButton from "@/components/FeedbackIconButton";
 import FloatingActionHalo from "@/components/FloatingActionHalo";
 import ProfileDropdown from "@/components/ProfileDropdown";
 import { useFeedback } from "@/lib/feedback-context";
-import { formatDuration, generateId, CONVERSION_TYPES, CONVERSION_COMPLEXITY_GROUPS, CONVERSION_COMPLEXITY_MAP, PACK_GROUPS, EXPORT_FORMATS, CITATION_STYLES, TIER_DISPLAY_NAMES, getRequiredTierForConversionType, isConversionTypeAvailable, type SubscriptionTier } from "@/lib/utils";
+import { formatDuration, generateId, CONVERSION_TYPES, CONVERSION_COMPLEXITY_GROUPS, CONVERSION_COMPLEXITY_MAP, PACK_GROUPS, EXPORT_FORMATS, CITATION_STYLES, TIER_DISPLAY_NAMES, getRequiredTierForConversionType, isConversionTypeAvailable, RESEARCH_FORMS_TYPES, researchFormWebDefault, type SubscriptionTier } from "@/lib/utils";
 import { useCyclingStatus } from "@/lib/useCyclingStatus";
 import { getApiUrl, getAuthHeaders } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
@@ -780,6 +780,7 @@ export default function RecordingDetailScreen() {
     message: string;
     citationStyle?: string;
     bibliographyType?: string;
+    includeWebSources?: boolean;
   } | null>(null);
   const [streamingContent, setStreamingContent] = useState("");
   const [selectedConversion, setSelectedConversion] = useState<Conversion | null>(null);
@@ -830,6 +831,8 @@ export default function RecordingDetailScreen() {
   const [downloadToast, setDownloadToast] = useState<{ fileName: string; visible: boolean } | null>(null);
   const downloadToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [useMarkdown, setUseMarkdown] = useState(false);
+  // research_forms web-channel toggle. null = use server default per type.
+  const [includeWebSources, setIncludeWebSources] = useState<boolean | null>(null);
   const [codeViewActive, setCodeViewActive] = useState(false);
   const [detailTab, setDetailTab] = useState<"recording" | "conversions">("recording");
 
@@ -838,6 +841,9 @@ export default function RecordingDetailScreen() {
     else if (tab === "recording") setDetailTab("recording");
   }, [tab]);
   const [convertSearchQuery] = useState("");
+  // Last research_forms type the user tapped in the convert menu — drives the
+  // web-source toggle default (academic_research/bibliography default OFF).
+  const [activeResearchFormType, setActiveResearchFormType] = useState<string | null>(null);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [sourceReferenceExpanded, setSourceReferenceExpanded] = useState(false);
   const [drawerVisible, setDrawerVisible] = useState(false);
@@ -897,7 +903,7 @@ export default function RecordingDetailScreen() {
   const [clarifyQuestion, setClarifyQuestion] = useState<string>("");
   const [clarifyOptions, setClarifyOptions] = useState<string[]>([]);
   const [clarifyAnswerText, setClarifyAnswerText] = useState<string>("");
-  const [pendingConversion, setPendingConversion] = useState<{ type: string; citationStyle?: string; bibliographyType?: string } | null>(null);
+  const [pendingConversion, setPendingConversion] = useState<{ type: string; citationStyle?: string; bibliographyType?: string; includeWebSources?: boolean } | null>(null);
 
   const [isAdmin, setIsAdmin] = useState(false);
   const [userTier, setUserTier] = useState<SubscriptionTier>("free");
@@ -1839,7 +1845,7 @@ export default function RecordingDetailScreen() {
     }
   };
 
-  const runConversion = async (type: string, citationStyle?: string, clarifications?: { question: string; answer: string }[], bibliographyType?: string, confirmExtendedAccess?: boolean, confirmAcademicResearch?: boolean) => {
+  const runConversion = async (type: string, citationStyle?: string, clarifications?: { question: string; answer: string }[], bibliographyType?: string, confirmExtendedAccess?: boolean, confirmAcademicResearch?: boolean, webSourcesOverride?: boolean) => {
     const convSourceText = sourceText;
     if (!convSourceText) return;
     if (sourceTextTooShort) return;
@@ -1891,6 +1897,8 @@ export default function RecordingDetailScreen() {
       if (language && language !== "en") bodyData.language = language;
       if (citationStyle) bodyData.citationStyle = citationStyle;
       if (bibliographyType) bodyData.bibliographyType = bibliographyType;
+      const effectiveWebSources = webSourcesOverride ?? includeWebSources ?? undefined;
+      if (typeof effectiveWebSources === "boolean") bodyData.includeWebSources = effectiveWebSources;
       if (clarifications && clarifications.length > 0) bodyData.clarifications = clarifications;
       if (confirmExtendedAccess) bodyData.confirmExtendedAccess = true;
       if (confirmAcademicResearch) bodyData.confirmAcademicResearch = true;
@@ -1975,7 +1983,10 @@ export default function RecordingDetailScreen() {
         setShowUpgradeModal(true);
         return;
       }
-      if (!res.ok) throw new Error("Conversion failed");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({} as any));
+        throw new Error(errData?.error || "Conversion failed");
+      }
 
       let reader = res.body?.getReader();
       if (!reader) {
@@ -2111,6 +2122,7 @@ export default function RecordingDetailScreen() {
           message: message || "Conversion failed. Please try again.",
           citationStyle,
           bibliographyType,
+          includeWebSources: includeWebSources ?? undefined,
         });
       }
     } finally {
@@ -2382,6 +2394,7 @@ export default function RecordingDetailScreen() {
     setShowConvertMenu(false);
     setShowCitationPicker(false);
     setShowBibliographyTypePicker(false);
+    if (RESEARCH_FORMS_TYPES.has(type)) setActiveResearchFormType(type);
     trackRecentConversionType(type);
     const sourceForConversion = sourceText;
     if (!sourceForConversion) return;
@@ -2391,7 +2404,7 @@ export default function RecordingDetailScreen() {
     // materially change the output. Clear content flows straight through to
     // the conversion — no modal, no toggle, no interruption.
     setClarifyLoading(true);
-    setPendingConversion({ type, citationStyle, bibliographyType });
+    setPendingConversion({ type, citationStyle, bibliographyType, includeWebSources: includeWebSources ?? undefined });
     try {
       let customPrompt: string | undefined;
       try {
@@ -2440,7 +2453,7 @@ export default function RecordingDetailScreen() {
       question: clarifyQuestion,
       answer: finalAnswer,
     }];
-    const { type, citationStyle, bibliographyType } = pendingConversion;
+    const { type, citationStyle, bibliographyType, includeWebSources: pendingWeb } = pendingConversion;
     setPendingConversion(null);
     setClarifyLoading(true);
     setTimeout(async () => {
@@ -2448,13 +2461,13 @@ export default function RecordingDetailScreen() {
       setClarifyOptions([]);
       setClarifyAnswerText("");
       setClarifyLoading(false);
-      await runConversion(type, citationStyle, clarifications, bibliographyType);
+      await runConversion(type, citationStyle, clarifications, bibliographyType, undefined, undefined, pendingWeb);
     }, 100);
   };
 
   const handleSkipClarifications = async () => {
     if (!pendingConversion) return;
-    const { type, citationStyle, bibliographyType } = pendingConversion;
+    const { type, citationStyle, bibliographyType, includeWebSources: pendingWeb } = pendingConversion;
     setPendingConversion(null);
     setClarifyLoading(true);
     setTimeout(async () => {
@@ -2462,7 +2475,7 @@ export default function RecordingDetailScreen() {
       setClarifyOptions([]);
       setClarifyAnswerText("");
       setClarifyLoading(false);
-      await runConversion(type, citationStyle, undefined, bibliographyType);
+      await runConversion(type, citationStyle, undefined, bibliographyType, undefined, undefined, pendingWeb);
     }, 100);
   };
 
@@ -3880,13 +3893,13 @@ export default function RecordingDetailScreen() {
                   <Pressable
                     style={styles.conversionRetryBtn}
                     onPress={() => {
-                      const { type, citationStyle, bibliographyType } = conversionError;
+                      const { type, citationStyle, bibliographyType, includeWebSources } = conversionError;
                       setConversionError(null);
                       if (type === "slide_deck") {
                         setShowDeckStylePicker(true);
                         return;
                       }
-                      runConversion(type, citationStyle, undefined, bibliographyType);
+                      runConversion(type, citationStyle, undefined, bibliographyType, undefined, undefined, includeWebSources);
                     }}
                     accessibilityRole="button"
                     testID="conversion-retry-button"
@@ -4298,6 +4311,24 @@ export default function RecordingDetailScreen() {
                 accessibilityLabel={t("detail.codeBlockOutput")}
               />
             </View>
+            {activeResearchFormType && RESEARCH_FORMS_TYPES.has(activeResearchFormType) && (
+              <View style={styles.clarifyToggleRow}>
+                <View style={styles.clarifyToggleInfo}>
+                  <Feather name="globe" size={16} color={includeWebSources === false ? Colors.textSecondary : Colors.primary} />
+                  <Text style={[styles.clarifyToggleLabel, includeWebSources === false && { color: Colors.textSecondary }]}>
+                    {t("detail.includeWebSources")}
+                  </Text>
+                  <Text style={styles.clarifyToggleHint}>{t("detail.includeWebSourcesHint")}</Text>
+                </View>
+                <Switch
+                  value={includeWebSources ?? researchFormWebDefault(activeResearchFormType)}
+                  onValueChange={(val) => setIncludeWebSources(val)}
+                  trackColor={{ false: Colors.border, true: Colors.primary }}
+                  thumbColor="#fff"
+                  accessibilityLabel={t("detail.includeWebSources")}
+                />
+              </View>
+            )}
             <ScrollView
               showsVerticalScrollIndicator={false}
               style={[styles.convertMenuScroll, !layout.isMobile && styles.convertMenuScrollDesktop]}
@@ -6568,6 +6599,13 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
     fontSize: sf(14, ts),
     fontFamily: "Inter_500Medium",
     color: Colors.textSecondary,
+  },
+  clarifyToggleHint: {
+    fontSize: sf(11, ts),
+    fontFamily: "Inter_400Regular",
+    color: Colors.textMuted,
+    marginLeft: -4,
+    flexShrink: 1,
   },
   clarifyLoadingContainer: {
     flexDirection: "row",

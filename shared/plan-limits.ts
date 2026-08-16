@@ -75,38 +75,93 @@ export function formatDurationAllowance(seconds: number): string {
   return `${mins}-minute`;
 }
 
-export function getPlanFeatures(tier: SubscriptionTier): string[] {
+export type AnnualSavings = {
+  monthsFree: number;
+  percentOff: number;
+};
+
+/**
+ * Compute the savings a yearly plan offers over paying monthly for 12 months.
+ * Returns null when the prices don't imply a real discount.
+ */
+export function getAnnualSavings(
+  monthlyPrice: number,
+  yearlyPrice: number,
+): AnnualSavings | null {
+  if (monthlyPrice <= 0 || yearlyPrice <= 0) return null;
+  const monthlyTotal = monthlyPrice * 12;
+  if (yearlyPrice >= monthlyTotal) return null;
+  const monthsFree = Math.round(((monthlyTotal - yearlyPrice) / monthlyPrice) * 10) / 10;
+  const percentOff = Math.round((1 - yearlyPrice / monthlyTotal) * 100);
+  if (monthsFree <= 0 || percentOff <= 0) return null;
+  return { monthsFree, percentOff };
+}
+
+export function getPlanFeatures(tier: SubscriptionTier, language: string = "en"): string[] {
+  const es = language === "es";
   if (tier === "free") {
-    return [
-      "Try it out — 3 transcriptions",
-      "5 conversions",
-      "3-min recordings",
-      "3 saved recordings of 1 minute or longer",
-      "Recordings under 1 minute do not count toward the saved-recording allowance",
-      "No cloud sync",
-    ];
+    return es
+      ? [
+          "Pruébalo — 3 transcripciones",
+          "5 conversiones",
+          "Grabaciones de 3 min",
+          "3 grabaciones guardadas de 1 minuto o más",
+          "Las grabaciones de menos de 1 minuto no cuentan para el límite de grabaciones guardadas",
+          "Sin sincronización en la nube",
+        ]
+      : [
+          "Try it out — 3 transcriptions",
+          "5 conversions",
+          "3-min recordings",
+          "3 saved recordings of 1 minute or longer",
+          "Recordings under 1 minute do not count toward the saved-recording allowance",
+          "No cloud sync",
+        ];
   }
   if (tier === "base") {
-    return [
-      "35 transcriptions/mo included",
-      "50 conversions/mo",
-      "15-min recordings",
-      "10 GB storage",
-      "35 saved recordings",
-      "File import (25 MB)",
-      "All conversion types",
-      "Cloud Sync add-on available",
-    ];
+    return es
+      ? [
+          "35 transcripciones/mes incluidas",
+          "50 conversiones/mes",
+          "Grabaciones de 15 min",
+          "10 GB de almacenamiento",
+          "35 grabaciones guardadas",
+          "Importación de archivos (25 MB)",
+          "Todos los tipos de conversión",
+          "Sincronización en la nube disponible como complemento",
+        ]
+      : [
+          "35 transcriptions/mo included",
+          "50 conversions/mo",
+          "15-min recordings",
+          "10 GB storage",
+          "35 saved recordings",
+          "File import (25 MB)",
+          "All conversion types",
+          "Cloud Sync add-on available",
+        ];
   }
-  return [
-    "70 transcriptions/mo included",
-    "150 conversions/mo",
-    "30-min recordings",
-    "25 GB storage",
-    "70 saved recordings",
-    "File import (50 MB)",
-    "All conversion types",
-    "Cloud Sync included",
-    "Priority support",
-  ];
+  return es
+    ? [
+        "70 transcripciones/mes incluidas",
+        "150 conversiones/mes",
+        "Grabaciones de 30 min",
+        "25 GB de almacenamiento",
+        "70 grabaciones guardadas",
+        "Importación de archivos (50 MB)",
+        "Todos los tipos de conversión",
+        "Sincronización en la nube incluida",
+        "Soporte prioritario",
+      ]
+    : [
+        "70 transcriptions/mo included",
+        "150 conversions/mo",
+        "30-min recordings",
+        "25 GB storage",
+        "70 saved recordings",
+        "File import (50 MB)",
+        "All conversion types",
+        "Cloud Sync included",
+        "Priority support",
+      ];
 }

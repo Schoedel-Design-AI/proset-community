@@ -40,7 +40,7 @@ class RecordingForegroundService : Service() {
             if (action == ACTION_START) {
                 val title = intent.getStringExtra(EXTRA_TITLE) ?: "Recording in Progress"
                 val content = intent.getStringExtra(EXTRA_CONTENT)
-                    ?: "AI For.ms is recording audio in the background."
+                    ?: "Proset is recording audio in the background."
 
                 // Hold audio focus so other apps don't interrupt recording
                 requestAudioFocus()
@@ -55,7 +55,7 @@ class RecordingForegroundService : Service() {
             } else if (action == ACTION_UPDATE) {
                 val title = intent.getStringExtra(EXTRA_TITLE) ?: "Recording in Progress"
                 val content = intent.getStringExtra(EXTRA_CONTENT)
-                    ?: "AI For.ms is recording audio in the background."
+                    ?: "Proset is recording audio in the background."
                 val notification = buildNotification(title, content)
                 val notificationManager =
                     getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

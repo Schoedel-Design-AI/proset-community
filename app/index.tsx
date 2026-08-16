@@ -36,6 +36,8 @@ import {
   getFloatingActionBottomOffset,
 } from "@/constants/record-layout";
 
+import logoTransparent from "@/assets/images/icons-xai/105-transparent.png";
+
 function SubscriptionBanner({ type, onDismiss }: { type: "success" | "cancelled"; onDismiss: () => void }) {
   const ts = useTextScale();
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -132,6 +134,12 @@ function SlideToRecord({ onSlideComplete }: { onSlideComplete: () => void }) {
 
   return (
     <View style={slideStyles.wrapper}>
+      <Image
+        source={logoTransparent}
+        style={slideStyles.logo}
+        resizeMode="contain"
+        testID="home-logo"
+      />
       <View style={slideStyles.track} testID="home-slide-track">
         <Animated.View
           style={[slideStyles.chevronHints]}
@@ -157,9 +165,19 @@ const slideStyles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    // Replaces the removed logo's layout space (120px height + 140px bottom
-    // margin) so the slider keeps its pre-logo-removal vertical position.
-    paddingTop: 260,
+  },
+  logo: {
+    width: 144,
+    height: 144,
+    marginBottom: 116,
+    // Restored logo (2026-08-14): layout box (120px + 140px margin) keeps the
+    // slider exactly where it was with paddingTop:260; the -80 translateY
+    // lifts the logo visually ~30px higher than the pre-removal -50, landing
+    // its center ~70% up the screen (was ~67%).
+    // Enlarged 20% (2026-08-15): 120→144, marginBottom 140→116 (box stays
+    // 260px → slider unmoved), translateY -80→-92 (keeps visual center fixed
+    // despite the 24px taller box).
+    transform: [{ translateY: -92 }],
   },
   track: {
     width: SLIDE_TRACK_WIDTH,

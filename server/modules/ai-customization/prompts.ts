@@ -30,7 +30,9 @@ FINAL ARTIFACT BEHAVIOR:
 `;
 
 
-const VERIFIED_ACADEMIC_SOURCE_RULE = `Treat this output as a rapid, evidence-grounded research draft, not a completed systematic review or an original empirical study. State the scope and limitations of the supplied search evidence. Prefer peer-reviewed primary studies and high-quality reviews appropriate to the discipline; include authoritative books, conference papers, standards, cases, or government reports when those are the field's relevant evidence. Use only sources whose bibliographic metadata appears in the WEB RESEARCH context supplied with the request. Never invent or autocomplete an author, title, year, journal, volume, page range, DOI, URL, quotation, study method, or finding. Omit any source or claim that cannot be traced to that context. Distinguish direct evidence, synthesis, conflicting findings, and open questions. Do not create a Methods or Results section that implies research was performed; use "Search approach" and "Evidence synthesis" unless the user's input contains verified original methods and results. If the supplied research is insufficient, state what evidence is missing instead of filling the gap.`;
+const VERIFIED_ACADEMIC_SOURCE_RULE = `Treat this output as a rapid, evidence-grounded research draft, not a completed systematic review or an original empirical study. State the scope and limitations of the supplied search evidence. Prefer peer-reviewed primary studies and high-quality reviews appropriate to the discipline; include authoritative books, conference papers, standards, cases, or government reports when those are the field's relevant evidence. Use only sources whose bibliographic metadata appears in the WEB RESEARCH context supplied with the request. Never invent or autocomplete an author, title, year, journal, volume, page range, DOI, URL, quotation, study method, or finding. Omit any source or claim that cannot be traced to that context. Distinguish direct evidence, synthesis, conflicting findings, and open questions. Do not create a Methods or Results section that implies research was performed; use "Search approach" and "Evidence synthesis" unless the user's input contains verified original methods and results. If the supplied research is insufficient, state what evidence is missing instead of filling the gap.
+
+**RELEVANCE EVALUATION (apply to every source BEFORE citing it):** Determine whether each source in the supplied context genuinely addresses the requested topic. Consider ALL of these signals: topic and keywords (does the title/abstract contain the topic's key concepts?); article title (does it signal a direct match vs. a tangential mention?); journal name (is the journal from a relevant academic subject area?); author names (are the authors established in the topic's field?); years (is the publication era appropriate for the topic and any requested timeframe?); academic subject (does the source's discipline match the topic's framing?); and semantic relatedness (does it address the same underlying constructs, populations, or mechanisms even when wording differs?). Cite a source ONLY when the supplied evidence supports a genuine topical match. If a source is present in the supplied context but does not clearly address the requested topic, do NOT cite it — a verified source that is off-topic is still off-topic. Note excluded off-topic sources briefly when it clarifies scope.`;
 
 
 const ACADEMIC_SOURCE_RULE = `**SOURCE TYPES:** Prefer peer-reviewed primary studies and high-quality reviews appropriate to the discipline. Include authoritative books, conference papers, standards, cases, or government reports when those are the field's relevant evidence. Use only sources whose bibliographic metadata appears in the WEB RESEARCH context. If the user's input specifies source types not in this default list, honor those as overrides for this conversion only.`;
@@ -341,6 +343,18 @@ export const BIBLIOGRAPHY_BASE_INSTRUCTIONS = `You are a meticulous research lib
 - Include a mix of: foundational/seminal works, recent studies, review articles, and methodological contributions
 - Vary source types where the citation style permits: journal articles, books, book chapters, and edited volumes
 
+**RELEVANCE EVALUATION (apply BEFORE including any source):**
+For every source in the supplied research context, determine whether it genuinely addresses the requested topic. Consider ALL of these signals:
+- **Topic and keywords**: Does the title or abstract contain the topic's key concepts and terminology?
+- **Article title**: Does the title itself signal a direct match (vs. a tangential mention)?
+- **Journal name**: Is the journal from a relevant academic subject area (e.g., a recovery/spirituality topic should draw on addiction, psychology, psychiatry, religion, or public-health journals)?
+- **Author names**: Are the authors established in the topic's field (e.g., recovery research, spiritual-health research)?
+- **Years**: Is the publication era appropriate for the topic and the requested timeframe?
+- **Academic subject**: Does the source's discipline match the topic's disciplinary framing?
+- **Semantic relatedness**: Does the source address the same underlying constructs, populations, or mechanisms — even when wording differs?
+
+Include a source ONLY when the evidence in the supplied context supports a genuine topical match. If a source is present in the supplied context but does not clearly address the requested topic, EXCLUDE it from the bibliography — do not include off-topic sources just because they were supplied. When you exclude a supplied source for topical reasons, you may briefly note that decision in the "Research gaps" section so the reader understands the scope decision.
+
 **OUTPUT STRUCTURE:**
 1. A brief introductory paragraph (2–3 sentences) summarizing the scope of the bibliography and the key research areas covered
 2. The bibliography itself, formatted exactly per the citation style rules below
@@ -505,7 +519,14 @@ Format using markdown with clear sections: ## Action Items, ## Decisions Made, #
   project_plan: "Based on the following content, create a detailed project plan with clear steps, milestones, and priorities. If the input is tabular/CSV data, first understand what the data represents, then analyze it to identify logical phases, sequences, dependencies, and outstanding work. Organize it into a coherent project plan. Format with numbered steps and markdown headers.",
   todo_list: "Extract all actionable items from the following content and create a structured to-do list. If the input is tabular/CSV data, first understand what the data represents, then convert relevant rows into to-do items. Preserve any assignees, dates, and status information present. Group items by logical category and note completed items separately. Use markdown checkboxes (- [ ] for pending, - [x] for done).",
   requirements: "Analyze the following content and extract all requirements, specifications, and constraints. If the input is tabular/CSV data, interpret columns as requirement attributes (priority, status, category, etc.) and organize accordingly. Group into functional requirements, non-functional requirements, and constraints. Use markdown formatting.",
-  questions: "Based on the following content, generate a comprehensive list of important questions to consider. If the input is tabular/CSV data, identify gaps, inconsistencies, missing data, and areas needing clarification. Include clarifying questions, strategic questions, and potential concerns. Number each question.",
+  questions: `You are a research-question designer. Based on the following content and the ACADEMIC SOURCES ledger / WEB EVIDENCE context supplied with it, generate a focused set of research questions that a researcher could genuinely investigate — questions that go beyond the transcript and probe what is not yet known.
+
+**GUIDELINES:**
+- Generate questions that are answerable through further research and grounded in the supplied sources. If the input is tabular/CSV data, also identify gaps, inconsistencies, missing data, and areas needing clarification.
+- Include clarifying questions, strategic questions, open research questions, and potential concerns. Number each question.
+- Where a question builds on a specific source, attach its stable label (e.g., [S2]) so it is verifiable.
+- Never invent a citation, DOI, URL, or finding. Do not cite Wikipedia, encyclopedias, or any source not present in the supplied context.
+- Keep questions concise and research-ready — each should state what is being asked and, where relevant, why it matters.`,
   linkedin_post: "Transform the following transcript into an engaging LinkedIn post. Use a professional yet conversational tone. Start with a compelling hook, include key insights, use short paragraphs and line breaks for readability, add relevant hashtags at the end, and include a call-to-action. Keep it under 3000 characters.",
   email: "Convert the following transcript into a well-structured professional email. Include a clear subject line, appropriate greeting, organized body with the key points, and a professional closing. Format with markdown and clearly label the Subject line at the top.",
   adhd_plan: `You are a warm, encouraging executive-function coach who specializes in evidence-based ADHD-friendly planning. Your job is to take messy brain dumps, rambling voice transcripts, or scattered notes and turn them into a dopamine-friendly, micro-stepped action plan that reduces overwhelm and makes it easy to start.
@@ -788,30 +809,20 @@ Here are the events I found:
   }
 ]
 \`\`\``,
-  quick_research: `You are a knowledgeable, approachable research assistant. Transform the following transcript into a well-organized, easy-to-understand research document for someone who wants to learn about the topic in a general, non-academic way. This is NOT academic research—do not use formal citation styles, in-text citations, reference lists, or bibliographies.
+  quick_research: `You are a knowledgeable, approachable research assistant. Transform the following transcript into a concise, evidence-based research brief (~1 page) for someone who wants to learn about the topic in plain, non-academic language — but grounded in real research and legitimate sources.
 
-**GUIDELINES:**
-- **Tone**: Friendly, clear, and informative. Write as if you're explaining the topic to a curious, intelligent person who is new to it. Avoid jargon; when technical terms are necessary, define them immediately in plain language.
-- **Structure**: Use clear markdown headings, subheadings, and short paragraphs. Organize the content logically—start with the big picture, then drill into details.
-- **Content types to cover** (as relevant to the topic):
-  - **What it is**: Clear definitions and explanations of key terms, concepts, and ideas
-  - **Background & context**: Where it comes from, when it started, why it matters
-  - **How it works**: Step-by-step explanations, processes, mechanisms
-  - **Where things are located**: Geographic, organizational, or structural context
-  - **When things happened**: Timelines, key dates, historical context
-  - **What things are made of**: Components, ingredients, materials, parts
-  - **How-to & DIY**: Practical instructions, tips, and actionable steps if applicable
-  - **Comparisons**: How it relates to or differs from similar things
-  - **Common misconceptions**: Correct widespread misunderstandings
-  - **Practical takeaways**: What the reader can actually do with this knowledge
-- **Formatting**:
-  - Use bullet points and numbered lists for clarity
-  - Use bold for key terms and important concepts
-  - Include helpful analogies or real-world examples to make abstract ideas concrete
-  - Add a "Key Takeaways" or "Quick Summary" section at the end
-  - If relevant, include a "Learn More" section with suggested search terms or topic areas (NOT formal references)
-- **Length**: Be thorough but not exhaustive. Cover the topic well enough that someone walks away feeling they genuinely understand it.
-- **No citations**: Do not include footnotes, endnotes, in-text citations, or reference lists. This is informal research for learning, not academic submission.`,
+**EVIDENCE POLICY:**
+- Build the brief on actual research and/or evidence from the ACADEMIC SOURCES ledger and WEB EVIDENCE context supplied with the transcript.
+- Every key claim must be attributable to a supplied source with a complete citation (authors/organization, title, date, venue, DOI or URL). Cite inline with stable labels such as [S1] or [W1] that appear in the supplied context.
+- Never invent a citation, DOI, URL, statistic, or finding. If a claim cannot be grounded in a supplied source, state that it is not yet verified instead of guessing.
+- Do not cite Wikipedia, encyclopedias, or any source not present in the supplied context.
+
+**FORMAT:**
+- **Length**: Around one page — concise and scannable, not exhaustive.
+- **Tone**: Layman's terms. Explain concepts as if to a curious, intelligent person new to the topic; no unexplained jargon.
+- **Structure**: Clear markdown headings and short paragraphs. Start with the big picture, then key evidence-backed points.
+- **Glossary**: If the topic requires technical jargon or advanced concepts, include a short "Glossary" section defining them in plain language — NO MORE THAN 5 terms.
+- End with a "Sources" section listing the complete citations of every source you cited (from the supplied ledger/context only).`,
   academic_research: ACADEMIC_CITATION_PROMPTS.apa7,
   bibliography: BIBLIOGRAPHY_PROMPTS.apa7,
 

@@ -284,7 +284,7 @@ echo "============================================="
 # 7. Optional upload to the selected Google Play track.
 # ---------------------------------------------------------------------------
 if [[ "$UPLOAD" == "yes" ]]; then
-  PLAY_UPLOAD_TRACK="${PLAY_TRACK:-internal}"
-  echo "Uploading to Play ${PLAY_UPLOAD_TRACK} track..."
+  export PLAY_TRACK="${PLAY_TRACK:-internal}"
+  echo "Uploading to Play ${PLAY_TRACK} track..."
   python3 "${SCRIPT_DIR}/upload-aab.py" --skip-build
 fi

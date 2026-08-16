@@ -912,7 +912,7 @@ function validateEnvironment(): void {
 
   const openAiApiKey = getOpenAIApiKey();
   if (openAiApiKey) {
-    const source = process.env.AI_INTEGRATIONS_OPENAI_API_KEY ? "AI_INTEGRATIONS_OPENAI_API_KEY" : "OPENAI_API_KEY";
+    const source = process.env.PROSET_OPENAI_API_KEY ? "PROSET_OPENAI_API_KEY" : process.env.AI_INTEGRATIONS_OPENAI_API_KEY ? "AI_INTEGRATIONS_OPENAI_API_KEY" : "OPENAI_API_KEY";
     console.log(`[startup] OK: ${source}`);
   } else {
     console.error("[startup] ERROR: OPENAI_API_KEY missing — required for transcription and AI processing");

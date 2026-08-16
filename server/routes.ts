@@ -10,6 +10,14 @@ import * as path from "path";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel } from "docx";
 import { generateMarkdownPdf } from "./pdf-generator";
 import { generateSpreadsheetXlsx } from "./spreadsheet-service";
+import {
+  RESEARCH_FORMS_TYPES,
+  researchFormWebDefault,
+  searchAcademicSourcesMulti,
+  formatLedger,
+  isBlockedSource,
+  isAcademicLookalike,
+} from "./research-sources";
 import { requireAuth, getSessionFromRequest } from "./auth";
 import { auth as adminAuth, firebaseAuthMode } from "./firebase-admin";
 import { storage } from "./storage";
@@ -217,8 +225,10 @@ INSTRUCTIONS:
 If there are no meaningful new patterns to learn, return: []
 Return ONLY the JSON array, no other text.`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-5.4-mini",
+    const reflectionClient = createOpenAIClient("groq");
+    const reflectionModel = process.env.GROQ_ADVANCED_MODEL?.trim() || "openai/gpt-oss-120b";
+    const response = await reflectionClient.chat.completions.create({
+      model: reflectionModel,
       messages: [
         { role: "system", content: reflectionPrompt },
       ],
@@ -414,6 +424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         customPrompt,
         citationStyle,
         bibliographyType,
+        includeWebSources,
         language: reqLanguage,
         sourceThoughtThreadId,
         sourceThoughtThreadRunId,
@@ -568,6 +579,7 @@ Be concise. When in doubt, prefer NOT asking — converting with reasonable assu
         customPrompt,
         citationStyle,
         bibliographyType,
+        includeWebSources,
         clarifications,
         outputFormat,
         timezone,
@@ -799,7 +811,7 @@ Be concise. When in doubt, prefer NOT asking — converting with reasonable assu
         }
         if (kbResources && kbResources.length > 0) {
           const kbList = kbResources.map((r) => `- ${r.title}: ${r.url} — ${r.description}`).join("\n");
-          const isResearchKb = type === "quick_research" || type === "academic_research" || type === "bibliography";
+          const isResearchKb = RESEARCH_FORMS_TYPES.has(type);
           knowledgebaseContext = isResearchKb
             ? `\n\nREFERENCE KNOWLEDGEBASE (search and consult these authoritative sources to inform your "${typeLabel}" conversion — cite them where applicable):\n${kbList}`
             : `\n\nREFERENCE KNOWLEDGEBASE (these are authoritative standards in this domain — align your output with their conventions and best practices, but do not cite or link to them as you have not accessed their content):\n${kbList}`;
@@ -819,14 +831,19 @@ Be concise. When in doubt, prefer NOT asking — converting with reasonable assu
         const defaultKb = CONVERSION_KNOWLEDGEBASES[type];
         if (defaultKb && defaultKb.length > 0) {
           const kbList = defaultKb.map((r) => `- ${r.title}: ${r.url} — ${r.description}`).join("\n");
-          const isResearchDefault = type === "quick_research" || type === "academic_research" || type === "bibliography";
+          const isResearchDefault = RESEARCH_FORMS_TYPES.has(type);
           knowledgebaseContext = isResearchDefault
             ? `\n\nREFERENCE KNOWLEDGEBASE (search and consult these authoritative sources to inform your "${typeLabel}" conversion — cite them where applicable):\n${kbList}`
             : `\n\nREFERENCE KNOWLEDGEBASE (these are authoritative standards in this domain — align your output with their conventions and best practices, but do not cite or link to them as you have not accessed their content):\n${kbList}`;
         }
       }
 
-      const isResearchType = type === "quick_research" || type === "academic_research" || type === "bibliography";
+      const isResearchType = RESEARCH_FORMS_TYPES.has(type);
+      // Web channel toggle: client may pass includeWebSources explicitly; otherwise
+      // default per type (OFF for pure-literature types, ON for the rest).
+      const webSourcesEnabled = typeof includeWebSources === "boolean"
+        ? includeWebSources
+        : researchFormWebDefault(type);
 
       const formatInstruction = outputFormat === "markdown" && !STRUCTURED_OUTPUT_TYPES.has(type)
         ? `\n\nOUTPUT FORMAT — MARKDOWN: Format your entire response using standard Markdown. Use # for the document title, ## for major section headers, and ### for sub-section headers. Use **bold** for key terms and important points. Use unordered lists (- item) for bullet points and ordered lists (1. item) for sequential steps or ranked items. Use > for blockquotes when highlighting key information. Use \`code\` for inline technical terms or values. Use --- for horizontal rules between major sections when appropriate. Follow standard CommonMark Markdown conventions consistently throughout. Do not mix plain-text heading styles (e.g., UPPERCASE or underlines) with Markdown.`
@@ -839,7 +856,7 @@ Be concise. When in doubt, prefer NOT asking — converting with reasonable assu
         : "";
 
       const researchIntegrityInstruction = isResearchType
-        ? `\n\nRESEARCH INTEGRITY: Use only facts and source metadata present in the transcript or the WEB RESEARCH context. Never invent or autocomplete a citation, DOI, URL, quotation, statistic, method, or finding. Keep claims attributable to their supplied sources. When evidence is missing or conflicting, state the limitation instead of guessing.`
+        ? `\n\nRESEARCH INTEGRITY: Use only facts and source metadata present in the transcript, the ACADEMIC SOURCES ledger, or the WEB EVIDENCE context. Never invent or autocomplete a citation, DOI, URL, quotation, statistic, method, or finding. Every cited source must carry a complete citation (authors/organization, title, date, venue, DOI or URL); if a complete citation is impossible, that source must not be used. Do not cite Wikipedia, encyclopedias, or academic literature that is not present in the ACADEMIC SOURCES ledger. Keep claims attributable to their supplied sources. When evidence is missing or conflicting, state the limitation instead of guessing.`
         : "";
 
       const estimateTokens = (text: string) => Math.ceil(text.split(/\s+/).length * 1.3);
@@ -900,39 +917,119 @@ Be concise. When in doubt, prefer NOT asking — converting with reasonable assu
         try {
           const citationRequest = citationStyle ? `Requested citation style: ${citationStyle}.` : "";
           const bibliographyRequest = bibliographyType ? `Bibliography mode: ${bibliographyType}.` : "";
-          const researchResponse = await openai.responses.create({
-            model: "gpt-5.4-mini",
-            tools: [{ type: "web_search" }],
-            input: `Build a structured source-verification ledger for a ${typeLabel} conversion. ${citationRequest} ${bibliographyRequest}
 
-Identify the research question, key concepts, and useful inclusion boundaries before searching. Search multiple query formulations. For academic topics, prioritize records and metadata from OpenAlex, Crossref, Semantic Scholar, PubMed or Europe PMC, DOI landing pages, and primary publisher pages. Prefer peer-reviewed primary studies and rigorous reviews, while using discipline-appropriate authoritative sources when journal articles are not the right evidence.
+          // ---- Channel 1: ACADEMIC (always on) — OpenAlex + Semantic Scholar ----
+          // Derive focused search queries from the ACTUAL topic of the transcript
+          // (not its preamble), run the API pipeline, and emit a structured,
+          // citable ledger. This is the ONLY source of academic literature;
+          // web search never supplies it.
+          const fallbackQuery = transcript.trim().split(/\s+/).slice(0, 60).join(" ");
+          let academicQueries: string[] = [fallbackQuery].filter(Boolean);
+          try {
+            const researchClient = createOpenAIClient("groq");
+            const extractModel = process.env.GROQ_ADVANCED_MODEL?.trim() || "openai/gpt-oss-120b";
+            const extractResponse = await researchClient.chat.completions.create({
+              model: extractModel,
+              messages: [
+                {
+                  role: "user",
+                  content: `Extract the core research topic from this request transcript. Ignore instructions, preamble, formatting requests, deadlines, and filler. Output ONLY a JSON array of 2-3 concise academic search queries (6-12 words each) that would find peer-reviewed literature on the true topic. No prose, no markdown, no explanation.
 
-For every source, assign a stable label such as [S1] and report only metadata visible in the source: authors, exact title, publication, date, DOI or canonical URL, source type, peer-review status when verifiable, and the specific claim it supports. Note corrections or retractions when visible. Separate direct evidence from interpretation, identify conflicting findings and research gaps, and disclose important search limitations. Never invent or autocomplete a detail. Do not describe this as a systematic review unless the supplied material includes a reproducible protocol, complete search strategy, and screening record.
+Transcript:
+${transcript.trim().slice(0, 4000)}`,
+                },
+              ],
+              max_completion_tokens: 300,
+              temperature: 0.2,
+            });
+            const raw = extractResponse.choices?.[0]?.message?.content || "";
+            const parsed = raw.match(/\[[\s\S]*?\]/)?.[0];
+            if (parsed) {
+              const arr = JSON.parse(parsed) as unknown;
+              if (Array.isArray(arr)) {
+                const cleaned = arr
+                  .filter((q): q is string => typeof q === "string")
+                  .map((q) => q.trim())
+                  .filter((q) => q.length > 3 && q.length < 200);
+                if (cleaned.length > 0) academicQueries = cleaned;
+              }
+            }
+          } catch (extractErr) {
+            console.error("Academic query extraction failed (using fallback):", extractErr);
+          }
+
+          try {
+            const academicSources = await searchAcademicSourcesMulti(academicQueries, { perProvider: 15 });
+            const academicLedger = formatLedger(academicSources);
+            if (academicLedger) {
+              webResearchContext += `\n\n---\nACADEMIC SOURCES (peer-reviewed literature from OpenAlex/Semantic Scholar — the only academic source material available; cite only metadata present here):\n${academicLedger}\n\nFor every source, report only metadata visible above: authors, exact title, publication, date, DOI or canonical URL, source type, peer-review status when verifiable, and the specific claim it supports. Never invent or autocomplete a detail.`;
+            }
+          } catch (academicErr) {
+            console.error("Academic source step failed (non-fatal):", academicErr);
+          }
+
+          // ---- Channel 2: WEB (user toggle) — Groq browser_search ----
+          // Primary sources, public opinion, news, government records — NOT
+          // academic literature. Wikipedia/encyclopedias are blocked, and any
+          // result that looks like academic literature is rejected.
+          if (webSourcesEnabled) {
+            const researchClient = createOpenAIClient("groq");
+            const researchModel = process.env.GROQ_ADVANCED_MODEL?.trim() || "openai/gpt-oss-120b";
+            const researchResponse = await researchClient.chat.completions.create({
+              model: researchModel,
+              tools: [{ type: "browser_search" }] as any,
+              tool_choice: "required",
+              messages: [
+                {
+                  role: "user",
+                  content: `Build a structured web-evidence ledger for a ${typeLabel} conversion. ${citationRequest} ${bibliographyRequest}
+
+Identify the research question, key concepts, and useful inclusion boundaries before searching. Search multiple query formulations.
+
+IMPORTANT — SOURCE POLICY:
+- This channel covers NON-academic evidence only: primary sources, government records, official statistics, news reporting, reputable organizations, public opinion, and firsthand accounts.
+- Do NOT use web search to access academic research literature. If a search result is a journal article, preprint, DOI landing page, or publisher page, do not use it — academic literature is supplied separately.
+- Wikipedia and encyclopedias are NEVER acceptable sources.
+- Every source must be fully citable: authors or publishing organization, exact title, date, publication or site name, and a canonical URL. If a complete citation is impossible, that source cannot be used — omit it.
+
+For every source, assign a stable label such as [W1] and report only metadata visible in the source: authors/organization, exact title, date, publication, URL, source type, and the specific claim it supports. Never invent or autocomplete a detail. Separate direct evidence from interpretation, identify conflicting findings, and disclose important search limitations.
 
 Requested reference resources:
 ${knowledgebaseContext || "No additional reference list supplied."}
 
 Transcript:
 ${transcript}`,
-          });
-          const researchText = researchResponse.output_text || "";
-          if (researchText) {
-            const annotations = researchResponse.output?.flatMap((item: any) =>
-              item.content?.flatMap((c: any) => c.annotations?.filter((a: any) => a.type === "url_citation") || []) || []
-            ) || [];
-            const sourcesText = annotations.length > 0
-              ? "\n\nSources found:\n" + annotations.map((a: any) => `- ${a.title || a.url}: ${a.url}`).join("\n")
-              : "";
-            webResearchContext = `\n\n---\nWEB RESEARCH (this is the only external source material available; cite only metadata and claims present here):\n${researchText}${sourcesText}`;
+                },
+              ],
+              max_completion_tokens: 3000,
+              temperature: 0.3,
+            });
+            const researchText = researchResponse.choices?.[0]?.message?.content || "";
+            if (researchText) {
+              // Groq reports the raw search results under executed_tools. Extract
+              // the real source URLs so downstream citation can only reference
+              // pages that were actually fetched (anti-hallucination guarantee).
+              const executedTools = (researchResponse.choices?.[0]?.message as any)?.executed_tools || [];
+              const sourceUrls: string[] = [];
+              for (const tool of executedTools) {
+                const out: string = tool?.output || "";
+                for (const m of out.matchAll(/URL:\s*(https?:\/\/[^\s]+)/g)) {
+                  const url = m[1];
+                  if (!url || sourceUrls.includes(url)) continue;
+                  // Hard rules: block Wikipedia/encyclopedias, reject academic
+                  // literature lookalikes (DOI or publisher domains).
+                  if (isBlockedSource(url) || isAcademicLookalike(url)) continue;
+                  sourceUrls.push(url);
+                }
+              }
+              const sourcesText = sourceUrls.length > 0
+                ? "\n\nSources found:\n" + sourceUrls.map((u) => `- ${u}`).join("\n")
+                : "";
+              webResearchContext += `\n\n---\nWEB EVIDENCE (primary sources and public opinion — cite only metadata and claims present here):\n${researchText}${sourcesText}`;
+            }
           }
         } catch (researchErr) {
-          console.error("Web research source-verification step failed:", researchErr);
-          throw Object.assign(
-            new Error(
-              "Verified research sources are temporarily unavailable. No research conversion was generated; retry when source verification is available.",
-            ),
-            { status: 503 },
-          );
+          console.error("Web evidence step failed (non-fatal):", researchErr);
         }
       }
 

@@ -7,6 +7,7 @@ export type DrawerFeatherIconName =
   | "check"
   | "cloud"
   | "copy"
+  | "credit-card"
   | "edit-3"
   | "folder"
   | "git-branch"
@@ -30,6 +31,12 @@ const iconPaths: Record<DrawerFeatherIconName, (strokeProps: any) => React.React
       <Line x1="18" y1="20" x2="18" y2="10" {...p} />
       <Line x1="12" y1="20" x2="12" y2="4" {...p} />
       <Line x1="6" y1="20" x2="6" y2="14" {...p} />
+    </>
+  ),
+  "credit-card": (p) => (
+    <>
+      <Rect x="1" y="4" width="22" height="16" rx="2" {...p} />
+      <Line x1="1" y1="10" x2="23" y2="10" {...p} />
     </>
   ),
   "book-open": (p) => (

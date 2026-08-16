@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import {
   Animated,
-  Easing,
   Image,
   Platform,
+  StyleSheet,
   View,
   type AccessibilityRole,
 } from "react-native";
@@ -11,6 +11,12 @@ import { SvgXml } from "react-native-svg";
 import { getAvatarDataUri, getAvatarSvg, getPackKeyFromAvatarId } from "@/lib/avatars";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 import { isProAnimatedAvatarId } from "@shared/avatar-catalog";
+import {
+  splitAnimatedAvatarSvg,
+  animatedLayerStyle,
+  startAvatarLayerLoop,
+  type AvatarLayer,
+} from "@/lib/avatar-animation";
 
 type AvatarViewProps = {
   avatarId: string;
@@ -30,75 +36,54 @@ export default function AvatarView({
   testID,
 }: AvatarViewProps) {
   const reduceMotion = useReducedMotion();
-  const progress = useRef(new Animated.Value(0)).current;
   const animated = animate && isProAnimatedAvatarId(avatarId);
-  const packKey = getPackKeyFromAvatarId(avatarId);
   const allowAnimation = animated && !reduceMotion;
-  const svg = getAvatarSvg(avatarId, { animate: allowAnimation });
+
+  // Web: load the animated SVG as an <Image> so the BROWSER runs DiceBear's
+  // embedded CSS keyframes (blink, breathe). This is the only place CSS runs.
+  const webAnimatedSvg = getAvatarSvg(avatarId, { animate: allowAnimation });
   const dataUri = getAvatarDataUri(avatarId, { animate: allowAnimation });
 
+  // Native: react-native-svg cannot execute the SVG's CSS, so DiceBear's
+  // keyframes never fire. We split the animated SVG into a static base +
+  // per-element overlays (lib/avatar-animation-core) and drive each overlay's
+  // motion with a plain Animated.View — the figure animates internally while
+  // the overall avatar stays put.
+  const nativeAnimatedSvg = useMemo(
+    () => (Platform.OS === "web" ? null : getAvatarSvg(avatarId, { animate: true })),
+    [avatarId],
+  );
+  const split = useMemo(
+    () => (nativeAnimatedSvg ? splitAnimatedAvatarSvg(nativeAnimatedSvg) : null),
+    [nativeAnimatedSvg],
+  );
+
+  // One looping progress value per animation CLASS (layers sharing a class
+  // — e.g. critters' three eye elements — animate in lockstep).
+  const progressRef = useRef<Map<string, Animated.Value>>(new Map());
+  const stopFnsRef = useRef<(() => void)[]>([]);
+
   useEffect(() => {
-    if (Platform.OS === "web" || !animated || reduceMotion) {
-      progress.stopAnimation();
-      progress.setValue(0);
-      return;
+    if (Platform.OS === "web" || !split || !allowAnimation) return;
+    const progressMap = new Map<string, Animated.Value>();
+    const stops: (() => void)[] = [];
+    for (const layer of split.layers) {
+      if (!progressMap.has(layer.className)) {
+        const { progress, stop } = startAvatarLayerLoop(layer.spec);
+        progressMap.set(layer.className, progress);
+        stops.push(stop);
+      }
     }
+    progressRef.current = progressMap;
+    stopFnsRef.current = stops;
+    return () => {
+      for (const stop of stops) stop();
+      progressRef.current = new Map();
+      stopFnsRef.current = [];
+    };
+  }, [split, allowAnimation]);
 
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(progress, {
-          toValue: 1,
-          duration: 2200,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(progress, {
-          toValue: 0,
-          duration: 2200,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    loop.start();
-
-    return () => loop.stop();
-  }, [animated, progress, reduceMotion]);
-
-  const nativeMotionStyle = useMemo(() => {
-    switch (packKey) {
-      case "sprouts":
-        return {
-          transform: [{ rotate: progress.interpolate({ inputRange: [0, 1], outputRange: ["-2.5deg", "2.5deg"] }) }],
-        };
-      case "critters":
-        return {
-          transform: [
-            { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, -3] }) },
-            { scale: progress.interpolate({ inputRange: [0, 1], outputRange: [1, 1.03] }) },
-          ],
-        };
-      case "moods":
-        return {
-          transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [1, -2] }) }],
-        };
-      case "voxelArt":
-        return {
-          transform: [
-            { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, -2] }) },
-            { rotate: progress.interpolate({ inputRange: [0, 1], outputRange: ["-1deg", "1deg"] }) },
-          ],
-        };
-      case "voxelBot":
-        return {
-          transform: [{ scale: progress.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] }) }],
-        };
-      default:
-        return undefined;
-    }
-  }, [packKey, progress]);
-
-  if (!svg) return null;
+  if (!webAnimatedSvg) return null;
 
   // Browsers execute DiceBear's CSS keyframes when the SVG is loaded as an
   // image. SvgXml deliberately parses SVG elements and cannot run that CSS.
@@ -115,9 +100,27 @@ export default function AvatarView({
     );
   }
 
-  const artwork = <SvgXml xml={svg} width={size} height={size} />;
+  const baseXml = split ? split.baseXml : webAnimatedSvg;
 
-  if (!animated || reduceMotion || !nativeMotionStyle) {
+  // Native animated path: static base + per-element Animated.View overlays.
+  if (Platform.OS !== "web" && split && allowAnimation) {
+    const overlays = split.layers.map((layer: AvatarLayer, i: number) => {
+      const progress = progressRef.current.get(layer.className);
+      if (!progress) return null;
+      return (
+        <Animated.View
+          key={`${layer.className}-${i}`}
+          style={[
+            StyleSheet.absoluteFill,
+            animatedLayerStyle(layer.spec, progress, size, layer.originX, layer.originY),
+          ] as any}
+          pointerEvents="none"
+        >
+          <SvgXml xml={layer.xml} width={size} height={size} />
+        </Animated.View>
+      );
+    });
+
     return (
       <View
         style={{ width: size, height: size }}
@@ -125,19 +128,21 @@ export default function AvatarView({
         accessibilityLabel={accessibilityLabel}
         testID={testID}
       >
-        {artwork}
+        <SvgXml xml={baseXml} width={size} height={size} />
+        {overlays}
       </View>
     );
   }
 
+  // Static (non-animated pack, reduced motion, or failed split): plain render.
   return (
-    <Animated.View
-      style={[{ width: size, height: size }, nativeMotionStyle]}
+    <View
+      style={{ width: size, height: size }}
       accessibilityRole={IMAGE_ROLE}
       accessibilityLabel={accessibilityLabel}
       testID={testID}
     >
-      {artwork}
-    </Animated.View>
+      <SvgXml xml={baseXml} width={size} height={size} />
+    </View>
   );
 }

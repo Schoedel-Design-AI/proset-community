@@ -219,6 +219,33 @@ export function subscribeToFirebaseTokens(listener: FirebaseTokenListener): () =
     return () => {};
   }
   return onIdTokenChanged(requireNativeAuth(), (user) => {
-    void toSession(user).then(listener).catch(() => listener(null));
+    if (user) {
+      void toSession(user).then(listener).catch(() => listener(null));
+      return;
+    }
+    // user is null. This can be a GENUINE sign-out OR the cold-start race:
+    // on Android, onIdTokenChanged can fire with null BEFORE the native
+    // Firebase auth finishes restoring the persisted session after an app
+    // kill — the listener in auth-context would then wipe the saved token
+    // and log the user out (bug: "closing the app logs me out"). Poll
+    // currentUser over a settle window; only report null if the user is
+    // truly gone (real sign-out / expired session) after the window.
+    const auth = requireNativeAuth();
+    const startedAt = Date.now();
+    const MAX_SETTLE_MS = 2000;
+    const POLL_MS = 250;
+    const poll = () => {
+      const restored = auth.currentUser;
+      if (restored) {
+        void toSession(restored).then(listener).catch(() => listener(null));
+        return;
+      }
+      if (Date.now() - startedAt >= MAX_SETTLE_MS) {
+        void listener(null);
+        return;
+      }
+      setTimeout(poll, POLL_MS);
+    };
+    setTimeout(poll, POLL_MS);
   });
 }

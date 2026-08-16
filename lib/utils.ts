@@ -116,12 +116,34 @@ export const TIER_CONVERSION_TYPES: Record<SubscriptionTier, string[]> = {
 
 export const FREE_CONVERSION_TYPES = TIER_CONVERSION_TYPES.free;
 
+/**
+ * research_forms type group (mirrors server/research-sources.ts).
+ * These types run the two-channel source pipeline: academic (OpenAlex/S2,
+ * always on) + web (user toggle). See the research_forms design spec.
+ */
+export const RESEARCH_FORMS_TYPES: ReadonlySet<string> = new Set([
+  "academic_research",
+  "bibliography",
+  "nonfiction_draft",
+  "quick_research",
+  "argumentative_essay",
+  "questions",
+]);
+
+/** Web-channel toggle default per type: OFF for pure-literature types. */
+export function researchFormWebDefault(type: string): boolean {
+  return type !== "academic_research" && type !== "bibliography";
+}
+
 export const TIER_DISPLAY_NAMES: Record<SubscriptionTier, string> = {
   free: "Free",
   base: "Base",
   pro: "Pro",
 };
 
+export const DISPLAY_TIER_NAMES: Record<DisplayTier, string> = {
+  ...TIER_DISPLAY_NAMES,
+};
 export function normalizeSubscriptionTier(value?: string | null): SubscriptionTier {
   const normalized = String(value || "").trim().toLowerCase();
   if (normalized === "pro") return "pro";

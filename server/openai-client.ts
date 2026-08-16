@@ -13,7 +13,11 @@ function getFirstEnvValue(names: string[]): string | undefined {
 }
 
 function getDefaultOpenAIApiKey(): string | undefined {
-  return getFirstEnvValue(["AI_INTEGRATIONS_OPENAI_API_KEY", "OPENAI_API_KEY"]);
+  // PROSET_OPENAI_API_KEY is the dedicated, funded Proset OpenAI key (2026-08).
+  // It wins over the older integration/Hermes-shared keys so all Proset OpenAI
+  // requirements (conversion fallback chains, transcription, direct calls) use
+  // the funded account.
+  return getFirstEnvValue(["PROSET_OPENAI_API_KEY", "AI_INTEGRATIONS_OPENAI_API_KEY", "OPENAI_API_KEY"]);
 }
 
 function getDefaultOpenAIBaseUrl(): string | undefined {

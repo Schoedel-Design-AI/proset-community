@@ -215,8 +215,8 @@ export default function MfaSetupScreen() {
               <Text style={styles.title}>{t("login.mfaEnabled")}</Text>
               <Text style={styles.description}>
                 {language === "es"
-                  ? "La autenticación se configuró correctamente. Vuelve a iniciar sesión para comprobarla. Si pierdes el acceso, un superadministrador puede restablecer tu factor después de verificar tu identidad."
-                  : "Authenticator security is set up. Sign in again to verify it. If you lose access, a super admin can reset your factor after verifying your identity."}
+                  ? "La autenticación se configuró correctamente. Vuelve a iniciar sesión para comprobarla. Si pierdes el acceso, contacta al soporte de Proset para recuperar tu cuenta después de verificar tu identidad."
+                  : "Authenticator security is set up. Sign in again to verify it. If you lose access, contact Proset support to recover your account after verifying your identity."}
               </Text>
             </View>
 

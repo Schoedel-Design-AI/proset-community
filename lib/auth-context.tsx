@@ -276,13 +276,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [sessionExpiredMsg, setSessionExpiredMsg] = useState<string | null>(null);
 
   const clearSession = useCallback(async () => {
+    // Clears LOCAL session state only. Does NOT sign out of Firebase: the
+    // native Firebase session is the source of truth on Android and must
+    // survive transient failures (a network blip or a 401 that just needs a
+    // token refresh would otherwise permanently log the user out). Explicit
+    // sign-out (signOutFirebase) happens only in logout().
     setUser(null);
     await SecureStore.setSessionToken(null);
-    if (isFirebaseClientConfigured()) {
-      try {
-        await signOutFirebase();
-      } catch {}
-    }
   }, []);
 
   const clearSessionExpiredMessage = useCallback(() => {
@@ -391,9 +391,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const fetchMeWithRetry = useCallback(async () => {
+    let lastError: unknown = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await apiFetch("/api/auth/me");
+      } catch (err) {
+        lastError = err;
+        if (attempt < 2) await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+      }
+    }
+    throw lastError;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const checkAuth = async () => {
     try {
-      const res = await apiFetch("/api/auth/me");
+      const res = await fetchMeWithRetry();
       if (res.ok) {
         const data = await res.json();
         setUser(data);
@@ -423,8 +437,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await clearSession();
       }
     } catch (err) {
+      // Transient failure (network blip, timeout) — do NOT clear the session.
+      // The user is still signed in; the next refresh (foreground, token
+      // refresh, or relaunch) will retry. Only a genuine 401 above clears.
       console.warn("Session refresh failed:", err instanceof Error ? err.message : String(err));
-      await clearSession();
     }
     return null;
   };

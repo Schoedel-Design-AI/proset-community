@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   StyleSheet,
   Text,
@@ -208,6 +208,27 @@ function AccountTab({
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [avatarError, setAvatarError] = useState("");
   const [avatarPack, setAvatarPack] = useState<AvatarStyleKey>("adventurer");
+  const packTabsRef = useRef<ScrollView>(null);
+  const packTabXs = useRef<Record<string, number>>({});
+  const packTabWs = useRef<Record<string, number>>({});
+  const packTabsViewW = useRef(0);
+  // When the picker opens, scroll the pack tab strip so the CURRENT pack's
+  // tab is centered (it may be far from the left edge — 14 packs).
+  useEffect(() => {
+    if (!avatarPickerVisible) return;
+    const t = setTimeout(() => {
+      const x = packTabXs.current[avatarPack];
+      const w = packTabWs.current[avatarPack] ?? 0;
+      const vw = packTabsViewW.current;
+      if (x === undefined || vw <= 0) return;
+      // Center the active tab: scroll so (tab center) == (strip center)
+      packTabsRef.current?.scrollTo({
+        x: Math.max(0, x + w / 2 - vw / 2),
+        animated: false,
+      });
+    }, 150);
+    return () => clearTimeout(t);
+  }, [avatarPickerVisible, avatarPack]);
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -390,6 +411,7 @@ function AccountTab({
 
   return (
     <ScrollView
+      keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
         padding: layout.contentPadding,
         paddingBottom: insets.bottom + 40,
@@ -444,6 +466,29 @@ function AccountTab({
           <Feather name="chevron-right" size={16} color={Colors.textMuted} />
         </Pressable>
 
+        {isEditingName && (
+          <View style={aStyles.inlineForm}>
+            {!!nameError && <View style={secStyles.errorBox} accessibilityRole="alert" accessibilityLiveRegion="assertive"><Text style={secStyles.errorText}>{nameError}</Text></View>}
+            {!!nameSuccess && <View style={secStyles.successBox} accessibilityLiveRegion="polite"><Text style={secStyles.successText}>{nameSuccess}</Text></View>}
+            <TextInput
+              style={[aStyles.compactInput, { fontSize: ts.body }]}
+              value={editFirstName}
+              onChangeText={setEditFirstName}
+              placeholder={t("settings.editName")}
+              placeholderTextColor={Colors.textMuted}
+              autoFocus
+            />
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <Pressable style={[aStyles.primaryBtn, { flex: 1 }, nameLoading && { opacity: 0.6 }]} onPress={handleChangeName} disabled={nameLoading} accessibilityRole="button" accessibilityLabel={t("common.save")} accessibilityState={{ disabled: nameLoading }}>
+                {nameLoading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={[aStyles.primaryBtnText, { fontSize: ts.body }]}>{t("common.save")}</Text>}
+              </Pressable>
+              <Pressable style={aStyles.ghostBtn} onPress={() => setIsEditingName(false)} accessibilityRole="button" accessibilityLabel={t("a11y.cancelAction")}>
+                <Text style={[aStyles.ghostBtnText, { fontSize: ts.body }]}>{t("common.cancel")}</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
         <View style={aStyles.profileDividerInset} />
 
         {/* Show name in header toggle — Pro/Admin only */}
@@ -453,7 +498,6 @@ function AccountTab({
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[aStyles.profileFieldLabel, { fontSize: ts.caption }]}>{t("settings.showNameInHeader")}</Text>
-            <Text style={[aStyles.profileFieldValue, { fontSize: ts.body2, color: Colors.textMuted }]}>{t("settings.showNameInHeaderDesc")}</Text>
           </View>
           <Switch
             value={showNameInHeader}
@@ -516,29 +560,6 @@ function AccountTab({
 
         {!!countryError && <View style={[secStyles.errorBox, { marginHorizontal: 16, marginBottom: 8 }]} accessibilityRole="alert" accessibilityLiveRegion="assertive"><Text style={secStyles.errorText}>{countryError}</Text></View>}
         {!!countrySuccess && <View style={[secStyles.successBox, { marginHorizontal: 16, marginBottom: 8 }]} accessibilityLiveRegion="polite"><Text style={secStyles.successText}>{countrySuccess}</Text></View>}
-
-        {isEditingName && (
-          <View style={aStyles.inlineForm}>
-            {!!nameError && <View style={secStyles.errorBox} accessibilityRole="alert" accessibilityLiveRegion="assertive"><Text style={secStyles.errorText}>{nameError}</Text></View>}
-            {!!nameSuccess && <View style={secStyles.successBox} accessibilityLiveRegion="polite"><Text style={secStyles.successText}>{nameSuccess}</Text></View>}
-            <TextInput
-              style={[aStyles.compactInput, { fontSize: ts.body }]}
-              value={editFirstName}
-              onChangeText={setEditFirstName}
-              placeholder={t("settings.editName")}
-              placeholderTextColor={Colors.textMuted}
-              autoFocus
-            />
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              <Pressable style={[aStyles.primaryBtn, { flex: 1 }, nameLoading && { opacity: 0.6 }]} onPress={handleChangeName} disabled={nameLoading} accessibilityRole="button" accessibilityLabel={t("common.save")} accessibilityState={{ disabled: nameLoading }}>
-                {nameLoading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={[aStyles.primaryBtnText, { fontSize: ts.body }]}>{t("common.save")}</Text>}
-              </Pressable>
-              <Pressable style={aStyles.ghostBtn} onPress={() => setIsEditingName(false)} accessibilityRole="button" accessibilityLabel={t("a11y.cancelAction")}>
-                <Text style={[aStyles.ghostBtnText, { fontSize: ts.body }]}>{t("common.cancel")}</Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
       </View>
 
       <Modal visible={countryPickerVisible} transparent animationType="slide" onRequestClose={() => setCountryPickerVisible(false)}>
@@ -665,7 +686,14 @@ function AccountTab({
                 <Feather name="x" size={22} color={Colors.textSecondary} />
               </Pressable>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={aStyles.avatarPackTabs} contentContainerStyle={{ paddingHorizontal: 12, gap: 6 }}>
+            <ScrollView
+              ref={packTabsRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={aStyles.avatarPackTabs}
+              contentContainerStyle={{ paddingHorizontal: 12, gap: 6 }}
+              onLayout={(e) => { packTabsViewW.current = e.nativeEvent.layout.width; }}
+            >
               {AVATAR_PACKS.map((pack) => {
                 const previewSvg = getPackPreviewSvg(pack.key);
                 const locked = pack.proOnly === true && !hasProAvatarAccess;
@@ -673,18 +701,20 @@ function AccountTab({
                   <Pressable
                     key={pack.key}
                     style={[aStyles.avatarPackTab, avatarPack === pack.key && aStyles.avatarPackTabActive]}
+                    onLayout={(e) => { packTabXs.current[pack.key] = e.nativeEvent.layout.x; packTabWs.current[pack.key] = e.nativeEvent.layout.width; }}
                     onPress={() => {
                       setAvatarError("");
                       setAvatarPack(pack.key);
                     }}
                     accessibilityRole="tab"
                     accessibilityState={{ selected: avatarPack === pack.key }}
-                    accessibilityLabel={`${pack.label}${pack.proOnly ? ", Pro" : ""}`}
+                    accessibilityLabel={`${pack.label}${pack.animated ? `, ${t("avatars.animated" as any)}` : ""}${pack.proOnly ? ", Pro" : ""}`}
                   >
                     <View style={aStyles.avatarPackTabIcon}>
                       {previewSvg ? <SvgXml xml={previewSvg} width={20} height={20} /> : null}
                     </View>
                     <Text style={[aStyles.avatarPackTabText, { fontSize: ts.caption - 2 }, avatarPack === pack.key && aStyles.avatarPackTabTextActive]}>{pack.label}</Text>
+                    {pack.animated ? <Feather name="activity" size={10} color={Colors.primary} /> : null}
                     {locked ? <Feather name="lock" size={10} color={Colors.textMuted} /> : null}
                   </Pressable>
                 );
