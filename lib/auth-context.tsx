@@ -319,6 +319,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = subscribeToFirebaseTokens(async (session) => {
       if (!active) return;
       if (!session) {
+        // A null Firebase user can be a GENUINE sign-out OR the legacy-account
+        // cold-start case: legacy accounts (FIREBASE_AUTH_MODE=legacy) have no
+        // Firebase user at all, so currentUser never restores and the settle
+        // window always ends null. Before wiping, restore the stored legacy
+        // token (this also populates the auth-header token cache) and validate
+        // it against the server over a retry window — the OS network may not
+        // be ready right after an app kill. Only a definitive 401 wipes.
+        let stored = await SecureStore.getSessionToken();
+        for (let attempt = 0; stored && attempt < 4; attempt++) {
+          await checkAuth();
+          if (userRef.current) return;
+          stored = await SecureStore.getSessionToken();
+          if (attempt < 3) await new Promise((r) => setTimeout(r, 2000));
+        }
+        if (stored) {
+          // Network never came back — keep the session for the next launch
+          // instead of destroying it.
+          setIsLoading(false);
+          return;
+        }
         await SecureStore.setSessionToken(null);
         setUser(null);
         setIsLoading(false);
@@ -415,7 +435,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await clearSession();
       }
     } catch {
-      await clearSession();
+      // Transient network/other failures must NOT destroy the session — only
+      // a definitive 401 above clears it. The caller decides what to show.
     } finally {
       setIsLoading(false);
     }

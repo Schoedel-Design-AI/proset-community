@@ -28,8 +28,6 @@ import { useTextScale, sf, type TextScale } from "@/lib/typography";
 import NavigationDrawer from "@/components/NavigationDrawer";
 import FeedbackIconButton from "@/components/FeedbackIconButton";
 import ProfileDropdown from "@/components/ProfileDropdown";
-import OnboardingPaywall from "@/components/OnboardingPaywall";
-import { shouldShowOnboardingPaywall, markOnboardingPaywallSeen } from "@/lib/engagement";
 import { useFeedback } from "@/lib/feedback-context";
 import {
   CORNER_TEXT_ACTION_SIZE,
@@ -237,7 +235,6 @@ const [displayName, setDisplayName] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [subscriptionBanner, setSubscriptionBanner] = useState<"success" | "cancelled" | null>(null);
   const [recordingLimitToast, setRecordingLimitToast] = useState(false);
-  const [showOnboardingPaywall, setShowOnboardingPaywall] = useState(false);
 
   const { data: subData } = useQuery<{ tier?: string; displayTier?: string }>({
     queryKey: ["/api/stripe/subscription"],
@@ -245,15 +242,6 @@ const [displayName, setDisplayName] = useState(false);
   });
   const normalizedDisplayTier = String(subData?.displayTier || subData?.tier || "free").toLowerCase();
   const isPaidPlan = normalizedDisplayTier !== "free";
-
-  // Check if onboarding paywall should be shown (free users only, never admins)
-  useEffect(() => {
-    const isAdmin = user?.role === "admin";
-    if (!user || isPaidPlan || isAdmin) return;
-    shouldShowOnboardingPaywall().then((should) => {
-      if (should) setShowOnboardingPaywall(true);
-    });
-  }, [user, isPaidPlan]);
   const planLabel = !user
     ? "Free"
     : normalizedDisplayTier === "pro"
@@ -428,14 +416,6 @@ const [displayName, setDisplayName] = useState(false);
       </View>
 
       {/* Profile dropdown menu */}
-      <OnboardingPaywall
-        visible={showOnboardingPaywall}
-        onClose={() => {
-          setShowOnboardingPaywall(false);
-          markOnboardingPaywallSeen();
-        }}
-      />
-
       <ProfileDropdown visible={showProfileMenu} onClose={() => setShowProfileMenu(false)} />
 
       {activeNotification === "subscription" && subscriptionBanner && (

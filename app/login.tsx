@@ -1259,7 +1259,6 @@ export default function LoginScreen() {
                   <View style={styles.resetHeader}>
                     <Feather name="lock" size={32} color={Colors.primary} />
                     <Text style={[styles.resetTitle, { fontSize: ts.heading2 }]}>{t("login.forgotPasswordTitle")}</Text>
-                    <Text style={styles.resetDesc}>{t("login.forgotPasswordDesc")}</Text>
                   </View>
 
                   {resetError ? (
@@ -1316,7 +1315,6 @@ export default function LoginScreen() {
                   <View style={styles.resetHeader}>
                     <Feather name="check-circle" size={40} color={Colors.success} />
                     <Text style={[styles.resetTitle, { fontSize: ts.heading2 }]}>{t("login.resetLinkSent")}</Text>
-                    <Text style={styles.resetDesc}>{t("login.forgotPasswordDesc")}</Text>
                   </View>
 
                   <Pressable

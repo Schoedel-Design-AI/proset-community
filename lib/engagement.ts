@@ -9,7 +9,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const STREAK_KEY = "engagement:streak";
 const LAST_DATE_KEY = "engagement:lastRecordDate";
 const LIFETIME_KEY = "engagement:lifetimeRecordings";
-const ONBOARDING_PAYWALL_KEY = "engagement:onboardingPaywallSeen";
 
 export type StreakState = {
   currentStreak: number;
@@ -78,21 +77,4 @@ export function getNextMilestone(streak: number): StreakMilestone | null {
 export function getReachedMilestone(streak: number): StreakMilestone | null {
   const reached = [...STREAK_MILESTONES].reverse().find((m) => streak >= m.days);
   return reached || null;
-}
-
-export async function shouldShowOnboardingPaywall(): Promise<boolean> {
-  try {
-    const val = await AsyncStorage.getItem(ONBOARDING_PAYWALL_KEY);
-    return val !== "1";
-  } catch {
-    return false;
-  }
-}
-
-export async function markOnboardingPaywallSeen(): Promise<void> {
-  try {
-    await AsyncStorage.setItem(ONBOARDING_PAYWALL_KEY, "1");
-  } catch {
-    // noop
-  }
 }
