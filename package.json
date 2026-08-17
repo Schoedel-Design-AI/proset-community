@@ -1,6 +1,6 @@
 {
   "name": "aiforms-native",
-  "version": "1.0.50",
+  "version": "1.0.51",
   "scripts": {
     "postinstall": "patch-package",
     "lint": "eslint .",
