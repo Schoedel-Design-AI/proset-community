@@ -1184,14 +1184,14 @@ export default function LoginScreen() {
                     </Text>
                   </Pressable>
                   <Pressable
-                    onPress={() => Linking.openURL("https://proset.ai/refund")}
+                    onPress={() => Linking.openURL("https://proset.ai/terms")}
                     style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 8 }}
                     accessibilityRole="link"
-                    accessibilityLabel={t("refund.title")}
+                    accessibilityLabel={t("terms.title")}
                   >
                     <Feather name="external-link" size={13} color={Colors.primary} />
                     <Text style={[styles.privacyItemText, { color: Colors.primary, fontFamily: "Inter_600SemiBold" }]}>
-                      {language === "es" ? "Pol\u00edtica de reembolso" : "Refund policy"}
+                      {language === "es" ? "Términos del servicio" : "Terms of Service"}
                     </Text>
                   </Pressable>
                 </View>

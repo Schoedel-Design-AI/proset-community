@@ -43,13 +43,17 @@ const PROTECTED_SEGMENTS = new Set<string | undefined>([
   "record",
   "recording",
   "recordings",
+  "combine",
   "files",
   "admin",
   "choose-plan",
   "settings",
+  "refund",
   "mfa-setup",
   "force-change-password",
   "verify-email",
+  "thought-threads",
+  "thought-thread",
 ]);
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -149,6 +153,7 @@ function RootLayoutNav() {
         <Stack.Screen name="settings" />
         <Stack.Screen name="admin" />
         <Stack.Screen name="documentation" />
+        <Stack.Screen name="terms" />
         <Stack.Screen name="reset-password" />
         <Stack.Screen name="force-change-password" />
         <Stack.Screen name="verify-email" />

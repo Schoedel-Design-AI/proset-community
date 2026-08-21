@@ -23,10 +23,12 @@ import FilesScreen from "../app/files";
 import SettingsIndexScreen from "../app/settings/index";
 import SettingsAccountScreen from "../app/settings/account";
 import SettingsPreferencesScreen from "../app/settings/preferences";
+import SettingsDeveloperScreen from "../app/settings/developer";
 
 import PrivacyScreen from "../app/privacy";
 import RefundScreen from "../app/refund";
 import DocumentationScreen from "../app/documentation";
+import TermsScreen from "../app/terms";
 import ResetPasswordScreen from "../app/reset-password";
 
 import VerifyEmailScreen from "../app/verify-email";
@@ -277,10 +279,12 @@ export const Stack: any = ({ children, screenOptions }: any) => {
         <Route path="/settings" element={<SettingsIndexScreen />} />
         <Route path="/settings/account" element={<SettingsAccountScreen />} />
         <Route path="/settings/preferences" element={<SettingsPreferencesScreen />} />
+        <Route path="/settings/developer" element={<SettingsDeveloperScreen />} />
 
         <Route path="/privacy" element={<PrivacyScreen />} />
         <Route path="/refund" element={<RefundScreen />} />
         <Route path="/documentation" element={<DocumentationScreen />} />
+        <Route path="/terms" element={<TermsScreen />} />
         <Route path="/reset-password" element={<ResetPasswordScreen />} />
 
         <Route path="/verify-email" element={<VerifyEmailScreen />} />

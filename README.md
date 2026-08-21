@@ -66,6 +66,27 @@ docker compose up -d --build
 | Billing | Free / Base / Pro | None (self-host) |
 | Support | Maintained service | Community |
 
+## AI agents & API
+
+Point your own AI tools (Claude Desktop, Cursor, custom scripts) at **your CE
+instance**: a REST API at `/api/v1` and a Model Context Protocol server at
+`/mcp`. Create an API key in **Settings → Developer** (signed-in), then connect
+with `Authorization: Bearer proset_...`.
+
+- REST: `http://localhost:5000/api/v1` (recordings, thought threads, folders,
+  transcribe, convert — see `docs/architecture/developer-api.md`)
+- MCP: `http://localhost:5000/mcp` (8 tools: list/get recordings, thought
+  threads, folders, usage, transcribe, convert)
+- Keys expire by default after 90 days; create with a custom lifetime in
+  Settings → Developer.
+- AI calls count against your CE instance's own usage limits.
+- AI runs on **your own model keys** — the CE has no access to the hosted
+  service's managed AI pipeline; configure a provider in `.env` and API usage
+  draws on your own credits.
+
+> Hosted [Proset.ai](https://proset.ai) exposes the same API for users who
+> prefer a managed service — sign up and upgrade to use it at scale.
+
 ## Architecture
 
 - `app/`, `components/`, `lib/`, `shared/` — React Native client (web + Android)

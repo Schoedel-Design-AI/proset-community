@@ -5,7 +5,7 @@ import {
   BackupProvider, BackupLog, TaskProvider, CalendarProvider, ConnectorProvider, TrustedDevice,
   UsageEvent, StylePreference, UserFolder, UserFile, UsageLimit, UserSkill,
   UserKnowledgebase, UserLearning, UserAiModelPreference, BucketFile, KbPrompt, KbPromptSkill,
-  Passkey, UserModule, Coupon
+  Passkey, UserModule, Coupon, DeveloperApiKey
   , ThoughtThread, ThoughtThreadItem, ThoughtThreadContext, ThoughtThreadConversionRun, ThoughtThreadRunChunk,
   UsageReservation, RecordingContextSource
 } from "@shared/schema";
@@ -343,6 +343,15 @@ export interface IStorage {
     getByCode(code: string): Promise<Coupon | undefined>;
     incrementUses(id: string): Promise<Coupon>;
     create(coupon: Omit<Coupon, "id" | "createdAt" | "updatedAt"> & { id?: string }): Promise<Coupon>;
+  };
+
+  developerApiKeys: {
+    get(id: string): Promise<DeveloperApiKey | undefined>;
+    getByHash(keyHash: string): Promise<DeveloperApiKey | undefined>;
+    getByUser(userId: string): Promise<DeveloperApiKey[]>;
+    create(key: DeveloperApiKey): Promise<DeveloperApiKey>;
+    update(id: string, updates: Partial<DeveloperApiKey>): Promise<DeveloperApiKey | undefined>;
+    delete(id: string): Promise<boolean>;
   };
 
   clearUserData(userId: string): Promise<void>;

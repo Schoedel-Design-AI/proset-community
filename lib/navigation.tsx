@@ -18,10 +18,12 @@ import FilesScreen from "../app/files";
 import SettingsIndexScreen from "../app/settings/index";
 import SettingsAccountScreen from "../app/settings/account";
 import SettingsPreferencesScreen from "../app/settings/preferences";
+import SettingsDeveloperScreen from "../app/settings/developer";
 
 import PrivacyScreen from "../app/privacy";
 import RefundScreen from "../app/refund";
 import DocumentationScreen from "../app/documentation";
+import TermsScreen from "../app/terms";
 import ResetPasswordScreen from "../app/reset-password";
 
 import VerifyEmailScreen from "../app/verify-email";
@@ -447,9 +449,11 @@ const NativeRouterWrapper: React.FC<{ children: React.ReactNode }> = ({ children
         settings: "settings",
         "settings/account": "settings/account",
         "settings/preferences": "settings/preferences",
+        "settings/developer": "settings/developer",
         privacy: "privacy",
         refund: "refund",
         documentation: "documentation",
+        terms: "terms",
         "reset-password": "reset-password",
         "force-change-password": "force-change-password",
         "verify-email": "verify-email",
@@ -530,10 +534,12 @@ const NativeSettingsIndexScreen = createNativeScreen(SettingsIndexScreen);
 const NativeSettingsAccountScreen = createNativeScreen(SettingsAccountScreen);
 
 const NativeSettingsPreferencesScreen = createNativeScreen(SettingsPreferencesScreen);
+const NativeSettingsDeveloperScreen = createNativeScreen(SettingsDeveloperScreen);
 
 const NativePrivacyScreen = createNativeScreen(PrivacyScreen);
 const NativeRefundScreen = createNativeScreen(RefundScreen);
 const NativeDocumentationScreen = createNativeScreen(DocumentationScreen);
+const NativeTermsScreen = createNativeScreen(TermsScreen);
 const NativeResetPasswordScreen = createNativeScreen(ResetPasswordScreen);
 
 const NativeVerifyEmailScreen = createNativeScreen(VerifyEmailScreen);
@@ -581,10 +587,12 @@ const NativeStackContent: React.FC = () => {
       <StackNav.Screen name="settings" component={NativeSettingsIndexScreen} />
       <StackNav.Screen name="settings/account" component={NativeSettingsAccountScreen} />
       <StackNav.Screen name="settings/preferences" component={NativeSettingsPreferencesScreen} />
+      <StackNav.Screen name="settings/developer" component={NativeSettingsDeveloperScreen} />
 
       <StackNav.Screen name="privacy" component={NativePrivacyScreen} />
       <StackNav.Screen name="refund" component={NativeRefundScreen} />
       <StackNav.Screen name="documentation" component={NativeDocumentationScreen} />
+      <StackNav.Screen name="terms" component={NativeTermsScreen} />
       <StackNav.Screen name="reset-password" component={NativeResetPasswordScreen} />
 
       <StackNav.Screen name="verify-email" component={NativeVerifyEmailScreen} />
@@ -618,6 +626,7 @@ export const Stack: any = ({ children, screenOptions }: any) => {
           <Route path="/privacy" element={<PrivacyScreen />} />
           <Route path="/refund" element={<RefundScreen />} />
           <Route path="/documentation" element={<DocumentationScreen />} />
+          <Route path="/terms" element={<TermsScreen />} />
           <Route path="/reset-password" element={<ResetPasswordScreen />} />
 
           <Route path="/verify-email" element={<VerifyEmailScreen />} />

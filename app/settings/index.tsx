@@ -38,6 +38,17 @@ export default function SettingsIndex() {
       description: language === "es" ? "Idioma, tamaño de texto, privacidad" : "Language, text size, privacy",
       route: "/settings/preferences",
     },
+    ...(user
+      ? [
+          {
+            key: "developer",
+            icon: "code" as React.ComponentProps<typeof Feather>["name"],
+            title: t("settings.developer"),
+            description: t("settings.developerDesc"),
+            route: "/settings/developer",
+          },
+        ]
+      : []),
   ];
 
   return (

@@ -11,7 +11,7 @@ import {
   BackupProvider, BackupLog, TaskProvider, CalendarProvider, ConnectorProvider, TrustedDevice,
   UsageEvent, StylePreference, UserFolder, UserFile, UsageLimit, UsageReservation, UserSkill,
   UserKnowledgebase, UserLearning, UserAiModelPreference, BucketFile, KbPrompt, KbPromptSkill,
-  Passkey, UserModule, Coupon, ThoughtThread, ThoughtThreadItem, ThoughtThreadContext,
+  Passkey, UserModule, Coupon, DeveloperApiKey, ThoughtThread, ThoughtThreadItem, ThoughtThreadContext,
   ThoughtThreadConversionRun, ThoughtThreadRunChunk, RecordingContextSource
 } from "@shared/schema";
 import { IStorage } from "./storage";
@@ -2144,6 +2144,76 @@ export class FirestoreStorage implements IStorage {
     }
   };
 
+  // Developer API Keys Repository
+  developerApiKeys = {
+    get: async (id: string): Promise<DeveloperApiKey | undefined> => {
+      const col = this.getCol("developerApiKeys");
+      if (dbClient) {
+        const doc = await col.doc(id).get();
+        if (!doc.exists) return undefined;
+        return normalizeDoc({ ...doc.data(), id: doc.id });
+      } else {
+        return col.get(id);
+      }
+    },
+    getByHash: async (keyHash: string): Promise<DeveloperApiKey | undefined> => {
+      const col = this.getCol("developerApiKeys");
+      if (dbClient) {
+        const snap = await col.where("keyHash", "==", keyHash).limit(1).get();
+        if (snap.empty) return undefined;
+        const doc = snap.docs[0];
+        return normalizeDoc({ ...doc.data(), id: doc.id });
+      } else {
+        const results = await col.query((k: any) => k.keyHash === keyHash);
+        return results[0];
+      }
+    },
+    getByUser: async (userId: string): Promise<DeveloperApiKey[]> => {
+      const col = this.getCol("developerApiKeys");
+      if (dbClient) {
+        const snap = await col.where("userId", "==", userId).get();
+        return snap.docs.map((doc: any) => normalizeDoc({ ...doc.data(), id: doc.id }));
+      } else {
+        return col.query((k: any) => k.userId === userId);
+      }
+    },
+    create: async (key: DeveloperApiKey): Promise<DeveloperApiKey> => {
+      const col = this.getCol("developerApiKeys");
+      const cleanKey = {
+        ...key,
+        createdAt: key.createdAt || new Date().toISOString(),
+        updatedAt: key.updatedAt || new Date().toISOString(),
+      };
+      if (dbClient) {
+        await col.doc(key.id).set(sanitizeForFirestore(cleanKey));
+        return cleanKey;
+      } else {
+        return col.set(key.id, cleanKey);
+      }
+    },
+    update: async (id: string, updates: Partial<DeveloperApiKey>): Promise<DeveloperApiKey | undefined> => {
+      const col = this.getCol("developerApiKeys");
+      const cleanUpdates = { ...updates, updatedAt: new Date().toISOString() };
+      if (dbClient) {
+        await col.doc(id).update(sanitizeForFirestore(cleanUpdates));
+        const doc = await col.doc(id).get();
+        if (!doc.exists) return undefined;
+        return normalizeDoc({ ...doc.data(), id: doc.id }) as DeveloperApiKey;
+      } else {
+        return col.set(id, cleanUpdates);
+      }
+    },
+    delete: async (id: string): Promise<boolean> => {
+      const col = this.getCol("developerApiKeys");
+      if (dbClient) {
+        await col.doc(id).delete();
+        return true;
+      } else {
+        return col.delete(id);
+      }
+    },
+  };
+
   // User Files Repository
   userFiles = {
     get: async (id: string): Promise<UserFile | undefined> => {
@@ -3086,6 +3156,7 @@ export class FirestoreStorage implements IStorage {
     await deleteByQuery("passkeys", "userId", userId);
     await deleteByQuery("accounts", "userId", userId);
     await deleteByQuery("bucketFiles", "userId", userId);
+    await deleteByQuery("developerApiKeys", "userId", userId);
 
     // 2. Dissociate assigned userModules (set assignedBy = null)
     const umCol = this.getCol("userModules");

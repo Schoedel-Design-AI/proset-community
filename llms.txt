@@ -8,6 +8,7 @@
 
 - [GitHub repository](https://github.com/Schoedel-Design-AI/proset-community): source, issues, contributing
 - [README](https://raw.githubusercontent.com/Schoedel-Design-AI/proset-community/main/README.md): quickstart and hosted-vs-CE comparison
+- [Developer API + MCP docs](https://raw.githubusercontent.com/Schoedel-Design-AI/proset-community/main/docs/architecture/developer-api.md): REST + MCP for AI agents on your own instance
 - [Hosted Proset](https://proset.ai/): the managed version — cloud sync, supported AI pipeline
 - [Hosted Proset details](https://proset.ai/llms-full.txt): full product description
 

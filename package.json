@@ -1,6 +1,6 @@
 {
   "name": "aiforms-native",
-  "version": "1.0.51",
+  "version": "1.0.53",
   "scripts": {
     "postinstall": "patch-package",
     "lint": "eslint .",
@@ -42,6 +42,7 @@
     "@google-cloud/tasks": "^6.2.3",
     "@mdx-js/react": "^3.1.1",
     "@mistralai/mistralai": "^2.5.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@nodelib/fs.scandir": "^4.0.1",
     "@nodelib/fs.stat": "^4.0.0",
     "@nodelib/fs.walk": "^3.0.1",

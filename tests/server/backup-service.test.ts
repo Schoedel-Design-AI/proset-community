@@ -70,10 +70,10 @@ test("buildBackupPaths produces URL-safe audio path", () => {
   const recording = { ...FAKE_RECORDING_BASE, audioUri: "data:audio/m4a;base64,AA==" };
   const { remotePath, fileName } = buildBackupPaths(recording as any, "audio");
 
-  // Top-level folder is always "aiforms"
-  assert.ok(remotePath.startsWith("aiforms/"), `remotePath should start with aiforms/, got: ${remotePath}`);
+  // Top-level folder is always "Proset"
+  assert.ok(remotePath.startsWith("Proset/"), `remotePath should start with Proset/, got: ${remotePath}`);
   // Second segment is the year-month
-  assert.match(remotePath, /^aiforms\/\d{4}-\d{2}\//);
+  assert.match(remotePath, /^Proset\/\d{4}-\d{2}\//);
   // File name should contain "audio_"
   assert.ok(fileName.startsWith("audio_"), `fileName should start with audio_, got: ${fileName}`);
   // Path should end with the audio extension
@@ -86,7 +86,7 @@ test("buildBackupPaths produces URL-safe transcript path", () => {
   const recording = { ...FAKE_RECORDING_BASE, transcript: "Hello world" };
   const { remotePath, fileName } = buildBackupPaths(recording as any, "transcript");
 
-  assert.ok(remotePath.startsWith("aiforms/"));
+  assert.ok(remotePath.startsWith("Proset/"));
   assert.ok(fileName.startsWith("transcript_"), `fileName should start with transcript_, got: ${fileName}`);
   assert.ok(remotePath.endsWith(".txt"), `remotePath should end with .txt, got: ${remotePath}`);
   assert.doesNotMatch(remotePath, /[^a-zA-Z0-9/_\-.]/, "remotePath should only contain URL-safe characters");
@@ -96,7 +96,7 @@ test("buildBackupPaths produces URL-safe conversion path with subdirectory", () 
   const recording = { ...FAKE_RECORDING_BASE };
   const { remotePath, fileName } = buildBackupPaths(recording as any, "conversion", "Action Items");
 
-  assert.ok(remotePath.startsWith("aiforms/"));
+  assert.ok(remotePath.startsWith("Proset/"));
   assert.ok(remotePath.includes("/conversions/"), `remotePath should include /conversions/ subfolder, got: ${remotePath}`);
   assert.ok(remotePath.endsWith(".md"), `remotePath should end with .md, got: ${remotePath}`);
   // "Action Items" sanitized to "Action-Items"

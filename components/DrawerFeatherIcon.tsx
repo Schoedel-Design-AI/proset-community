@@ -6,6 +6,7 @@ export type DrawerFeatherIconName =
   | "book-open"
   | "check"
   | "cloud"
+  | "code"
   | "copy"
   | "credit-card"
   | "edit-3"
@@ -47,6 +48,12 @@ const iconPaths: Record<DrawerFeatherIconName, (strokeProps: any) => React.React
   ),
   check: (p) => <Polyline points="20 6 9 17 4 12" {...p} />,
   cloud: (p) => <Path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" {...p} />,
+  code: (p) => (
+    <>
+      <Polyline points="16 18 22 12 16 6" {...p} />
+      <Polyline points="8 6 2 12 8 18" {...p} />
+    </>
+  ),
   copy: (p) => (
     <>
       <Rect x="9" y="9" width="13" height="13" rx="2" ry="2" {...p} />

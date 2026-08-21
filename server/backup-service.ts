@@ -322,7 +322,7 @@ export function buildBackupPaths(recording: Recording, fileType: string, convers
   const yearMonth = getYearMonth(createdAt);
   const folderName = `${safeTitle}_${timestamp}`;
 
-  const basePath = `aiforms/${yearMonth}/${folderName}`;
+  const basePath = `Proset/${yearMonth}/${folderName}`;
 
   if (fileType === "audio") {
     const ext = recording.audioUri ? getAudioExtension(recording.audioUri) : "m4a";

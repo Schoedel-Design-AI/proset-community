@@ -9,6 +9,7 @@ import { Readable } from "stream";
 import type { IncomingMessage } from "http";
 import { registerRoutes } from "./routes";
 import { setupAuthRoutes } from "./auth";
+import { registerDeveloperApi } from "./modules/developer-api";
 import { firebaseAuthMiddleware } from "./firebase-admin";
 import { WebhookHandlers } from "./stripe-webhooks";
 import { handleRevenueCatWebhook } from "./revenuecat-webhooks";
@@ -717,6 +718,11 @@ function configureWebAndLanding(app: express.Application) {
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
+  <url>
+    <loc>${canonicalBase}/terms</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
 </urlset>`;
     res.setHeader("Content-Type", "application/xml; charset=utf-8");
     res.status(200).send(sitemap);
@@ -789,7 +795,7 @@ function configureWebAndLanding(app: express.Application) {
         return next();
       }
 
-      const reservedPrefixes = ["/api", "/documentation", "/assets", "/support"];
+      const reservedPrefixes = ["/api", "/documentation", "/assets", "/support", "/mcp"];
       if (reservedPrefixes.some((prefix) => req.path === prefix || req.path.startsWith(`${prefix}/`))) {
         return next();
       }
@@ -1030,6 +1036,11 @@ function validateEnvironment(): void {
     if (
       req.path.startsWith("/api/internal/")
       || req.path === "/api/revenuecat/webhook"
+      // Developer API + MCP carry their own bearer (API-key) auth; passing the
+      // key through firebaseAuthMiddleware would log a spurious verification
+      // failure on every request.
+      || req.path.startsWith("/api/v1/")
+      || req.path.startsWith("/mcp")
     ) return next();
     return firebaseAuthMiddleware(req, res, next);
   });
@@ -1185,6 +1196,8 @@ function validateEnvironment(): void {
   configureWebAndLanding(app);
 
   const server = await registerRoutes(app);
+
+  registerDeveloperApi(app);
 
   setupErrorHandler(app);
 

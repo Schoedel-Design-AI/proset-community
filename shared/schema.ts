@@ -412,6 +412,19 @@ export interface UserFile {
   updatedAt: Date | string;
 }
 
+export interface DeveloperApiKey {
+  id: string;
+  userId: string;
+  name: string;
+  keyPrefix: string;
+  keyHash: string;
+  lastUsedAt?: Date | string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  revokedAt?: Date | string | null;
+  expiresAt?: Date | string | null;
+}
+
 export interface UsageLimit {
   id: number | string;
   userId: string;
