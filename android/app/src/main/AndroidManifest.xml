@@ -40,8 +40,7 @@
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
-        <data android:scheme="barryai"/>
-        <data android:scheme="aiforms"/>
+        <data android:scheme="proset"/>
         <data android:scheme="ms.aifor.app"/>
       </intent-filter>
     </activity>

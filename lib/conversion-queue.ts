@@ -10,7 +10,7 @@ export interface PendingConversionJob {
   createdAt: string;
 }
 
-const CONVERSION_QUEUE_KEY = "aiforms_offline_conversion_queue_v1";
+const CONVERSION_QUEUE_KEY = "proset_offline_conversion_queue_v1";
 
 export async function enqueueConversionJob(
   job: Omit<PendingConversionJob, "id" | "createdAt">,

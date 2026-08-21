@@ -1,11 +1,11 @@
 {
-  "name": "aiforms-native",
-  "version": "1.0.53",
+  "name": "proset-community",
+  "version": "1.0.54",
   "scripts": {
     "postinstall": "patch-package",
     "lint": "eslint .",
     "migration:validate": "node scripts/validate-proset-migration.mjs",
-    "okf:validate": "node scripts/validate-aiforms-okf.mjs",
+    "okf:validate": "node scripts/validate-proset-okf.mjs",
     "android:edge-audit": "python3 scripts/audit-android-edge-to-edge.py",
     "web:dev": "vite",
     "web:build": "NODE_ENV=production vite build",

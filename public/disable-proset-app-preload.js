@@ -3,17 +3,19 @@
     return;
   }
 
-  const clearBarryCaches = async () => {
+  const clearProsetCaches = async () => {
     if (!("caches" in window)) return;
     const cacheNames = await caches.keys();
     await Promise.all(
       cacheNames
-        .filter((name) => /^aiforms-v\d+$/i.test(name))
+        // Proset cache names (plus legacy "aiforms-*" names from older
+        // instances, so a rename never strands stale cached app shells).
+        .filter((name) => /^(proset|aiforms)-v\d+$/i.test(name))
         .map((name) => caches.delete(name))
     );
   };
 
-  const unregisterBarryWorkers = async () => {
+  const unregisterProsetWorkers = async () => {
     const registrations = await navigator.serviceWorker.getRegistrations();
     await Promise.all(
       registrations.map(async (registration) => {
@@ -30,8 +32,8 @@
   };
 
   window.addEventListener("load", () => {
-    unregisterBarryWorkers()
-      .then(clearBarryCaches)
+    unregisterProsetWorkers()
+      .then(clearProsetCaches)
       .catch(() => {});
   }, { once: true });
 })();

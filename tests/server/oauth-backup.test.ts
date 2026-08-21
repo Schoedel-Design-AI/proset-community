@@ -172,7 +172,7 @@ test("getPendingBackupOAuthReturnTo strips unsafe returnTo values (external URL)
 });
 
 test("getPendingBackupOAuthReturnTo accepts the mobile deep-link returnTo scheme", () => {
-  const mobileReturn = "aiforms://settings/integrations";
+  const mobileReturn = "proset://settings/integrations";
   const url = generateAuthorizationUrl("user-123", "google_drive", mobileReturn);
   const state = new URL(url!).searchParams.get("state")!;
 
@@ -180,9 +180,9 @@ test("getPendingBackupOAuthReturnTo accepts the mobile deep-link returnTo scheme
   assert.equal(returnTo, mobileReturn);
 });
 
-test("getPendingBackupOAuthReturnTo accepts the three-slash mobile deep-link (aiforms:///)", () => {
-  // The mobile deep-link helper produces "aiforms:///settings/integrations" (three slashes).
-  const mobileReturn = "aiforms:///settings/integrations";
+test("getPendingBackupOAuthReturnTo accepts the three-slash mobile deep-link (proset:///)", () => {
+  // The mobile deep-link helper produces "proset:///settings/integrations" (three slashes).
+  const mobileReturn = "proset:///settings/integrations";
   const url = generateAuthorizationUrl("user-123", "google_drive", mobileReturn);
   const state = new URL(url!).searchParams.get("state")!;
 

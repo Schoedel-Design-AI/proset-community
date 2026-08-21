@@ -41,9 +41,10 @@ usage draws on your own provider credits.
   hash** is stored in Firestore (`developerApiKeys` collection); the full secret
   is returned exactly once at creation.
 - Authenticate requests with `Authorization: Bearer proset_...`.
-- API access is **free for all signed-in users** (v1). Usage still counts
-  against the user's existing transcription/conversion limits via the shared
-  `checkLimit` / `incrementUsage` path.
+- API access is **free for all signed-in users** (v1). The CE has **no plan
+  limits** — every user gets the full experience with no monthly
+  transcription/conversion allowances; only the per-user AI rate limit
+  (10/min) and high safety rails apply, and AI draws on your own model keys.
 
 ## REST API — `{your-ce-server}/api/v1/*`
 

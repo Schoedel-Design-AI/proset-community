@@ -125,11 +125,11 @@ function subscribeToBrowserLocation(onStoreChange: () => void): () => void {
   if (typeof window === "undefined") return () => {};
 
   window.addEventListener("popstate", onStoreChange);
-  window.addEventListener("aiforms:navigation", onStoreChange);
+  window.addEventListener("proset:navigation", onStoreChange);
 
   return () => {
     window.removeEventListener("popstate", onStoreChange);
-    window.removeEventListener("aiforms:navigation", onStoreChange);
+    window.removeEventListener("proset:navigation", onStoreChange);
   };
 }
 
@@ -206,7 +206,7 @@ function useFallbackLocationSnapshot(): RouterSnapshot {
 
 function notifyBrowserNavigation() {
   if (typeof window !== "undefined") {
-    window.dispatchEvent(new Event("aiforms:navigation"));
+    window.dispatchEvent(new Event("proset:navigation"));
   }
 }
 
@@ -434,7 +434,7 @@ const NativeRouterWrapper: React.FC<{ children: React.ReactNode }> = ({ children
   }), [DefaultTheme]);
 
   const linking = useMemo(() => ({
-    prefixes: ["aiforms://", "barryai://", "app.proset.ai://"],
+    prefixes: ["proset://", "app.proset.ai://"],
     config: {
       screens: {
         index: "",

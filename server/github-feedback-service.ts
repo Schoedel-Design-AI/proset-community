@@ -20,7 +20,7 @@ function getGitHubConfig() {
     process.env.GITHUB_API_KEY ||
     process.env.GITHUB_PERSONAL_ACCESS_TOKEN
   )?.trim();
-  const repo = (process.env.GITHUB_REPO || "schoedel-learn/barry-ai")?.trim();
+  const repo = (process.env.GITHUB_REPO || "Schoedel-Design-AI/proset-community")?.trim();
 
   return { token, repo };
 }

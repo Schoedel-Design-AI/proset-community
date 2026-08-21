@@ -5,4 +5,4 @@ import { installStructuredClonePolyfill } from "./lib/structured-clone-polyfill"
 // Hermes lacks structuredClone; dicebear avatar rendering requires it.
 installStructuredClonePolyfill();
 
-AppRegistry.registerComponent("aiforms-native", () => App);
+AppRegistry.registerComponent("proset-native", () => App);

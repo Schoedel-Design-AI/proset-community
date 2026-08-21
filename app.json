@@ -1,7 +1,7 @@
 {
-  "name": "aiforms-native",
+  "name": "proset-native",
   "displayName": "Proset",
-  "version": "1.0.53",
+  "version": "1.0.54",
   "android": {
     "package": "ms.aifor.app",
     "versionCode": 88,
@@ -29,7 +29,7 @@
             "host": "proset.ai"
           },
           {
-            "scheme": "barryai"
+            "scheme": "proset"
           },
           {
             "scheme": "ms.aifor.app"

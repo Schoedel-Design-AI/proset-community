@@ -106,10 +106,10 @@ function getProviderConfig(provider: string): OAuthProviderConfig | null {
 function sanitizeReturnTo(returnTo?: string): string | undefined {
   if (!returnTo) return undefined;
   if (returnTo === "/settings/integrations") return returnTo;
-  // The mobile deep-link helper produces "aiforms:///settings/integrations"
+  // The mobile deep-link helper produces "proset:///settings/integrations"
   // (three slashes: scheme + empty authority + absolute path with leading slash).
   // Accept both two- and three-slash variants so the mobile deep-link round-trip works.
-  if (/^aiforms:\/\/\/?settings\/integrations(?:\?.*)?$/i.test(returnTo)) return returnTo;
+  if (/^proset:\/\/\/?settings\/integrations(?:\?.*)?$/i.test(returnTo)) return returnTo;
   return undefined;
 }
 

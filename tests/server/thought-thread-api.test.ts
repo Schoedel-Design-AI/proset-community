@@ -7,7 +7,7 @@ import { join } from "node:path";
 import express from "express";
 
 test("Thought Thread API persists ordered sources, enforces ownership, and preserves recordings on deletion", async (t) => {
-  const mockPath = join(tmpdir(), `aiforms-thought-thread-${randomUUID()}.json`);
+  const mockPath = join(tmpdir(), `proset-thought-thread-${randomUUID()}.json`);
   process.env.MOCK_DB_PATH = mockPath;
   process.env.NODE_ENV = "test";
 

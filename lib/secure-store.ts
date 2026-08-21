@@ -4,9 +4,9 @@ export async function setSessionToken(token: string | null): Promise<void> {
   tokenCache = token;
   try {
     if (token) {
-      window.localStorage.setItem("aiforms_session_token", token);
+      window.localStorage.setItem("proset_session_token", token);
     } else {
-      window.localStorage.removeItem("aiforms_session_token");
+      window.localStorage.removeItem("proset_session_token");
     }
   } catch (e) {
     console.error("Failed to write to localStorage:", e);
@@ -16,7 +16,7 @@ export async function setSessionToken(token: string | null): Promise<void> {
 export async function getSessionToken(): Promise<string | null> {
   if (tokenCache) return tokenCache;
   try {
-    tokenCache = window.localStorage.getItem("aiforms_session_token");
+    tokenCache = window.localStorage.getItem("proset_session_token");
   } catch (e) {
     console.error("Failed to read from localStorage:", e);
     tokenCache = null;
@@ -27,7 +27,7 @@ export async function getSessionToken(): Promise<string | null> {
 export function getCachedSessionToken(): string | null {
   if (tokenCache === null && typeof window !== "undefined") {
     try {
-      tokenCache = window.localStorage.getItem("aiforms_session_token");
+      tokenCache = window.localStorage.getItem("proset_session_token");
     } catch {}
   }
   return tokenCache;

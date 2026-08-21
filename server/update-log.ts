@@ -20,7 +20,7 @@ const UPDATE_LOG_ENTRIES: UpdateLogEntry[] = [
     version: "v0.9.8",
     title: "One-click cloud backup",
     summary:
-      "Added one-click Connect buttons for Google Drive, OneDrive, and Dropbox backup. Recordings and conversions are automatically backed up to a 'aiforms' folder organized by date.",
+      "Added one-click Connect buttons for Google Drive, OneDrive, and Dropbox backup. Recordings and conversions are automatically backed up to a 'Proset' folder organized by date.",
     publishedAt: "2026-04-30T04:00:00.000Z",
   },
   {

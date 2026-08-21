@@ -34,7 +34,7 @@
     <link rel="canonical" href="https://proset.ai/" />
 
     <link rel="stylesheet" href="/landing-page.css?v=6" />
-    <script defer src="/disable-aiforms-app-preload.js"></script>
+    <script defer src="/disable-proset-app-preload.js"></script>
 
     <script type="application/ld+json">
     {
@@ -42,7 +42,7 @@
         "@type": "Organization",
         "name": "Proset",
         "url": "BASE_URL_PLACEHOLDER",
-        "logo": "BASE_URL_PLACEHOLDER/aiforms-logo-v2.png",
+        "logo": "BASE_URL_PLACEHOLDER/proset-logo.png",
         "sameAs": [
             "https://github.com/schoedel-learn",
             "https://schoedel.design"
@@ -159,7 +159,7 @@
     <nav class="w-full border-b border-brand-border bg-brand-surface/80 backdrop-blur-md sticky top-0 z-50">
         <div class="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
             <div class="flex items-center gap-2">
-                <img src="/aiforms-logo-v2.png" alt="Proset Logo" width="40" height="40"
+                <img src="/proset-logo.png" alt="Proset Logo" width="40" height="40"
                     class="h-10 w-10 rounded-xl object-cover border border-brand-border/50 shadow-sm" />
                 <span class="text-xl font-bold tracking-tight">Proset</span>
             </div>
@@ -561,7 +561,7 @@
     <footer class="w-full border-t border-brand-border bg-brand-surface mt-auto">
         <div class="max-w-6xl mx-auto px-6 py-10 pb-16 flex flex-col md:flex-row items-center justify-between gap-6">
             <div class="flex items-center gap-2 opacity-80">
-                <img src="/aiforms-logo-v2.png" alt="Proset Logo" width="24" height="24"
+                <img src="/proset-logo.png" alt="Proset Logo" width="24" height="24"
                     class="h-6 w-6 rounded-md object-cover border border-brand-border/50 shadow-sm" />
                 <span class="font-semibold text-brand-text">Proset</span>
             </div>
@@ -946,12 +946,12 @@
 
         window.switchLanguage = function(lang) {
             currentLang = lang;
-            localStorage.setItem('aiforms-lang', lang);
+            localStorage.setItem('proset-lang', lang);
             window.updateTranslations();
         };
 
         function initLanguage() {
-            const saved = localStorage.getItem('aiforms-lang');
+            const saved = localStorage.getItem('proset-lang');
             if (saved === 'en' || saved === 'es') {
                 currentLang = saved;
             } else {
@@ -986,7 +986,7 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             // Redirect authenticated users to the app
-            if (localStorage.getItem('aiforms_session_token')) {
+            if (localStorage.getItem('proset_session_token')) {
                 window.location.replace('/login?from=landing');
                 return;
             }

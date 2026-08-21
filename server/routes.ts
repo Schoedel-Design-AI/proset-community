@@ -1450,7 +1450,7 @@ ${transcript}`,
 
       const redirectWithParams = (returnTo: string | undefined, params: Record<string, string>) => {
         const target = returnTo || defaultReturnPath;
-        if (/^aiforms:\/\//i.test(target)) {
+        if (/^proset:\/\//i.test(target)) {
           const url = new URL(target);
           Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
           return res.redirect(url.toString());

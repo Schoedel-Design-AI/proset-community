@@ -1,4 +1,4 @@
-const CACHE_NAME = "aiforms-v5";
+const CACHE_NAME = "proset-v5";
 const APP_ASSETS = [
   "/manifest.json",
 ];

@@ -79,7 +79,8 @@ with `Authorization: Bearer proset_...`.
   threads, folders, usage, transcribe, convert)
 - Keys expire by default after 90 days; create with a custom lifetime in
   Settings → Developer.
-- AI calls count against your CE instance's own usage limits.
+- **No plan limits**: the CE has no monthly transcription/conversion caps or
+  tier gating — only a per-user AI rate limit and high safety rails apply.
 - AI runs on **your own model keys** — the CE has no access to the hosted
   service's managed AI pipeline; configure a provider in `.env` and API usage
   draws on your own credits.

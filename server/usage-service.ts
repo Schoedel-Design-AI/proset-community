@@ -1,17 +1,11 @@
 import { storage } from "./storage";
-import { stripeService } from "./stripe-service";
 import {
-  CLOUD_SYNC_RECORDING_BONUS,
   FREE_RECORDING_COUNT_MIN_SECONDS,
   TIER_ALLOWED_FILE_TYPES,
   TIER_LIMITS,
   countsTowardRecordingAllowance,
 } from "@shared/plan-limits";
 import type { Recording, UsageReservation } from "@shared/schema";
-import {
-  getTierFromRevenueCatEntitlements,
-  normalizeRevenueCatEntitlements,
-} from "@shared/revenuecat-catalog";
 import {
   SELF_SERVICE_MODULE_CATALOG,
   getSelfServiceModuleCatalogEntry,
@@ -40,10 +34,12 @@ export type ConversionTypeAccessResult = {
 };
 
 const HARD_ABSOLUTE_LIMITS = {
-  maxTranscriptionsPerMonth: 500,
-  maxConversionsPerMonth: 1000,
+  // CE: monthly ceilings are safety rails against runaway loops, not plan
+  // limits — no real self-hosted usage profile ever reaches these.
+  maxTranscriptionsPerMonth: 1_000_000,
+  maxConversionsPerMonth: 1_000_000,
   maxRecordingSeconds: 1800,
-  maxFileUploadMB: 50,
+  maxFileUploadMB: 500,
   maxStorageMb: 102400,
 };
 
@@ -67,86 +63,14 @@ function getMonthKey(): string {
   return new Date().toISOString().slice(0, 7);
 }
 
-const TIER_CACHE_TTL_MS = 10 * 60 * 1000;
-
-function isTierCacheStale(tierCachedAt: Date | null): boolean {
-  if (!tierCachedAt) return true;
-  return Date.now() - new Date(tierCachedAt).getTime() > TIER_CACHE_TTL_MS;
-}
-
-function normalizeTier(value?: string | null, proAccessEnabled = false): SubscriptionTier {
-  if (proAccessEnabled) return "pro";
-  const normalized = String(value || "").trim().toLowerCase();
-  if (normalized === "pro") return "pro";
-  if (normalized === "free") return "free";
-  if (normalized === "base" || normalized === "plus" || normalized === "cloud_plus") return "base";
-  return normalized ? "base" : "free";
-}
-
-function highestTier(...tiers: SubscriptionTier[]): SubscriptionTier {
-  if (tiers.includes("pro")) return "pro";
-  if (tiers.includes("base")) return "base";
-  return "free";
-}
-
-async function resolveTierFromStripe(userId: string): Promise<SubscriptionTier> {
-  try {
-    const status = await stripeService.getUserSubscriptionStatus(userId);
-    if (status.active && status.tier !== "free") {
-      return normalizeTier(status.tier, status.tier === "pro");
-    }
-  } catch (e) {
-    console.warn("Failed to check subscription tier, defaulting to free:", e);
-  }
-  return "free";
-}
-
 export async function getUserTierFast(userId: string): Promise<SubscriptionTier> {
-  let revenueCatTier: SubscriptionTier = "free";
-  try {
-    const user = await storage.users.get(userId);
-    if (!user) return "free";
-    revenueCatTier = getTierFromRevenueCatEntitlements(
-      normalizeRevenueCatEntitlements(user.revenueCatEntitlements),
-    );
-    if (!user.stripeSubscriptionId && user.proAccessEnabled !== 1) {
-      return revenueCatTier;
-    }
-    if (!isTierCacheStale(user.tierCachedAt ? new Date(user.tierCachedAt) : null)) {
-      return highestTier(
-        revenueCatTier,
-        normalizeTier(user.cachedTier, user.proAccessEnabled === 1),
-      );
-    }
-  } catch {}
-  return highestTier(
-    await resolveTierFromStripe(userId),
-    revenueCatTier,
-  );
+  // CE: self-hosted open core — every user gets the full (pro) experience.
+  // No hosted plan tiers, no monthly allowances, no billing hooks.
+  return "pro";
 }
 
 export async function getUserTier(userId: string): Promise<SubscriptionTier> {
-  let revenueCatTier: SubscriptionTier = "free";
-  try {
-    const user = await storage.users.get(userId);
-    if (!user) return "free";
-    revenueCatTier = getTierFromRevenueCatEntitlements(
-      normalizeRevenueCatEntitlements(user.revenueCatEntitlements),
-    );
-    if (user.cachedTier && !isTierCacheStale(user.tierCachedAt ? new Date(user.tierCachedAt) : null)) {
-      return highestTier(
-        revenueCatTier,
-        normalizeTier(user.cachedTier, user.proAccessEnabled === 1),
-      );
-    }
-    if (!user.stripeSubscriptionId && user.proAccessEnabled !== 1) {
-      return revenueCatTier;
-    }
-  } catch {}
-  return highestTier(
-    await resolveTierFromStripe(userId),
-    revenueCatTier,
-  );
+  return "pro"; // CE: no hosted plan tiers (see getUserTierFast).
 }
 
 export function getTierLimits(tier: SubscriptionTier) {
@@ -154,22 +78,9 @@ export function getTierLimits(tier: SubscriptionTier) {
 }
 
 export async function getMaxRecordings(userId: string): Promise<number> {
-  const tier = await getUserTier(userId);
-  let maxRecordings = TIER_LIMITS[tier].maxRecordings;
-  if (tier !== "free") {
-    const userRecord = await storage.users.get(userId);
-    const revenueCatEntitlements = normalizeRevenueCatEntitlements(
-      userRecord?.revenueCatEntitlements,
-    );
-    if (
-      tier === "pro"
-      || userRecord?.cloudSyncEnabled === 1
-      || revenueCatEntitlements.includes("cloud-sync")
-    ) {
-      maxRecordings += CLOUD_SYNC_RECORDING_BONUS;
-    }
-  }
-  return maxRecordings;
+  // CE: no per-plan recording allowance — the instance's own storage is the
+  // only practical limit.
+  return 100_000;
 }
 
 export async function getMaxItems(userId: string): Promise<number> {
@@ -312,21 +223,8 @@ export async function checkLimit(userId: string, actionType: "transcription" | "
 }
 
 export async function reportExtendedAccessIfNeeded(userId: string, actionType: "transcription" | "conversion", conversionType?: string): Promise<void> {
-  try {
-    const tier = await getUserTierFast(userId);
-    if (tier === "free") return;
-
-
-
-    const current = await getUsageCount(userId, actionType);
-    const limit = TIER_LIMITS[tier][actionType];
-
-    if (current > limit) {
-      await stripeService.reportUsage(userId, actionType, 1);
-    }
-  } catch (e) {
-    console.warn("Failed to report extended access usage to Stripe:", e);
-  }
+  // CE: no Stripe metering — extended access is unlimited by design.
+  return;
 }
 
 export async function getMaxRecordingSeconds(userId: string): Promise<number> {
@@ -335,10 +233,8 @@ export async function getMaxRecordingSeconds(userId: string): Promise<number> {
 }
 
 export async function getStorageLimit(userId: string): Promise<number> {
-  const tier = await getUserTier(userId);
-  const tierMb = TIER_LIMITS[tier].storageMb;
-  const cappedMb = Math.min(tierMb, HARD_ABSOLUTE_LIMITS.maxStorageMb);
-  return cappedMb * 1024 * 1024;
+  // CE: self-hosted — only the hard safety rail applies (100 GB default).
+  return HARD_ABSOLUTE_LIMITS.maxStorageMb * 1024 * 1024;
 }
 
 export async function getUserUsageSummary(userId: string): Promise<{
@@ -358,17 +254,11 @@ export async function getUserUsageSummary(userId: string): Promise<{
   extendedCostSoFar: number;
   spendingCap: number | null;
 }> {
-  const userRow = await storage.users.get(userId);
   const tier = await getUserTier(userId);
-  const limits = TIER_LIMITS[tier];
   const [tCount, cCount] = await Promise.all([
     getUsageCount(userId, "transcription"),
     getUsageCount(userId, "conversion"),
   ]);
-
-  const tExtended = tier === "free" ? 0 : Math.max(0, tCount - limits.transcription);
-  const cExtended = tier === "free" ? 0 : Math.max(0, cCount - limits.conversion);
-  const extendedCostSoFar = tExtended * EXTENDED_ACCESS_PRICING.transcription + cExtended * EXTENDED_ACCESS_PRICING.conversion;
 
   const maxRecordings = await getMaxRecordings(userId);
   const userRecordings = await storage.getRecordingsByUser(userId);
@@ -380,33 +270,29 @@ export async function getUserUsageSummary(userId: string): Promise<{
     exemptUnderSeconds: tier === "free" ? FREE_RECORDING_COUNT_MIN_SECONDS : null,
   };
 
-  const spendingCap = userRow?.spendingCap ?? null;
-  const proAccessEnabled = tier === "pro";
-
+  // CE: no hosted plan allowances — report the safety rails as the limits
+  // and the full (pro) experience as the tier.
   return {
     tier,
     displayTier: tier,
-    transcriptions: { used: tCount, limit: limits.transcription, extended: tExtended },
-    conversions: { used: cCount, limit: limits.conversion, extended: cExtended },
+    transcriptions: { used: tCount, limit: HARD_ABSOLUTE_LIMITS.maxTranscriptionsPerMonth, extended: 0 },
+    conversions: { used: cCount, limit: HARD_ABSOLUTE_LIMITS.maxConversionsPerMonth, extended: 0 },
     recordings: recordingUsage,
-    maxRecordingSeconds: limits.maxRecordingSeconds,
-    storageMb: limits.storageMb,
-    maxFileImportMB: limits.maxFileImportMB,
+    maxRecordingSeconds: HARD_ABSOLUTE_LIMITS.maxRecordingSeconds,
+    storageMb: HARD_ABSOLUTE_LIMITS.maxStorageMb,
+    maxFileImportMB: HARD_ABSOLUTE_LIMITS.maxFileUploadMB,
     allowedFileTypes: await getAllowedFileTypes(userId),
     maxRecordings,
     maxItems: maxRecordings,
-    proAccessEnabled,
+    proAccessEnabled: true,
     extendedAccessPricing: EXTENDED_ACCESS_PRICING,
-    extendedCostSoFar,
-    spendingCap,
+    extendedCostSoFar: 0,
+    spendingCap: null,
   };
 }
 
 export async function getMaxFileImportSize(userId: string): Promise<number> {
-  const tier = await getUserTier(userId);
-  const tierMb = TIER_LIMITS[tier].maxFileImportMB;
-  const cappedMb = Math.min(tierMb, HARD_ABSOLUTE_LIMITS.maxFileUploadMB);
-  return cappedMb * 1024 * 1024;
+  return HARD_ABSOLUTE_LIMITS.maxFileUploadMB * 1024 * 1024;
 }
 
 export async function getUserModules(userId: string): Promise<string[]> {
@@ -540,5 +426,4 @@ export {
   EXTENDED_ACCESS_PRICING,
   MODULE_CONVERSION_TYPES,
   ALL_MODULE_TYPES,
-  CLOUD_SYNC_RECORDING_BONUS,
 };

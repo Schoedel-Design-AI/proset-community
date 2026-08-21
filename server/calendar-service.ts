@@ -391,7 +391,7 @@ async function createGoogleCalendarEvent(event: ParsedEvent, accessToken: string
 
 async function createCalDAVEvent(event: ParsedEvent, config: { caldavUrl: string; username: string; password: string }): Promise<boolean> {
   try {
-    const uid = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}@aiforms`;
+    const uid = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}@proset`;
     const icsContent = generateIcsContent([event]);
     const singleEvent = icsContent.replace(/UID:.*\r?\n/, `UID:${uid}\r\n`);
     const calUrl = config.caldavUrl.replace(/\/$/, "");
