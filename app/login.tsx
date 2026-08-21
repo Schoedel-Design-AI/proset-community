@@ -30,7 +30,7 @@ import { useTextScale, sf, type TextScale } from "@/lib/typography";
 import { generatePasswordForRole } from "@/lib/password-generator";
 import { validatePassword } from "@/lib/password-validation";
 import { validateEmailAddress } from "@shared/email-validation";
-import aiformsLogo from "@/assets/images/icons-xai/105-navy-bg.png";
+import prosetLogo from "@/assets/images/icons-xai/105-navy-bg.png";
 import { resolvePostLoginRoute } from "@/lib/auth-redirect";
 import { trackPlausibleEventOnce } from "@/lib/plausible";
 
@@ -631,7 +631,7 @@ export default function LoginScreen() {
         <View style={[styles.innerContainer, { maxWidth: 440, width: "100%" }]}>
           <View style={styles.logoSection}>
             <View style={styles.iconContainer}>
-              <Image source={aiformsLogo} style={{ width: 60, height: 60, borderRadius: 16 }} accessibilityLabel="Proset Logo" />
+              <Image source={prosetLogo} style={{ width: 60, height: 60, borderRadius: 16 }} accessibilityLabel="Proset Logo" />
             </View>
             <Text style={[styles.appName, { fontSize: Math.round(ts.display * 4 / 3) }]} accessibilityRole="header">
               Proset
