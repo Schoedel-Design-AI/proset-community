@@ -35,4 +35,17 @@ jobs:
       - name: Build server bundle
         run: npm run server:build
       - name: Run tests
-        run: node --import tsx --test tests/lib/*.test.ts tests/server/*.test.ts tests/server/*.test.mjs
+        # Contract: these globs must match only test files that ship in the
+        # CE. The export's scrub list removes RE-internal tests (billing,
+        # tier, e2e against staging) — what ships here is CE-compatible and
+        # must stay green. `ls` + an explicit empty-guard keeps a future
+        # scrub that empties one pattern from failing the build with a
+        # confusing "no files" error or from drifting into Node's default
+        # test discovery (which would pick up staging-dependent suites).
+        run: |
+          files=$(ls tests/lib/*.test.ts tests/server/*.test.ts tests/server/*.test.mjs 2>/dev/null || true)
+          if [ -n "$files" ]; then
+            node --import tsx --test $files
+          else
+            echo "No shipped test files match — skipping test run."
+          fi
