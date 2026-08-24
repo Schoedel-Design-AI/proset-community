@@ -13,7 +13,7 @@ import {
 import { CONVERSION_TYPES } from "../../../lib/utils";
 import { storage } from "../../storage";
 import { trackEvent } from "../../analytics-service";
-import { getStorageLimit, settleUsageForRun } from "../../usage-service";
+import { getStorageLimit } from "../../usage-service";
 import {
   COMBINED_FOLDER_NAME,
   ensureSystemFolders,
@@ -140,27 +140,6 @@ export async function beginThoughtThreadRunConversion(
   if (current.status !== "prepared") {
     throw Object.assign(new Error("This conversion run is not ready to start."), { status: 409 });
   }
-  if (current.usageStatus === "reserved" && current.usageReservationId) {
-    const reservation = await storage.usageReservations.get(
-      current.usageReservationId,
-      userId,
-    );
-    const reservationExpired = reservation?.status === "reserved"
-      && new Date(reservation.expiresAt).getTime() <= Date.now();
-    if (reservationExpired) {
-      await storage.usageReservations.settle(reservation.id, userId, "released");
-    }
-    if (
-      !reservation
-      || reservationExpired
-      || (reservation.status !== "reserved" && reservation.status !== "committed")
-    ) {
-      throw Object.assign(
-        new Error("This run's usage reservation expired. Retry the run to reserve current capacity."),
-        { status: 409 },
-      );
-    }
-  }
   const startedAt = new Date();
   const transitioned = await storage.thoughtThreadRuns.transition(
     runId,
@@ -209,26 +188,6 @@ export async function failThoughtThreadRun(
     },
   );
   if (failed?.status === "failed") {
-    if (failed.usageStatus === "reserved" || failed.usageReserved === true) {
-      const settled = await settleUsageForRun(
-        userId,
-        failed.usageReservationId,
-        "released",
-      ).catch(() => undefined);
-      if (settled?.status === "released") {
-        const releasedRun = await storage.thoughtThreadRuns.update(runId, userId, {
-          usageStatus: "released",
-          usageReserved: false,
-          updatedAt: new Date().toISOString(),
-        });
-        if (releasedRun) {
-          trackEvent("thought_thread_conversion_failed", userId, {
-            strategy: releasedRun.modelStrategy,
-          });
-          return releasedRun;
-        }
-      }
-    }
     trackEvent("thought_thread_conversion_failed", userId, {
       strategy: failed.modelStrategy,
     });
@@ -277,20 +236,6 @@ export async function finalizeThoughtThreadRun(
   const current = await storage.thoughtThreadRuns.get(runId, threadId, userId);
   if (!current) throw Object.assign(new Error("Conversion run not found."), { status: 404 });
   if (current.status === "completed" && current.fileId) {
-    if (current.usageStatus === "reserved" || current.usageReserved === true) {
-      const settled = await settleUsageForRun(
-        userId,
-        current.usageReservationId,
-        "committed",
-      );
-      if (settled?.status === "committed") {
-        await storage.thoughtThreadRuns.update(runId, userId, {
-          usageStatus: "committed",
-          usageReserved: false,
-          updatedAt: new Date().toISOString(),
-        });
-      }
-    }
     const existing = await storage.userFiles.get(current.fileId);
     if (existing && existing.userId === userId) {
       return {
@@ -374,21 +319,7 @@ export async function finalizeThoughtThreadRun(
     }
     return { run: winner, file };
   }
-  let settledRun = completed;
-  if (completed.usageStatus === "reserved" || completed.usageReserved === true) {
-    const settled = await settleUsageForRun(
-      userId,
-      completed.usageReservationId,
-      "committed",
-    );
-    if (settled?.status === "committed") {
-      settledRun = await storage.thoughtThreadRuns.update(runId, userId, {
-        usageStatus: "committed",
-        usageReserved: false,
-        updatedAt: new Date().toISOString(),
-      }) || completed;
-    }
-  }
+  const settledRun = completed;
   await touchCompletedThread(settledRun, completedAt);
   trackEvent("thought_thread_conversion_completed", userId, {
     strategy: settledRun.modelStrategy,

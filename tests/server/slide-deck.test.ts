@@ -6,7 +6,6 @@ import { assembleDeckPptx } from "../../server/modules/slide-deck/pptx";
 import {
   _resetDeckMemory,
   checkGlobalDailyDeckQuota,
-  checkUserDeckQuota,
   recordDeckGeneration,
 } from "../../server/modules/slide-deck/store";
 
@@ -34,9 +33,7 @@ test("deck styles: ids are unique and resolvable", () => {
 });
 
 test("deck limits: sane values that protect cost", () => {
-  assert.ok(DECK_LIMITS.basePerMonth >= 1 && DECK_LIMITS.basePerMonth <= 10);
-  assert.ok(DECK_LIMITS.proPerMonth >= DECK_LIMITS.basePerMonth);
-  assert.ok(DECK_LIMITS.globalPerDay >= DECK_LIMITS.proPerMonth);
+  assert.ok(DECK_LIMITS.globalPerDay >= 1 && DECK_LIMITS.globalPerDay <= 100);
   assert.ok(DECK_LIMITS.minSlides >= 3 && DECK_LIMITS.minSlides <= DECK_LIMITS.maxSlides);
   assert.ok(DECK_LIMITS.maxSlides <= 25, "deck slide cap should be bounded");
   assert.ok(DECK_LIMITS.maxTranscriptChars <= 40000);
@@ -81,21 +78,13 @@ test("pptx assembly: dark style still renders (backgrounds are valid)", async ()
   assert.ok(buf.length > 1000);
 });
 
-test("deck quota: per-user and global counters enforce limits", async () => {
+test("deck quota: global daily counter enforces the abuse cap", async () => {
   _resetDeckMemory();
-  const userQuota = await checkUserDeckQuota("user-1", DECK_LIMITS.basePerMonth);
-  assert.equal(userQuota.used, 0);
-  assert.equal(userQuota.allowed, true);
-
   const globalBefore = await checkGlobalDailyDeckQuota();
   assert.equal(globalBefore.used, 0);
 
-  await recordDeckGeneration("user-1");
-  await recordDeckGeneration("user-1");
-
-  const afterTwo = await checkUserDeckQuota("user-1", DECK_LIMITS.basePerMonth);
-  assert.equal(afterTwo.used, 2);
-  assert.equal(afterTwo.allowed, afterTwo.used < afterTwo.limit);
+  await recordDeckGeneration();
+  await recordDeckGeneration();
 
   const globalAfter = await checkGlobalDailyDeckQuota();
   assert.equal(globalAfter.used, 2);

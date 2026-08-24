@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
   sentTitle: {
     fontFamily: "Inter_700Bold",
     color: Colors.text,
-    marginBottom: 28,
+    marginBottom: 16,
   },
   sentSubtitle: {
     fontFamily: "Inter_400Regular",
@@ -590,8 +590,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     borderRadius: 12,
     paddingHorizontal: 32,
-    paddingVertical: 22,
+    paddingVertical: 12,
     minHeight: 44,
+    minWidth: 120,
+    alignSelf: "center",
     alignItems: "center",
     justifyContent: "center",
   },

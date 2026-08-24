@@ -8,7 +8,13 @@ import { randomUUID } from "node:crypto";
 import { storage } from "../../storage";
 import { requireAuth } from "../../auth";
 import { trackEvent } from "../../analytics-service";
-import { isConversionTypeAllowed, getUserTier, TIER_CONVERSION_TYPES } from "../../usage-service";
+import {
+  checkConversionLimit,
+  computeConversionTokenCost,
+  deductConversionTokens,
+  isConversionTypeAllowed,
+  TIER_CONVERSION_TYPES,
+} from "../../usage-service";
 import {
   CONVERSION_PROMPTS,
   CONVERSION_SKILLS,
@@ -28,7 +34,6 @@ import {
 import { assembleDeckPptx } from "./pptx";
 import {
   checkGlobalDailyDeckQuota,
-  checkUserDeckQuota,
   getDeck,
   recordDeckGeneration,
   saveDeck,
@@ -73,7 +78,7 @@ function parseDeckJson(raw: string): DeckDocument | null {
   }
 }
 
-async function generateDeck(transcript: string, styleId: string, language: "en" | "es", userId: string): Promise<DeckDocument> {
+async function generateDeck(transcript: string, styleId: string, language: "en" | "es", userId: string): Promise<{ deck: DeckDocument; tokenCost: number }> {
   const style = getDeckStyle(styleId);
   if (!style) throw Object.assign(new Error("Unknown deck style."), { status: 400 });
 
@@ -118,7 +123,14 @@ async function generateDeck(transcript: string, styleId: string, language: "en" 
       );
       const raw = completion.choices[0]?.message?.content || "";
       const deck = parseDeckJson(raw);
-      if (deck) return deck;
+      if (deck) {
+        const tokenCost = computeConversionTokenCost({
+          usage: (completion as any)?.usage ?? null,
+          inputText: systemPrompt + transcript.slice(0, DECK_LIMITS.maxTranscriptChars),
+          outputText: raw,
+        });
+        return { deck, tokenCost };
+      }
       lastError = new Error("Deck output failed JSON validation.");
     } catch (err: any) {
       lastError = err;
@@ -172,15 +184,18 @@ router.post("/slide-deck", requireAuth, async (req: Request, res: Response) => {
       });
     }
 
-    const tier = await getUserTier(userId);
-    const perUserLimit = tier === "pro" ? DECK_LIMITS.proPerMonth : DECK_LIMITS.basePerMonth;
-    const userQuota = await checkUserDeckQuota(userId, perUserLimit);
-    if (!userQuota.allowed) {
+    const limitCheck = await checkConversionLimit(userId, "slide_deck");
+    if (!limitCheck.allowed) {
+      if (limitCheck.spendingCapReached) {
+        return res.status(429).json({
+          error: "spending_cap_reached",
+          message: "You've reached your monthly spending cap for advanced conversions.",
+        });
+      }
       return res.status(429).json({
-        error: "deck_monthly_limit_reached",
-        message: `You've used all ${userQuota.limit} slide decks included with your plan this month.`,
-        used: userQuota.used,
-        limit: userQuota.limit,
+        error: "insufficient_tokens",
+        message: "You've used your monthly AI Credits. Upgrade for more credits — they reset each month.",
+        balance: limitCheck.balance,
       });
     }
     const globalQuota = await checkGlobalDailyDeckQuota();
@@ -192,7 +207,7 @@ router.post("/slide-deck", requireAuth, async (req: Request, res: Response) => {
     }
 
     const language: "en" | "es" = req.body?.language === "es" ? "es" : "en";
-    const deck = await generateDeck(String(transcript), deckStyle.id, language, userId);
+    const { deck, tokenCost } = await generateDeck(String(transcript), deckStyle.id, language, userId);
 
     const pptxBuffer = await assembleDeckPptx(deck, deckStyle);
     const safeName = `${deck.title.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 60) || "presentation"}.pptx`;
@@ -209,7 +224,8 @@ router.post("/slide-deck", requireAuth, async (req: Request, res: Response) => {
       createdAt: new Date().toISOString(),
     };
     await saveDeck(record);
-    await recordDeckGeneration(userId);
+    await recordDeckGeneration();
+    await deductConversionTokens(userId, tokenCost);
     trackEvent("conversion_completed", userId, { conversionType: "slide_deck", style: deckStyle.id, slides: deck.slides.length });
 
     res.json({
@@ -219,7 +235,6 @@ router.post("/slide-deck", requireAuth, async (req: Request, res: Response) => {
       slides: deck.slides,
       style: deckStyle.id,
       fileName: safeName,
-      quotaRemaining: Math.max(0, perUserLimit - userQuota.used - 1),
     });
   } catch (err: any) {
     const status = err?.status || 500;

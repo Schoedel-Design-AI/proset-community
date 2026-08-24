@@ -8,17 +8,14 @@ import { getRequiredRouteUserId, getRouteParam } from "../shared-utils";
 import { trackEvent } from "../../analytics-service";
 import { backupRecordingFiles } from "../../backup-service";
 import {
-  checkLimit,
+  checkTranscriptionLimit,
+  deductTranscriptionTokens,
   getAllowedFileTypes,
   getMaxFileImportSize,
-  getRecordingAllowanceStatus,
   getUserUsageSummary,
   getStorageLimit,
   getRequiredTierForFileType,
-  incrementUsage,
-  reportExtendedAccessIfNeeded,
 } from "../../usage-service";
-import { countsTowardRecordingAllowance } from "@shared/plan-limits";
 import { normalizeRevenueCatEntitlements } from "@shared/revenuecat-catalog";
 import {
   ensureSystemFolders,
@@ -38,7 +35,7 @@ import {
   getTranscriptionTotalTimeoutMs,
   transcribeAudioLatencyFirst,
 } from "../../transcription-routing";
-import { detectSilence } from "../../audio-silence";
+import { detectSilence, estimateAudioDurationSeconds } from "../../audio-silence";
 import { paragraphizeTranscript } from "@shared/transcript-format";
 
 const router = express.Router();
@@ -152,23 +149,6 @@ router.post("/recordings", requireAuth, async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Recording duration must be a non-negative number." });
     }
 
-    const existingRecs = await storage.getRecordingsByUser(userId);
-    const allowance = await getRecordingAllowanceStatus(userId, existingRecs);
-    const countsTowardAllowance = countsTowardRecordingAllowance(allowance.tier, durationSeconds);
-    if (countsTowardAllowance && allowance.used >= allowance.limit) {
-      const freeTierNote = allowance.exemptUnderSeconds
-        ? ` Recordings under ${allowance.exemptUnderSeconds} seconds do not count toward this allowance.`
-        : "";
-      return res.status(409).json({
-        error: "recording_limit_reached",
-        message: `You've reached your ${allowance.limit} saved recording limit. Delete older recordings or upgrade to keep saving more.${freeTierNote}`,
-        current: allowance.used,
-        limit: allowance.limit,
-        maxRecordings: allowance.limit,
-        exemptUnderSeconds: allowance.exemptUnderSeconds,
-      });
-    }
-
     const hasStoredAudio = typeof audioUri === "string" && audioUri.startsWith("bucket://");
     const needsAudioUpload = typeof audioUri === "string"
       && (audioUri.startsWith("file://") || audioUri.startsWith("content://"));
@@ -195,13 +175,7 @@ router.post("/recordings", requireAuth, async (req: Request, res: Response) => {
     });
 
     trackEvent('recording_created', userId, { duration: duration || 0, hasTranscript: !!transcript });
-    res.status(201).json({
-      ...rec,
-      maxRecordings: allowance.limit,
-      recordingAllowanceUsed: allowance.used + (countsTowardAllowance ? 1 : 0),
-      countsTowardRecordingAllowance: countsTowardAllowance,
-      exemptUnderSeconds: allowance.exemptUnderSeconds,
-    });
+    res.status(201).json(rec);
 
     const backupTypes: ("audio" | "transcript" | "conversion")[] = [];
     if (audioUri) backupTypes.push("audio");
@@ -970,49 +944,26 @@ router.post("/transcribe", requireAuth, upload.single("audio"), async (req: Requ
       return res.status(400).json({ error: "No audio file provided" });
     }
 
-    const limitCheck = await checkLimit(userId, "transcription");
-    if (!limitCheck.allowed) {
-      if (limitCheck.spendingCapReached) {
-        return res.status(429).json({
-          error: "spending_cap_reached",
-          message: "You've reached your monthly spending cap for Pro plan overages.",
-          current: limitCheck.current,
-          limit: limitCheck.limit,
-          extendedCostSoFar: limitCheck.extendedCostSoFar,
-          limitType: "transcription",
-        });
-      }
-      return res.status(429).json({
-        error: "monthly_limit_reached",
-        message: `You've used all ${limitCheck.limit} included transcriptions this month.`,
-        current: limitCheck.current,
-        limit: limitCheck.limit,
-        limitType: "transcription",
-      });
-    }
-    const confirmExtendedAccess = req.body?.confirmExtendedAccess === "true" || req.body?.confirmExtendedAccess === true;
-    if (limitCheck.isExtendedAccess && !limitCheck.proAccessEnabled && !confirmExtendedAccess) {
-      return res.status(402).json({
-        error: "pro_access_required",
-        actionType: "transcription",
-        unitCost: limitCheck.extendedUnitCost,
-        current: limitCheck.current,
-        limit: limitCheck.limit,
-        extendedCostSoFar: limitCheck.extendedCostSoFar,
-        pricing: { transcription: 0.15, conversion: 0.10 },
-      });
-    }
-
     const language = req.body.language as string | undefined;
     const prompt = req.body.prompt as string | undefined;
     const fileBuffer = req.file.buffer;
     const fileName = req.file.originalname;
 
+    const durationSeconds = await estimateAudioDurationSeconds(fileBuffer);
+    const limitCheck = await checkTranscriptionLimit(userId, durationSeconds);
+    if (!limitCheck.allowed) {
+      return res.status(429).json({
+        error: "insufficient_tokens",
+        message: "You've used your monthly AI Credits. Upgrade for more credits — they reset each month.",
+        cost: limitCheck.cost,
+        limitType: "transcription",
+      });
+    }
+
     const transcriptionText = await transcribeWithFallback(fileBuffer, fileName, language, prompt);
     const formattedTranscript = paragraphizeTranscript(transcriptionText);
 
-    await incrementUsage(userId, "transcription");
-    reportExtendedAccessIfNeeded(userId, "transcription");
+    await deductTranscriptionTokens(userId, durationSeconds);
 
     res.json({ text: formattedTranscript });
   } catch (error: any) {
@@ -1056,11 +1007,10 @@ router.post("/recordings/:id/transcribe", requireAuth, async (req: Request, res:
       return res.json({ text: paragraphizeTranscript(recording.transcript), reused: true });
     }
 
-    const limitCheck = await checkLimit(userId, "transcription");
+    const durationSeconds = Number(recording.duration) || 0;
+    const limitCheck = await checkTranscriptionLimit(userId, durationSeconds);
     if (!limitCheck.allowed) {
-      const errorCode = limitCheck.spendingCapReached
-        ? "spending_cap_reached"
-        : "monthly_limit_reached";
+      const errorCode = "insufficient_tokens";
       await storage.updateRecording(recordingId, userId, {
         isTranscribing: false,
         transcriptionStatus: "failed",
@@ -1070,32 +1020,9 @@ router.post("/recordings/:id/transcribe", requireAuth, async (req: Request, res:
       });
       return res.status(429).json({
         error: errorCode,
-        message: limitCheck.spendingCapReached
-          ? "You've reached your monthly spending cap for Pro plan overages."
-          : `You've used all ${limitCheck.limit} included transcriptions this month.`,
-        current: limitCheck.current,
-        limit: limitCheck.limit,
+        message: "You've used your monthly AI Credits. Upgrade for more credits — they reset each month.",
+        cost: limitCheck.cost,
         limitType: "transcription",
-      });
-    }
-
-    const confirmExtendedAccess = req.body?.confirmExtendedAccess === true;
-    if (limitCheck.isExtendedAccess && !limitCheck.proAccessEnabled && !confirmExtendedAccess) {
-      await storage.updateRecording(recordingId, userId, {
-        isTranscribing: false,
-        transcriptionStatus: "failed",
-        transcriptionErrorCode: "pro_access_required",
-        transcriptionError: null,
-        transcriptionRetryable: false,
-      });
-      return res.status(402).json({
-        error: "pro_access_required",
-        actionType: "transcription",
-        unitCost: limitCheck.extendedUnitCost,
-        current: limitCheck.current,
-        limit: limitCheck.limit,
-        extendedCostSoFar: limitCheck.extendedCostSoFar,
-        pricing: { transcription: 0.15, conversion: 0.10 },
       });
     }
 
@@ -1176,8 +1103,7 @@ router.post("/recordings/:id/transcribe", requireAuth, async (req: Request, res:
         transcriptionRetryable: null,
       },
     );
-    await incrementUsage(userId, "transcription");
-    reportExtendedAccessIfNeeded(userId, "transcription");
+    await deductTranscriptionTokens(userId, durationSeconds);
     if (updated) {
       await invalidateThoughtThreadsForRecording(recordingId, userId, updated);
       backupRecordingFiles(userId, updated, ["transcript"]).catch((err) =>

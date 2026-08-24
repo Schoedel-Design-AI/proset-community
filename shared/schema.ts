@@ -35,6 +35,9 @@ export interface User {
   revenueCatLastEventId?: string | null;
   revenueCatLastEventAt?: Date | string | null;
   spendingCap?: number | null;
+  tokenBalance: number;
+  tokenAllowanceMonth?: string | null;
+  storageAddonGb: number;
   hasSeenPlanSelection: number;
   grantedTier?: string | null;
   grantedTierExpiresAt?: Date | string | null;

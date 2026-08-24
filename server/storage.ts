@@ -56,6 +56,18 @@ export interface IStorage {
       updates: Partial<User>,
     ): Promise<RevenueCatWebhookApplyResult>;
   };
+
+  billingRedemptions: {
+    apply(
+      redemption: {
+        id: string;
+        userId: string;
+        kind: "token_pack" | "storage_addon";
+        productId: string | null;
+      },
+      updates: Partial<User>,
+    ): Promise<"applied" | "duplicate" | "user_not_found">;
+  };
   
   recordings: {
     get(id: string, userId: string): Promise<Recording | undefined>;

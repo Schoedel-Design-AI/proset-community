@@ -1,11 +1,11 @@
 import { storage } from "./storage";
 import {
-  FREE_RECORDING_COUNT_MIN_SECONDS,
   TIER_ALLOWED_FILE_TYPES,
   TIER_LIMITS,
-  countsTowardRecordingAllowance,
+  TIER_TOKEN_ALLOWANCES,
+  TRANSCRIPTION_TOKENS_PER_SECOND,
 } from "@shared/plan-limits";
-import type { Recording, UsageReservation } from "@shared/schema";
+import type { User } from "@shared/schema";
 import {
   SELF_SERVICE_MODULE_CATALOG,
   getSelfServiceModuleCatalogEntry,
@@ -34,19 +34,13 @@ export type ConversionTypeAccessResult = {
 };
 
 const HARD_ABSOLUTE_LIMITS = {
-  // CE: monthly ceilings are safety rails against runaway loops, not plan
-  // limits — no real self-hosted usage profile ever reaches these.
-  maxTranscriptionsPerMonth: 1_000_000,
-  maxConversionsPerMonth: 1_000_000,
+  // CE: safety rails against runaway usage, not plan limits — no real
+  // self-hosted usage profile reaches these.
   maxRecordingSeconds: 1800,
   maxFileUploadMB: 500,
   maxStorageMb: 102400,
 };
 
-const EXTENDED_ACCESS_PRICING = {
-  transcription: 15,
-  conversion: 10,
-};
 
 export const TIER_CONVERSION_TYPES: Record<SubscriptionTier, string[]> = {
   free: ["summary", "bullet_points", "notes", "email", "todo_list", "outline", "quick_research", "text_message", "adhd_plan", "scaffolded_project_plan", "scaffolded_action_items", "freelancer_time_log", "general_request"],
@@ -56,16 +50,13 @@ export const TIER_CONVERSION_TYPES: Record<SubscriptionTier, string[]> = {
 
 export const FREE_CONVERSION_TYPES = TIER_CONVERSION_TYPES.free;
 
-const BETA_LIMITS = TIER_LIMITS.free;
-const MAX_RECORDING_SECONDS = TIER_LIMITS.free.maxRecordingSeconds;
-
 function getMonthKey(): string {
   return new Date().toISOString().slice(0, 7);
 }
 
 export async function getUserTierFast(userId: string): Promise<SubscriptionTier> {
   // CE: self-hosted open core — every user gets the full (pro) experience.
-  // No hosted plan tiers, no monthly allowances, no billing hooks.
+  // No hosted plan tiers, no billing hooks, no RevenueCat/Stripe lookups.
   return "pro";
 }
 
@@ -77,154 +68,204 @@ export function getTierLimits(tier: SubscriptionTier) {
   return TIER_LIMITS[tier];
 }
 
-export async function getMaxRecordings(userId: string): Promise<number> {
-  // CE: no per-plan recording allowance — the instance's own storage is the
-  // only practical limit.
-  return 100_000;
+export function transcriptionTokenCost(durationSeconds: number): number {
+  const seconds = Number.isFinite(durationSeconds) ? Math.max(0, durationSeconds) : 0;
+  return Math.round(seconds * TRANSCRIPTION_TOKENS_PER_SECOND);
 }
 
-export async function getMaxItems(userId: string): Promise<number> {
-  return getMaxRecordings(userId);
+/**
+ * LLM usage object as reported by OpenAI-compatible providers. Groq/OpenAI use
+ * prompt_tokens + completion_tokens; DeepSeek and some others use
+ * input_tokens + output_tokens; a few only expose total_tokens.
+ */
+export interface LlmUsage {
+  prompt_tokens?: number | null;
+  completion_tokens?: number | null;
+  input_tokens?: number | null;
+  output_tokens?: number | null;
+  total_tokens?: number | null;
 }
 
-export async function getRecordingAllowanceStatus(
-  userId: string,
-  recordings?: Recording[],
-): Promise<{
+/**
+ * Compute the token cost of a conversion. Prefers the actual model usage when
+ * the provider exposes it; otherwise FALLS BACK to a rough ~4 chars/token
+ * estimate (flagged in code) so the balance still moves when a provider does
+ * not report usage.
+ */
+export function computeConversionTokenCost(opts: {
+  usage?: LlmUsage | null;
+  inputText?: string;
+  outputText?: string;
+}): number {
+  const usage = opts.usage;
+  if (usage) {
+    if (Number.isFinite(usage.prompt_tokens) && Number.isFinite(usage.completion_tokens)) {
+      return Math.max(1, Math.round((usage.prompt_tokens as number) + (usage.completion_tokens as number)));
+    }
+    if (Number.isFinite(usage.input_tokens) && Number.isFinite(usage.output_tokens)) {
+      return Math.max(1, Math.round((usage.input_tokens as number) + (usage.output_tokens as number)));
+    }
+    if (Number.isFinite(usage.total_tokens)) {
+      return Math.max(1, Math.round(usage.total_tokens as number));
+    }
+  }
+  // Fallback estimate — no usage object was available from the provider.
+  const inputChars = opts.inputText?.length ?? 0;
+  const outputChars = opts.outputText?.length ?? 0;
+  return Math.max(1, Math.round((inputChars + outputChars) / 4));
+}
+
+export interface UserTokenBalance {
+  balance: number;
+  monthlyAllowance: number;
   tier: SubscriptionTier;
-  used: number;
-  limit: number;
-  exemptUnderSeconds: number | null;
-}> {
-  const [tier, limit, existingRecordings] = await Promise.all([
-    getUserTier(userId),
-    getMaxRecordings(userId),
-    recordings ? Promise.resolve(recordings) : storage.getRecordingsByUser(userId),
-  ]);
+  displayTier: DisplayTier;
+  credited: boolean;
+}
+
+/**
+ * Read the running token balance, applying the lazy monthly allowance credit.
+ * When the user's tokenAllowanceMonth differs from the current month, the tier
+ * allowance is added first (netting any carried-over negative balance from a
+ * conversion grace or a prior month) and the month stamp is persisted.
+ */
+export async function getUserTokenBalance(userId: string): Promise<UserTokenBalance> {
+  const tier = await getUserTierFast(userId);
+  const user = await storage.users.get(userId);
+  const monthKey = getMonthKey();
+  const allowanceMonth = user?.tokenAllowanceMonth ?? null;
+  const credited = allowanceMonth !== monthKey;
+  let balance = user?.tokenBalance ?? 0;
+  if (credited) {
+    balance += TIER_TOKEN_ALLOWANCES[tier];
+    await storage.users.update(userId, {
+      tokenBalance: Math.round(balance),
+      tokenAllowanceMonth: monthKey,
+    });
+  }
   return {
+    balance: Math.round(balance),
+    monthlyAllowance: TIER_TOKEN_ALLOWANCES[tier],
     tier,
-    used: existingRecordings.filter((recording) =>
-      countsTowardRecordingAllowance(tier, Number(recording.duration || 0)),
-    ).length,
-    limit,
-    exemptUnderSeconds: tier === "free" ? FREE_RECORDING_COUNT_MIN_SECONDS : null,
+    displayTier: tier,
+    credited,
   };
 }
 
-export async function getUsageCount(userId: string, actionType: string): Promise<number> {
-  const dateKey = getMonthKey();
-  const row = await storage.usageLimits.get(userId, actionType, dateKey);
-  return row?.count ?? 0;
+/**
+ * Apply a signed delta to the user's token balance (lazy monthly credit first).
+ * Returns the new running balance, which may be negative after a grace
+ * conversion.
+ */
+async function mutateTokenBalance(userId: string, delta: number): Promise<number> {
+  const tier = await getUserTierFast(userId);
+  const user = await storage.users.get(userId);
+  const monthKey = getMonthKey();
+  const allowanceMonth = user?.tokenAllowanceMonth ?? null;
+  let balance = user?.tokenBalance ?? 0;
+  if (allowanceMonth !== monthKey) {
+    balance += TIER_TOKEN_ALLOWANCES[tier];
+  }
+  balance += delta;
+  await storage.users.update(userId, {
+    tokenBalance: Math.round(balance),
+    tokenAllowanceMonth: monthKey,
+  });
+  return Math.round(balance);
 }
 
-export async function incrementUsage(userId: string, actionType: string): Promise<void> {
-  const dateKey = getMonthKey();
-  await storage.usageLimits.increment(userId, actionType, dateKey, 1);
-}
-
-export function getUsageReservationCeiling(
-  actionType: "transcription" | "conversion",
-  limitCheck: { limit: number; isExtendedAccess?: boolean; displayTier?: DisplayTier },
-): number {
-  return limitCheck.isExtendedAccess
-    ? (actionType === "transcription"
-      ? HARD_ABSOLUTE_LIMITS.maxTranscriptionsPerMonth
-      : HARD_ABSOLUTE_LIMITS.maxConversionsPerMonth)
-    : limitCheck.limit;
-}
-
-export async function reserveUsageForRun(
-  userId: string,
-  actionType: "transcription" | "conversion",
-  runId: string,
-  maximumCommittedAndReserved: number,
-  reservationKey = runId,
-): Promise<UsageReservation | null> {
-  const now = new Date();
-  const dateKey = getMonthKey();
-  await storage.usageReservations.releaseExpired(
-    userId,
-    actionType,
-    dateKey,
-    now,
-  );
-  const reservation: UsageReservation = {
-    id: `usage_${actionType}_${reservationKey}`,
-    userId,
-    actionType,
-    dateKey,
-    status: "reserved",
-    runId,
-    createdAt: now.toISOString(),
-    updatedAt: now.toISOString(),
-    expiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
-    committedAt: null,
-    releasedAt: null,
-  };
-  return await storage.usageReservations.reserve(reservation, maximumCommittedAndReserved)
-    ? reservation
-    : null;
-}
-
-export async function settleUsageForRun(
-  userId: string,
-  reservationId: string | null | undefined,
-  outcome: "committed" | "released",
-): Promise<UsageReservation | undefined> {
-  if (!reservationId) return undefined;
-  return storage.usageReservations.settle(reservationId, userId, outcome);
-}
-
-export async function checkLimit(userId: string, actionType: "transcription" | "conversion", conversionType?: string): Promise<{
+export interface TranscriptionLimitResult {
   allowed: boolean;
-  current: number;
-  limit: number;
+  cost: number;
+  balance: number;
+  monthlyAllowance: number;
   tier: SubscriptionTier;
   displayTier?: DisplayTier;
-  isExtendedAccess?: boolean;
-  isPremiumConversion?: boolean;
   proAccessEnabled?: boolean;
-  extendedUnitCost?: number;
-  extendedCostSoFar?: number;
-  spendingCapReached?: boolean;
-}> {
-  const tier = await getUserTierFast(userId);
-  const limits = TIER_LIMITS[tier];
-  const limit = limits[actionType];
-  const current = await getUsageCount(userId, actionType);
-
-  const hardLimit = actionType === "transcription" ? HARD_ABSOLUTE_LIMITS.maxTranscriptionsPerMonth : HARD_ABSOLUTE_LIMITS.maxConversionsPerMonth;
-  if (current >= hardLimit) {
-    return { allowed: false, current, limit: hardLimit, tier, displayTier: tier };
-  }
-
-  const hasProBehavior = tier === "pro";
-
-  if (tier !== "free" && current >= limit) {
-    const unitCost = EXTENDED_ACCESS_PRICING[actionType];
-    const [tCount, cCount] = await Promise.all([
-      getUsageCount(userId, "transcription"),
-      getUsageCount(userId, "conversion"),
-    ]);
-    const tExtended = Math.max(0, tCount - limits.transcription);
-    const cExtended = Math.max(0, cCount - limits.conversion);
-    const costSoFar = tExtended * EXTENDED_ACCESS_PRICING.transcription + cExtended * EXTENDED_ACCESS_PRICING.conversion;
-
-    const user = await storage.users.get(userId);
-    const cap = user?.spendingCap;
-    if (cap != null && (costSoFar + unitCost) > cap) {
-      return { allowed: false, current, limit, tier, spendingCapReached: true, extendedCostSoFar: costSoFar };
-    }
-
-    return { allowed: true, current, limit, tier, isExtendedAccess: true, proAccessEnabled: hasProBehavior, extendedUnitCost: unitCost, extendedCostSoFar: costSoFar };
-  }
-
-  return { allowed: current < limit, current, limit, tier, proAccessEnabled: hasProBehavior };
 }
 
-export async function reportExtendedAccessIfNeeded(userId: string, actionType: "transcription" | "conversion", conversionType?: string): Promise<void> {
-  // CE: no Stripe metering — extended access is unlimited by design.
-  return;
+/**
+ * HARD transcription gate. The cost is known up front (audio duration ×
+ * TRANSCRIPTION_TOKENS_PER_SECOND), so transcription is blocked before it
+ * starts when the running balance cannot cover the cost.
+ */
+export async function checkTranscriptionLimit(
+  userId: string,
+  durationSeconds: number,
+): Promise<TranscriptionLimitResult> {
+  const cost = transcriptionTokenCost(durationSeconds);
+  const tb = await getUserTokenBalance(userId);
+  return {
+    allowed: tb.balance >= cost,
+    cost,
+    balance: tb.balance,
+    monthlyAllowance: tb.monthlyAllowance,
+    tier: tb.tier,
+    displayTier: tb.displayTier,
+    proAccessEnabled: tb.tier === "pro",
+  };
+}
+
+/**
+ * Deduct a completed transcription's token cost (duration × tokens/second).
+ * The transcription must already be hard-gated by checkTranscriptionLimit
+ * before it starts — this never blocks, it just moves the balance.
+ */
+export async function deductTranscriptionTokens(
+  userId: string,
+  durationSeconds: number,
+): Promise<number> {
+  return mutateTokenBalance(userId, -transcriptionTokenCost(durationSeconds));
+}
+
+export interface ConversionLimitResult {
+  allowed: boolean;
+  balance: number;
+  monthlyAllowance: number;
+  tier: SubscriptionTier;
+  displayTier?: DisplayTier;
+  proAccessEnabled?: boolean;
+  friendsAdvancedConversion?: boolean;
+  spendingCapReached?: boolean;
+  unitCostCents?: number;
+  costSoFarCents?: number;
+}
+
+/**
+ * SOFT conversion gate. The cost is unknown up front, so a conversion is
+ * allowed whenever the balance is > 0. After it completes, the actual token
+ * cost is deducted (see deductConversionTokens) and the balance may go
+ * negative — the single grace conversion. Once balance <= 0, further
+ * conversions are blocked so debt never exceeds one conversion.
+ */
+export async function checkConversionLimit(
+  userId: string,
+  conversionType?: string,
+): Promise<ConversionLimitResult> {
+  const tb = await getUserTokenBalance(userId);
+  return {
+    allowed: tb.balance > 0,
+    balance: tb.balance,
+    monthlyAllowance: tb.monthlyAllowance,
+    tier: tb.tier,
+    displayTier: tb.displayTier,
+    proAccessEnabled: tb.tier === "pro",
+  };
+}
+
+/**
+ * Deduct the actual token cost of a completed conversion. The balance may go
+ * negative (the single grace conversion).
+ */
+export async function deductConversionTokens(
+  userId: string,
+  tokenCount: number,
+): Promise<number> {
+  const rounded = Math.max(0, Math.round(tokenCount));
+  if (rounded <= 0) {
+    return (await getUserTokenBalance(userId)).balance;
+  }
+  return mutateTokenBalance(userId, -rounded);
 }
 
 export async function getMaxRecordingSeconds(userId: string): Promise<number> {
@@ -237,61 +278,45 @@ export async function getStorageLimit(userId: string): Promise<number> {
   return HARD_ABSOLUTE_LIMITS.maxStorageMb * 1024 * 1024;
 }
 
-export async function getUserUsageSummary(userId: string): Promise<{
+export interface UserUsageSummary {
   tier: SubscriptionTier;
   displayTier: DisplayTier;
-  transcriptions: { used: number; limit: number; extended: number };
-  conversions: { used: number; limit: number; extended: number };
-  recordings: { used: number; limit: number; exemptUnderSeconds: number | null };
+  tokenBalance: number;
+  monthlyTokenAllowance: number;
+  tokensUsedThisMonth: number;
   maxRecordingSeconds: number;
   storageMb: number;
   maxFileImportMB: number;
   allowedFileTypes: string[];
-  maxRecordings: number;
-  maxItems: number;
   proAccessEnabled: boolean;
-  extendedAccessPricing: { transcription: number; conversion: number };
-  extendedCostSoFar: number;
   spendingCap: number | null;
-}> {
+}
+
+export async function getUserUsageSummary(userId: string): Promise<UserUsageSummary> {
   const tier = await getUserTier(userId);
-  const [tCount, cCount] = await Promise.all([
-    getUsageCount(userId, "transcription"),
-    getUsageCount(userId, "conversion"),
-  ]);
+  const tokenBalance = await mutateTokenBalance(userId, 0);
+  const monthlyTokenAllowance = TIER_TOKEN_ALLOWANCES[tier];
 
-  const maxRecordings = await getMaxRecordings(userId);
-  const userRecordings = await storage.getRecordingsByUser(userId);
-  const recordingUsage = {
-    used: userRecordings.filter((recording) =>
-      countsTowardRecordingAllowance(tier, Number(recording.duration || 0)),
-    ).length,
-    limit: maxRecordings,
-    exemptUnderSeconds: tier === "free" ? FREE_RECORDING_COUNT_MIN_SECONDS : null,
-  };
+  // Approximate "used this month": allowance minus remaining balance.
+  const tokensUsedThisMonth = Math.max(0, monthlyTokenAllowance - tokenBalance);
 
-  // CE: no hosted plan allowances — report the safety rails as the limits
-  // and the full (pro) experience as the tier.
   return {
     tier,
     displayTier: tier,
-    transcriptions: { used: tCount, limit: HARD_ABSOLUTE_LIMITS.maxTranscriptionsPerMonth, extended: 0 },
-    conversions: { used: cCount, limit: HARD_ABSOLUTE_LIMITS.maxConversionsPerMonth, extended: 0 },
-    recordings: recordingUsage,
+    tokenBalance: tokenBalance === Number.MAX_SAFE_INTEGER ? 0 : tokenBalance,
+    monthlyTokenAllowance,
+    tokensUsedThisMonth,
     maxRecordingSeconds: HARD_ABSOLUTE_LIMITS.maxRecordingSeconds,
     storageMb: HARD_ABSOLUTE_LIMITS.maxStorageMb,
     maxFileImportMB: HARD_ABSOLUTE_LIMITS.maxFileUploadMB,
     allowedFileTypes: await getAllowedFileTypes(userId),
-    maxRecordings,
-    maxItems: maxRecordings,
-    proAccessEnabled: true,
-    extendedAccessPricing: EXTENDED_ACCESS_PRICING,
-    extendedCostSoFar: 0,
+    proAccessEnabled: tier === "pro",
     spendingCap: null,
   };
 }
 
 export async function getMaxFileImportSize(userId: string): Promise<number> {
+  // CE: self-hosted — only the hard safety rail applies (500 MB).
   return HARD_ABSOLUTE_LIMITS.maxFileUploadMB * 1024 * 1024;
 }
 
@@ -419,11 +444,8 @@ export function getRequiredTierForConversionType(type: string): SubscriptionTier
 }
 
 export {
-  BETA_LIMITS,
-  MAX_RECORDING_SECONDS,
   TIER_LIMITS,
   HARD_ABSOLUTE_LIMITS,
-  EXTENDED_ACCESS_PRICING,
   MODULE_CONVERSION_TYPES,
   ALL_MODULE_TYPES,
 };

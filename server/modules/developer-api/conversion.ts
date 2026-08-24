@@ -13,9 +13,9 @@ import { resolveConversionModelRouteChain } from "../../conversion-model-routing
 import { getUserConversionModelPreferences } from "../ai-customization/utils";
 import { sanitizeConversionOutput } from "../../conversion-post-processor";
 import {
-  checkLimit,
-  incrementUsage,
-  reportExtendedAccessIfNeeded,
+  checkConversionLimit,
+  computeConversionTokenCost,
+  deductConversionTokens,
   isConversionTypeAllowed,
 } from "../../usage-service";
 
@@ -82,23 +82,15 @@ export async function runCoreConversion(
     throw httpError(400, "custom_prompt_too_long", "Custom prompt is too long (max 5,000 characters).");
   }
 
-  // Tier / usage gate — identical to the in-app conversion path.
-  const limitCheck = await checkLimit(userId, "conversion", type);
-  if (limitCheck && !limitCheck.allowed) {
+  // Token gate — soft: allowed while the running balance is positive. A single
+  // grace conversion may push the balance negative; the deduction happens after
+  // the model responds with its actual token usage.
+  const limitCheck = await checkConversionLimit(userId, type);
+  if (!limitCheck.allowed) {
     if (limitCheck.spendingCapReached) {
-      throw httpError(429, "spending_cap_reached", "You've reached your monthly spending cap for Pro plan overages.");
+      throw httpError(429, "spending_cap_reached", "You've reached your monthly spending cap for advanced conversions.");
     }
-    throw httpError(429, "monthly_limit_reached", `You've used all ${limitCheck.limit} included conversions this month.`);
-  }
-
-  // Overage consent gate — mirrors the in-app /api/convert behavior: a
-  // non-Pro user with extended (pay-as-you-go) access must explicitly consent
-  // before incurring overage charges.
-  if (limitCheck?.isExtendedAccess && !limitCheck.proAccessEnabled && !input.confirmExtendedAccess) {
-    throw Object.assign(
-      httpError(402, "pro_access_required", "Overage consent required. Pass confirmExtendedAccess: true to continue with pay-as-you-go overage."),
-      { unitCost: limitCheck.extendedUnitCost },
-    );
+    throw httpError(429, "insufficient_tokens", "You've used your monthly AI Credits. Upgrade for more credits — they reset each month.");
   }
 
   const typeCheck = await isConversionTypeAllowed(userId, type);
@@ -155,6 +147,7 @@ export async function runCoreConversion(
   let content = "";
   let usedProvider = "";
   let usedModel = "";
+  let conversionUsage: any = null;
   let lastError: unknown = null;
 
   for (const route of routes) {
@@ -173,6 +166,7 @@ export async function runCoreConversion(
       content = candidate;
       usedProvider = route.provider;
       usedModel = route.model;
+      conversionUsage = (completion as any)?.usage ?? null;
       break;
     } catch (err) {
       lastError = err;
@@ -189,8 +183,13 @@ export async function runCoreConversion(
   }
 
   content = sanitizeConversionOutput(type, content);
-  await incrementUsage(userId, "conversion");
-  reportExtendedAccessIfNeeded(userId, "conversion", type);
+  if (!limitCheck.friendsAdvancedConversion) {
+    await deductConversionTokens(userId, computeConversionTokenCost({
+      usage: conversionUsage,
+      inputText: `${systemPrompt}\n${transcript}`,
+      outputText: content,
+    }));
+  }
 
   return { content, type, provider: usedProvider, model: usedModel };
 }

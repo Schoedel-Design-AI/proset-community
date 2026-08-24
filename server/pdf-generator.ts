@@ -97,16 +97,15 @@ export async function generateMarkdownPdf(
   const pageRange = document.bufferedPageRange();
   for (let index = 0; index < pageRange.count; index += 1) {
     document.switchToPage(pageRange.start + index);
-    document
-      .font("Helvetica")
-      .fontSize(8)
-      .fillColor("#666666")
-      .text(
-        `${index + 1} / ${pageRange.count}`,
-        54,
-        document.page.height - 38,
-        { width: document.page.width - 108, align: "center", lineBreak: false },
-      );
+    document.font("Helvetica").fontSize(8).fillColor("#666666");
+    const label = `${index + 1} / ${pageRange.count}`;
+    const labelWidth = document.widthOfString(label);
+    // Draw the footer with an explicit x/y and lineBreak:false (no `width`
+    // option) so it does not route through PDFKit's LineWrapper, whose page
+    // break check (y > maxY) would otherwise create a blank page per footer.
+    document.text(label, (document.page.width - labelWidth) / 2, document.page.height - 38, {
+      lineBreak: false,
+    });
   }
 
   document.end();

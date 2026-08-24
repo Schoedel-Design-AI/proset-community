@@ -25,15 +25,12 @@ import {
 } from "../../conversion-model-routing";
 import { storage } from "../../storage";
 import {
-  checkLimit,
+  checkConversionLimit,
   getAllowedFileTypes,
   getMaxFileImportSize,
   getRequiredTierForFileType,
   getStorageLimit,
-  getUsageReservationCeiling,
   isConversionTypeAllowed,
-  reserveUsageForRun,
-  settleUsageForRun,
 } from "../../usage-service";
 import { DOCUMENT_PARSER_VERSION, extractDocumentText } from "../../document-parser";
 import {
@@ -204,7 +201,6 @@ const conversionOptionsSchema = z.object({
   customPrompt: z.string().trim().max(5_000).optional(),
   clarificationQuestion: z.string().trim().max(1_000).optional(),
   clarificationAnswer: z.string().trim().max(4_000).optional(),
-  confirmExtendedAccess: z.boolean().optional(),
 });
 
 function threadId(userId?: string, operationId?: string): string {
@@ -1276,43 +1272,15 @@ router.post("/thought-threads/:id/prepare-conversion", requireAuth, async (req: 
         requiresRetry: true,
       });
     }
-    const limitCheck = await checkLimit(userId, "conversion", input.conversionType);
+    const limitCheck = await checkConversionLimit(userId, input.conversionType);
     if (!limitCheck.allowed) {
       return res.status(429).json({
-        error: limitCheck.spendingCapReached ? "spending_cap_reached" : "monthly_limit_reached",
-        message: limitCheck.spendingCapReached
-          ? "You have reached your monthly spending cap for conversion overages."
-          : "You have used all included conversions for this month.",
-        current: limitCheck.current,
-        limit: limitCheck.limit,
-      });
-    }
-    if (limitCheck.isExtendedAccess && !limitCheck.proAccessEnabled && !input.confirmExtendedAccess) {
-      return res.status(402).json({
-        error: "pro_access_required",
-        message: "This conversion requires confirmation before using paid overage capacity.",
-        actionType: "conversion",
-        unitCost: limitCheck.extendedUnitCost,
-        current: limitCheck.current,
-        limit: limitCheck.limit,
-        extendedCostSoFar: limitCheck.extendedCostSoFar,
+        error: "insufficient_tokens",
+        message: "You've used your monthly AI Credits. Upgrade for more credits — they reset each month.",
+        balance: limitCheck.balance,
       });
     }
     const newRunId = runId();
-    const reservation = await reserveUsageForRun(
-      userId,
-      "conversion",
-      newRunId,
-      getUsageReservationCeiling("conversion", limitCheck),
-    );
-    if (!reservation) {
-      return res.status(429).json({
-        error: "monthly_limit_reached",
-        message: "Your remaining conversion capacity was reserved by another request. Retry after it completes or expires.",
-        current: limitCheck.current,
-        limit: limitCheck.limit,
-      });
-    }
     let run: ThoughtThreadConversionRun = {
       id: newRunId,
       userId,
@@ -1351,9 +1319,9 @@ router.post("/thought-threads/:id/prepare-conversion", requireAuth, async (req: 
       customPrompt: input.customPrompt || null,
       clarificationQuestion: input.clarificationQuestion || null,
       clarificationAnswer: input.clarificationAnswer || null,
-      usageReserved: !!reservation,
-      usageStatus: reservation ? "reserved" : "not_required",
-      usageReservationId: reservation?.id || null,
+      usageReserved: false,
+      usageStatus: "not_required",
+      usageReservationId: null,
       attemptCount: 0,
       progressCompleted: modelStrategy === "direct" ? 1 : 0,
       progressTotal: modelStrategy === "direct" ? 1 : null,
@@ -1378,9 +1346,6 @@ router.post("/thought-threads/:id/prepare-conversion", requireAuth, async (req: 
       sourceChunks,
     );
     if (!runThread) {
-      if (reservation) {
-        await settleUsageForRun(userId, reservation.id, "released").catch(() => undefined);
-      }
       return res.status(409).json({
         error: "This Thought Thread changed while its snapshot was being frozen. Reload it and try again.",
       });
@@ -1482,20 +1447,6 @@ router.post("/thought-threads/:id/runs/:runId/cancel", requireAuth, async (req: 
         error: `This conversion run is already ${winner?.status || "changing"}.`,
       });
     }
-    if (cancelled.usageStatus === "reserved" || cancelled.usageReserved === true) {
-      const settled = await settleUsageForRun(
-        userId,
-        cancelled.usageReservationId,
-        "released",
-      );
-      if (settled?.status === "released") {
-        cancelled = await storage.thoughtThreadRuns.update(targetRunId, userId, {
-          usageStatus: "released",
-          usageReserved: false,
-          updatedAt: new Date().toISOString(),
-        }) || cancelled;
-      }
-    }
     return res.json({ run: publicRun(cancelled) });
   } catch (error: any) {
     return res.status(error.status || 500).json({
@@ -1510,7 +1461,6 @@ router.post("/thought-threads/:id/runs/:runId/retry", requireAuth, async (req: R
     if (!await requireThoughtThreadCloudSync(userId, res)) return;
     const id = getRouteParam(req.params.id, "id");
     const targetRunId = getRouteParam(req.params.runId, "runId");
-    const input = z.object({ confirmExtendedAccess: z.boolean().optional() }).parse(req.body || {});
     await requireThread(userId, id);
     const current = await storage.thoughtThreadRuns.get(targetRunId, id, userId);
     if (!current) return res.status(404).json({ error: "Conversion run not found." });
@@ -1518,21 +1468,7 @@ router.post("/thought-threads/:id/runs/:runId/retry", requireAuth, async (req: R
       return res.json({ run: publicRun(current) });
     }
     if (current.status === "prepared") {
-      if (current.usageStatus !== "reserved" || !current.usageReservationId) {
-        return res.json({ run: publicRun(current) });
-      }
-      const existingReservation = await storage.usageReservations.get(
-        current.usageReservationId,
-        userId,
-      );
-      const reservationCurrent = existingReservation?.status === "committed"
-        || (
-          existingReservation?.status === "reserved"
-          && new Date(existingReservation.expiresAt).getTime() > Date.now()
-        );
-      if (reservationCurrent) {
-        return res.json({ run: publicRun(current) });
-      }
+      return res.json({ run: publicRun(current) });
     }
     if (current.status === "converting") {
       const leaseExpiresAt = current.leaseExpiresAt
@@ -1542,40 +1478,15 @@ router.post("/thought-threads/:id/runs/:runId/retry", requireAuth, async (req: R
         return res.status(409).json({ error: "This conversion is still active." });
       }
     }
-    const limitCheck = await checkLimit(userId, "conversion", current.conversionType);
+    const limitCheck = await checkConversionLimit(userId, current.conversionType);
     if (!limitCheck.allowed) {
       return res.status(429).json({
-        error: limitCheck.spendingCapReached ? "spending_cap_reached" : "monthly_limit_reached",
-        message: "No conversion capacity is currently available for this retry.",
-        current: limitCheck.current,
-        limit: limitCheck.limit,
-      });
-    }
-    if (limitCheck.isExtendedAccess && !limitCheck.proAccessEnabled && !input.confirmExtendedAccess) {
-      return res.status(402).json({
-        error: "pro_access_required",
-        message: "This retry requires confirmation before using paid overage capacity.",
-        actionType: "conversion",
-        unitCost: limitCheck.extendedUnitCost,
-        current: limitCheck.current,
-        limit: limitCheck.limit,
-        extendedCostSoFar: limitCheck.extendedCostSoFar,
+        error: "insufficient_tokens",
+        message: "You've used your monthly AI Credits. Upgrade for more credits — they reset each month.",
+        balance: limitCheck.balance,
       });
     }
     const nextAttempt = (current.attemptCount || 0) + 1;
-    const reservation = await reserveUsageForRun(
-      userId,
-      "conversion",
-      current.id,
-      getUsageReservationCeiling("conversion", limitCheck),
-      `${current.id}_attempt_${nextAttempt}`,
-    );
-    if (!reservation) {
-      return res.status(429).json({
-        error: "monthly_limit_reached",
-        message: "Conversion capacity is reserved by another request. Retry shortly.",
-      });
-    }
     const targetStatus = current.preparedHash ? "prepared" : "preparing";
     const retried = await storage.thoughtThreadRuns.transition(
       current.id,
@@ -1587,9 +1498,9 @@ router.post("/thought-threads/:id/runs/:runId/retry", requireAuth, async (req: R
         error: null,
         completedAt: null,
         updatedAt: new Date().toISOString(),
-        usageStatus: reservation ? "reserved" : "not_required",
-        usageReservationId: reservation?.id || null,
-        usageReserved: !!reservation,
+        usageStatus: "not_required",
+        usageReservationId: null,
+        usageReserved: false,
         leaseToken: null,
         leaseExpiresAt: null,
         progressCompleted: targetStatus === "prepared" ? current.progressCompleted : 0,
@@ -1597,9 +1508,6 @@ router.post("/thought-threads/:id/runs/:runId/retry", requireAuth, async (req: R
       },
     );
     if (!retried) {
-      if (reservation) {
-        await settleUsageForRun(userId, reservation.id, "released").catch(() => undefined);
-      }
       return res.status(409).json({ error: "This conversion run changed while it was being retried." });
     }
     if (retried.status === "preparing") await scheduleHierarchicalPreparation(retried);

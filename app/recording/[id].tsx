@@ -105,38 +105,12 @@ const CUSTOM_PROMPTS_KEY = "@voicenote_custom_prompts";
 const DRAFT_KEY_PREFIX = "@voicenote_draft_";
 const MAX_SOURCE_ATTACHMENT_TEXT = 700_000;
 
-const CODE_TYPES = new Set<string>();
-
-function extractCodeFromContent(content: string, conversionType?: string): string {
-  const codeBlocks = content.match(/```\w*\n([\s\S]*?)```/g);
-  if (codeBlocks && codeBlocks.length > 0) {
-    return codeBlocks.map((block) => {
-      const inner = block.match(/```\w*\n([\s\S]*?)```/);
-      return inner ? inner[1].trim() : block;
-    }).join("\n\n");
-  }
-  if (conversionType && CODE_TYPES.has(conversionType)) {
-    const isWin = conversionType === "windows_commands";
-    const isCmd = (line: string) => {
-      const t = line.trim();
-      if (!t || /^#{1,3}\s/.test(t) || /^\*\*/.test(t) || /^[*-]\s/.test(t) || /^\d+\.\s/.test(t)) return false;
-      if (/^\$\s/.test(t) || /^#!\//.test(t)) return true;
-      if (isWin) return /^(dir|copy|move|del|echo|set|cd|md|mkdir|rmdir|xcopy|robocopy|powershell|cmd|winget|choco|net|sc|reg|icacls|sfc|dism|ipconfig|ping|netstat|Get-|Set-|New-|Remove-|Start-|Stop-|Invoke-|Install-|Import-|Export-|Update-|Add-|Write-)/i.test(t);
-      return /^(sudo|apt|yum|dnf|brew|pip|npm|git|cd|ls|mkdir|rm|cp|mv|cat|echo|chmod|chown|curl|wget|tar|grep|find|sed|awk|docker|python3?|node|source|export|alias)\s/.test(t);
-    };
-    const cmdLines = content.split("\n").filter(isCmd);
-    if (cmdLines.length > 0) return cmdLines.join("\n");
-  }
-  return content;
-}
-
 function ConversionContent({ content, conversionType, codeView }: { content: string; conversionType?: string; codeView?: boolean }) {
   const ts = useTextScale();
   const codeBlockStyles = useMemo(() => makeCodeBlockStyles(ts), [ts]);
   const richTextStyles = useMemo(() => makeRichTextStyles(ts), [ts]);
   const tableStyles = useMemo(() => makeTableStyles(ts), [ts]);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
-  const isCodeType = conversionType && CODE_TYPES.has(conversionType);
 
   const handleCopyBlock = async (code: string, index: number) => {
     try {
@@ -309,20 +283,6 @@ function ConversionContent({ content, conversionType, codeView }: { content: str
     return <View key={`text-${blockIndex}`}>{elements}</View>;
   };
 
-  const LANG_MAP: Record<string, string> = {
-    // Add code types here if needed in the future
-  };
-  const langLabel = (conversionType && LANG_MAP[conversionType]) || "code";
-
-  const isCommandLine = (line: string) => {
-    const trimmed = line.trim();
-    if (/^\$\s/.test(trimmed) || /^#\s*(!\/)/.test(trimmed)) return true;
-    if (conversionType === "windows_commands") {
-      return /^(dir|copy|move|del|ren|type|echo|set|cls|cd|md|rd|mkdir|rmdir|xcopy|robocopy|powershell|cmd|winget|choco|net|sc|reg|icacls|attrib|sfc|dism|wmic|tasklist|taskkill|shutdown|ipconfig|ping|netstat|nslookup|tracert|Get-|Set-|New-|Remove-|Start-|Stop-|Invoke-|Install-|Import-|Export-|Update-|Add-|Write-|Read-|Test-|Select-|Where-|ForEach-)\s*/i.test(trimmed);
-    }
-    return /^(sudo|apt|yum|dnf|brew|pip|npm|git|cd|ls|mkdir|rm|cp|mv|cat|echo|chmod|chown|curl|wget|tar|grep|find|sed|awk|docker|python3?|node|source|export|alias)\s/.test(trimmed);
-  };
-
   const parseContentBlocks = (): React.ReactNode[] => {
     const nodes: React.ReactNode[] = [];
     let blockIdx = 0;
@@ -340,37 +300,6 @@ function ConversionContent({ content, conversionType, codeView }: { content: str
           blockIdx++;
         }
       });
-    } else if (isCodeType) {
-      const lines = content.split("\n");
-      let currentCode: string[] = [];
-      let currentText: string[] = [];
-
-      const flushCode = () => {
-        if (currentCode.length > 0) {
-          nodes.push(renderCodeBlock(currentCode.join("\n"), langLabel, blockIdx));
-          blockIdx++;
-          currentCode = [];
-        }
-      };
-      const flushText = () => {
-        if (currentText.length > 0) {
-          nodes.push(renderTextBlock(currentText.join("\n"), blockIdx));
-          blockIdx++;
-          currentText = [];
-        }
-      };
-
-      for (const line of lines) {
-        if (isCommandLine(line) || (currentCode.length > 0 && line.trim().startsWith("#") && !line.startsWith("##"))) {
-          flushText();
-          currentCode.push(line);
-        } else {
-          flushCode();
-          currentText.push(line);
-        }
-      }
-      flushCode();
-      flushText();
     } else {
       nodes.push(renderTextBlock(content, 0));
     }
@@ -389,14 +318,6 @@ function ConversionContent({ content, conversionType, codeView }: { content: str
   return (
     <View>
       {parseContentBlocks()}
-      {isCodeType && (
-        <View style={codeBlockStyles.downloadHint}>
-          <Feather name="download" size={14} color={Colors.textSecondary} />
-          <Text style={codeBlockStyles.downloadHintText}>
-            Tap the download button above to save as a file
-          </Text>
-        </View>
-      )}
     </View>
   );
 }
@@ -728,9 +649,6 @@ export default function RecordingDetailScreen() {
     docx: "export.word",
     csv: "export.csv",
     xlsx: "export.xlsx",
-    sql: "export.sql",
-    ps1: "export.powershell",
-    bat: "export.batch",
   };
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -2854,9 +2772,6 @@ export default function RecordingDetailScreen() {
           if (!res.ok) throw new Error("Failed to generate spreadsheet");
           blob = await res.blob();
           fullName = `${baseName}.xlsx`;
-        } else if (["ps1", "bat", "sql"].includes(format)) {
-          fullName = `${baseName}.${formatInfo.ext}`;
-          blob = new Blob([extractCodeFromContent(conversion.content, conversion.type)], { type: formatInfo.mimeType });
         } else {
           fullName = `${baseName}.${formatInfo.ext}`;
           blob = new Blob([conversion.content], { type: formatInfo.mimeType });
@@ -2962,14 +2877,11 @@ export default function RecordingDetailScreen() {
         return;
       }
 
-      // Text-based formats (txt, md, csv, ps1, bat, sql)
+      // Text-based formats (txt, md, csv)
       const fileName = `${baseName}_${Date.now()}.${formatInfo.ext}`;
       const dirPath = action === "save" ? FileSystem.documentDirectory : FileSystem.cacheDirectory;
       const filePath = `${dirPath}${fileName}`;
-      let exportContent = conversion.content;
-      if (["ps1", "bat", "sql"].includes(format)) {
-        exportContent = extractCodeFromContent(conversion.content, conversion.type);
-      }
+      const exportContent = conversion.content;
       await FileSystem.writeAsStringAsync(filePath, exportContent);
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
@@ -4864,9 +4776,7 @@ export default function RecordingDetailScreen() {
                     format.value === "pdf" ? "file" :
                     format.value === "docx" ? "file-plus" :
                     format.value === "csv" || format.value === "xlsx" ? "grid" :
-                    format.value === "ps1" ? "terminal" :
-                    format.value === "bat" ? "terminal" :
-                    "code"
+                    "file"
                   }
                   size={20}
                   color={Colors.primary}

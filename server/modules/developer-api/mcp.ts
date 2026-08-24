@@ -8,10 +8,10 @@ import { runCoreConversion } from "./conversion";
 import { storage } from "../../storage";
 import { transcribeAudioLatencyFirst } from "../../transcription-routing";
 import { paragraphizeTranscript } from "@shared/transcript-format";
+import { estimateAudioDurationSeconds } from "../../audio-silence";
 import {
-  checkLimit,
-  incrementUsage,
-  reportExtendedAccessIfNeeded,
+  checkTranscriptionLimit,
+  deductTranscriptionTokens,
   getUserUsageSummary,
 } from "../../usage-service";
 
@@ -171,30 +171,22 @@ function createMcpServer(): McpServer {
     },
     async (args, extra) => {
       const userId = requireUserId(extra.sessionId);
-      const limitCheck = await checkLimit(userId, "transcription");
+      const fileBuffer = Buffer.from(args.audio_base64, "base64");
+      const durationSeconds = await estimateAudioDurationSeconds(fileBuffer);
+      const limitCheck = await checkTranscriptionLimit(userId, durationSeconds);
       if (!limitCheck.allowed) {
         return textResult(JSON.stringify({
-          error: limitCheck.spendingCapReached ? "spending_cap_reached" : "monthly_limit_reached",
-          message: limitCheck.spendingCapReached
-            ? "You've reached your monthly spending cap for Pro plan overages."
-            : `You've used all ${limitCheck.limit} included transcriptions this month.`,
+          error: "insufficient_tokens",
+          message: "You've used your monthly AI Credits. Upgrade for more credits — they reset each month.",
         }));
       }
-      if (limitCheck.isExtendedAccess && !limitCheck.proAccessEnabled && !args.confirmExtendedAccess) {
-        return textResult(JSON.stringify({
-          error: "pro_access_required",
-          message: "Overage consent required. Retry with confirmExtendedAccess: true to continue with pay-as-you-go overage.",
-        }));
-      }
-      const fileBuffer = Buffer.from(args.audio_base64, "base64");
       const result = await transcribeAudioLatencyFirst({
         fileBuffer,
         fileName: args.filename || "audio.webm",
         language: args.language,
         prompt: args.prompt,
       });
-      await incrementUsage(userId, "transcription");
-      reportExtendedAccessIfNeeded(userId, "transcription");
+      await deductTranscriptionTokens(userId, durationSeconds);
       return textResult(paragraphizeTranscript(result.text));
     },
   );

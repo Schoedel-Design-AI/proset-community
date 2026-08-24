@@ -677,7 +677,7 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingVertical: 8,
+    paddingVertical: 14,
   },
   topBarActions: {
     flexDirection: "row",

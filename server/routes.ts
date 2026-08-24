@@ -75,7 +75,7 @@ import {
   toPublicConnectorProvider,
   type ConnectorType,
 } from "./connector-service";
-import { checkLimit, incrementUsage, reportExtendedAccessIfNeeded, getUserUsageSummary, getStorageLimit, MAX_RECORDING_SECONDS, BETA_LIMITS, getMaxFileImportSize, isConversionTypeAllowed, getUserTier, FREE_CONVERSION_TYPES, getAllowedFileTypes, getRequiredTierForFileType, TIER_CONVERSION_TYPES, getUserModules, MODULE_CONVERSION_TYPES, ALL_MODULE_TYPES, getMaxItems, getSelfServiceModuleState, getSelfServiceModulesForUser } from "./usage-service";
+import { checkConversionLimit, computeConversionTokenCost, deductConversionTokens, getUserUsageSummary, getStorageLimit, getMaxFileImportSize, isConversionTypeAllowed, getUserTier, FREE_CONVERSION_TYPES, getAllowedFileTypes, getRequiredTierForFileType, TIER_CONVERSION_TYPES, getUserModules, MODULE_CONVERSION_TYPES, ALL_MODULE_TYPES, getSelfServiceModuleState, getSelfServiceModulesForUser } from "./usage-service";
 import { CONVERSION_COMPLEXITY_MAP } from "../lib/utils";
 import { registerBucketRoutes } from "./bucket-routes";
 import { registerKbRoutes } from "./kb-routes";
@@ -91,10 +91,10 @@ import {
   type ConversionModelRoute,
 } from "./conversion-model-routing";
 import { getUpdateLogEntries } from "./update-log";
-import { sendPasswordResetEmail, addEmailToWaitlist } from "./email-service";
-import type { UserRole } from "./password-policy";
-import { getDeploymentInfo } from "./deployment-info";
-import { validateEmailAddress } from "@shared/email-validation";
+
+
+
+
 import aiCustomizationRouter from "./modules/ai-customization/router";
 import recordingsRouter from "./modules/recordings/router";
 import slideDeckRouter from "./modules/slide-deck/router";
@@ -571,7 +571,6 @@ Be concise. When in doubt, prefer NOT asking — converting with reasonable assu
   app.post("/api/convert", requireAuth, async (req: Request, res: Response) => {
     let activeThoughtThreadRun: { id: string; threadId: string } | null = null;
     let activeThoughtThreadRunRecord: ThoughtThreadConversionRun | null = null;
-    let thoughtThreadUsageReserved = false;
     try {
       let {
         transcript,
@@ -602,9 +601,6 @@ Be concise. When in doubt, prefer NOT asking — converting with reasonable assu
         );
         if (!run) return res.status(404).json({ error: "Conversion run not found." });
         activeThoughtThreadRunRecord = run;
-        thoughtThreadUsageReserved =
-          run.usageStatus === "reserved"
-          || (run.usageStatus === undefined && run.usageReserved === true);
         type = run.conversionType;
         citationStyle = run.citationStyle || undefined;
         bibliographyType = run.bibliographyType || undefined;
@@ -624,35 +620,12 @@ Be concise. When in doubt, prefer NOT asking — converting with reasonable assu
         return res.status(400).json({ error: "Custom prompt is too long (max 5,000 characters)." });
       }
 
-      const limitCheck = thoughtThreadUsageReserved
-        ? null
-        : await checkLimit(convUserId, "conversion", type);
-      if (limitCheck && !limitCheck.allowed) {
-        if (limitCheck.spendingCapReached) {
-          return res.status(429).json({
-            error: "spending_cap_reached",
-            message: "You've reached your monthly spending cap for Pro plan overages.",
-            current: limitCheck.current,
-            limit: limitCheck.limit,
-            extendedCostSoFar: limitCheck.extendedCostSoFar,
-          });
-        }
+      const limitCheck = await checkConversionLimit(convUserId, type);
+      if (!limitCheck.allowed) {
         return res.status(429).json({
-          error: "monthly_limit_reached",
-          message: `You've used all ${limitCheck.limit} included conversions this month. Upgrade to Base for more included conversions or Pro for uninterrupted overage access.`,
-          current: limitCheck.current,
-          limit: limitCheck.limit,
-        });
-      }
-      if (limitCheck?.isExtendedAccess && !limitCheck.proAccessEnabled && !req.body?.confirmExtendedAccess) {
-        return res.status(402).json({
-          error: "pro_access_required",
-          actionType: "conversion",
-          unitCost: limitCheck.extendedUnitCost,
-          current: limitCheck.current,
-          limit: limitCheck.limit,
-          extendedCostSoFar: limitCheck.extendedCostSoFar,
-          pricing: { transcription: 0.15, conversion: 0.10 },
+          error: "insufficient_tokens",
+          message: "You've used your monthly AI Credits. Upgrade for more credits — they reset each month.",
+          balance: limitCheck.balance,
         });
       }
 
@@ -1071,6 +1044,7 @@ ${transcript}`,
       let lastError: unknown = null;
       let usedRoute: ConversionModelRoute | null = null;
       let fullResponse = "";
+      let streamUsage: any = null;
 
       for (const route of conversionRoutes) {
         let receivedFirstChunk = false;
@@ -1088,6 +1062,12 @@ ${transcript}`,
             ],
             stream: true,
             ...getChatCompletionTokenOptions(route.provider, 8192),
+            // Request a usage chunk from providers that support it so the
+            // conversion can be priced on actual tokens. Others ignore it and
+            // fall back to the text-length estimate below.
+            ...(route.provider === "default" || route.provider === "groq" || route.provider === "deepseek"
+              ? { stream_options: { include_usage: true } }
+              : {}),
           }, { signal: controller.signal });
 
           usedRoute = route;
@@ -1108,6 +1088,7 @@ ${transcript}`,
           try {
             for await (const chunk of stream) {
               if (clientDisconnected) break;
+              if ((chunk as any)?.usage) streamUsage = (chunk as any).usage;
               const content = chunk.choices[0]?.delta?.content || "";
               if (!content) continue;
 
@@ -1180,12 +1161,12 @@ ${transcript}`,
         }
       }
 
-      if (!thoughtThreadUsageReserved) {
-        await incrementUsage(convUserId, "conversion");
-      }
-      if (!activeThoughtThreadRun) {
-        reportExtendedAccessIfNeeded(convUserId, "conversion", type);
-      }
+      const conversionTokensUsed = computeConversionTokenCost({
+        usage: streamUsage,
+        inputText: `${systemPrompt}\n${userContent}`,
+        outputText: fullResponse,
+      });
+      await deductConversionTokens(convUserId, conversionTokensUsed);
 
       if (fullResponse.length > 50 && transcript.length > 80) {
         runReflection(convUserId, type, transcript, fullResponse).catch(() => {});
@@ -1200,7 +1181,6 @@ ${transcript}`,
           fullResponse,
           { provider: usedRoute.provider, model: usedRoute.model },
         );
-        reportExtendedAccessIfNeeded(convUserId, "conversion", type);
       }
       if (!clientDisconnected) {
         res.write(`data: ${JSON.stringify({

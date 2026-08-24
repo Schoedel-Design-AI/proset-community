@@ -357,11 +357,6 @@ export function RecordingsProvider({ children }: { children: ReactNode }) {
   }, [scopedAutoTranscribeKey]);
 
   const addRecording = useCallback(async (recording: Recording) => {
-    const limitError = `Recording limit reached. Delete older recordings or upgrade to save more than ${maxRecordings.toLocaleString()} recordings.`;
-    if (recordings.length >= maxRecordings) {
-      setLastRecordingLimitEvent(Date.now());
-      throw new Error(limitError);
-    }
     setRecordings((prev) => {
       const next = [recording, ...prev];
       saveLocal(next);
@@ -389,11 +384,11 @@ export function RecordingsProvider({ children }: { children: ReactNode }) {
             return filtered;
           });
           setLastRecordingLimitEvent(Date.now());
-          throw new Error(data.message || limitError);
+          throw new Error(data.message || "This recording could not be saved.");
         }
       }
     }
-  }, [canUseCloud, maxRecordings, recordings.length, saveLocal]);
+  }, [canUseCloud, saveLocal]);
 
   const updateRecording = useCallback(async (id: string, updates: Partial<Recording>) => {
     setRecordings((prev) => {

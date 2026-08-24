@@ -120,3 +120,86 @@ export function detectSilence(fileBuffer: Buffer): Promise<SilenceCheck> {
     child.stdin.end();
   });
 }
+
+/**
+ * Probe the duration of an audio buffer in seconds using ffmpeg (parses the
+ * container header's "Duration: hh:mm:ss.xx" line — no full decode). Resolves
+ * null when ffmpeg is unavailable or the duration cannot be determined.
+ *
+ * Used to price transcription at 1 token/second when no Recording.duration is
+ * available (developer API / MCP raw-audio endpoints).
+ */
+export function getAudioDurationSeconds(fileBuffer: Buffer): Promise<number | null> {
+  const ffmpegBinary = ffmpegPath;
+  if (!ffmpegBinary) {
+    return Promise.resolve(null);
+  }
+
+  return new Promise<number | null>((resolve) => {
+    let settled = false;
+    let stderr = "";
+
+    const finish = (result: number | null) => {
+      clearTimeout(timer);
+      if (!settled) {
+        settled = true;
+        resolve(result);
+      }
+    };
+
+    const child = spawn(
+      ffmpegBinary,
+      ["-hide_banner", "-i", "pipe:0"],
+      { stdio: ["pipe", "ignore", "pipe"] },
+    );
+
+    const timer = setTimeout(() => {
+      console.warn("[audio] ffmpeg duration probe timed out");
+      child.kill("SIGKILL");
+      finish(null);
+    }, FFMPEG_TIMEOUT_MS);
+
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString();
+      if (stderr.length > 64 * 1024) {
+        child.kill("SIGKILL");
+        finish(null);
+      }
+    });
+
+    child.on("error", (error) => {
+      console.warn("[audio] ffmpeg duration probe spawn failed (%s)", error.message);
+      finish(null);
+    });
+
+    child.on("close", () => {
+      const match = stderr.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
+      if (match) {
+        const hours = parseInt(match[1], 10);
+        const minutes = parseInt(match[2], 10);
+        const seconds = parseFloat(match[3]);
+        const total = hours * 3600 + minutes * 60 + seconds;
+        finish(Number.isFinite(total) && total > 0 ? total : null);
+      } else {
+        finish(null);
+      }
+    });
+
+    child.stdin.on("error", () => {
+      // Ignore stdin write errors; the close handler resolves the outcome.
+    });
+    child.stdin.write(fileBuffer);
+    child.stdin.end();
+  });
+}
+
+/**
+ * Best-effort audio duration for transcription pricing. Prefers the ffmpeg
+ * probe; falls back to a rough ~16 KB/s (128 kbps) size estimate (flagged)
+ * when probing is unavailable, so a hard gate always has a cost to check.
+ */
+export async function estimateAudioDurationSeconds(fileBuffer: Buffer): Promise<number> {
+  const probed = await getAudioDurationSeconds(fileBuffer);
+  if (probed != null && probed > 0) return probed;
+  return Math.max(1, Math.round(fileBuffer.length / 16000));
+}

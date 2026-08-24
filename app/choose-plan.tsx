@@ -20,7 +20,6 @@ import { getApiUrl, getAuthHeaders } from "@/lib/query-client";
 import { sf, useTextScale, type TextScale } from "@/lib/typography";
 import { useLanguage } from "@/lib/i18n";
 import { getAnnualSavings, getPlanFeatures, PLAN_PRICES } from "@shared/plan-limits";
-import { getEarlyAdopterPrice } from "@shared/stripe-catalog";
 import { trackPlausibleEvent, trackPlausibleEventOnce } from "@/lib/plausible";
 import {
   findRevenueCatPackage,
@@ -329,7 +328,7 @@ export default function ChoosePlanScreen() {
         return;
       }
 
-      // Web-only Early Adopter checkout. Native subscriptions stay in Google
+      // Web-only plan checkout. Native subscriptions stay in Google
       // Play through RevenueCat and are never sent to Stripe.
       const baseUrl = getApiUrl();
       const response = await expoFetch(new URL("/api/stripe/checkout-plan", baseUrl).toString(), {
@@ -446,11 +445,9 @@ export default function ChoosePlanScreen() {
               : null;
             const showAnnualSavings = billingInterval === "year" && annualSavings !== null && planKey !== "free";
             const billingUnavailable = Platform.OS === "web" && !billingEnabled && planKey !== "free";
-            const isDiscounted = Platform.OS === "web" && billingEnabled && planKey !== "free";
-            const discountedPrice = isDiscounted ? getEarlyAdopterPrice(displayedPrice) : displayedPrice;
-            // Effective monthly rate from the actually-displayed yearly price so
-            // the anchor stays accurate with or without the early-adopter discount.
-            const effectiveMonthlyCents = annualSavings ? Math.round(discountedPrice / 12) : 0;
+            // Effective monthly rate from the displayed yearly price so the
+            // annual-savings anchor stays accurate.
+            const effectiveMonthlyCents = annualSavings ? Math.round(displayedPrice / 12) : 0;
             // Bilingual card copy (bug fix: descriptions/features were English-only)
             const planDescription = language === "es" ? PLAN_COPY_ES[planKey].description : plan.description;
             const planFeatures = getPlanFeatures(planKey, language);
@@ -464,7 +461,7 @@ export default function ChoosePlanScreen() {
             const displayedPriceLabel = nativePackage?.product.priceString
               || (nativeBillingUnavailable
                 ? (language === "es" ? "No disponible" : "Unavailable")
-                : formatPrice(discountedPrice, language));
+                : formatPrice(displayedPrice, language));
             const actionLabel = planKey === "free"
               ? (language === "es" ? "Continuar con Free" : "Continue with Free")
               : billingUnavailable
@@ -500,20 +497,9 @@ export default function ChoosePlanScreen() {
                   ) : null}
                 </View>
                 <Text style={styles.planPrice}>
-                  {isDiscounted ? (
-                    <Text style={{ textDecorationLine: "line-through", color: Colors.textMuted, fontSize: sf(20, ts) }}>
-                      {formatPrice(displayedPrice)}
-                    </Text>
-                  ) : null}
-                  {isDiscounted ? " " : ""}
                   {displayedPriceLabel}
                   {plan.monthlyPrice ? <Text style={styles.planPeriod}>{intervalLabel}</Text> : null}
                 </Text>
-                {isDiscounted ? (
-                  <Text style={{ color: Colors.primary, fontFamily: "Inter_600SemiBold", fontSize: sf(13, ts), marginBottom: 8, marginTop: -4 }}>
-                    {language === "es" ? "Descuento de 50% para primeros usuarios" : "50% Early Adopter discount"}
-                  </Text>
-                ) : null}
                 {showAnnualSavings ? (
                   <View style={styles.annualSavingsRow}>
                     <Feather name="trending-down" size={14} color={Colors.primary} />
