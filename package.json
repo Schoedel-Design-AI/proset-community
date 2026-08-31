@@ -87,7 +87,7 @@
     "firebase-admin": "^14.0.0",
     "flatted": "^3.4.2",
     "globby": "^16.1.1",
-    "google-auth-library": "^10.9.1",
+    "google-auth-library": "^11.0.2",
     "helmet": "^8.1.0",
     "html2canvas": "^1.4.1",
     "http-proxy-middleware": "^3.0.5",
