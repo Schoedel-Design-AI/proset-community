@@ -97,7 +97,7 @@
     "nodemailer": "^9.0.0",
     "openai": "^6.22.0",
     "otpauth": "^9.5.0",
-    "p-limit": "^7.3.0",
+    "p-limit": "^7.3.1",
     "p-retry": "^7.1.1",
     "pdf-parse": "^2.4.5",
     "pdfkit": "^0.17.2",
