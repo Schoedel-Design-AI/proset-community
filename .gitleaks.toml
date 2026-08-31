@@ -1,0 +1,10 @@
+title = "Gitleaks config for Proset"
+
+[allowlist]
+description = "Ignore historical deleted test commits and documentation example placeholders"
+commits = [
+  "40f1f4791685a1224bbbd8f63eb60445e5d89f41",
+]
+regexes = [
+  '''Bearer\s+(TU_CLAVE|proset_\.\.\.)''',
+]

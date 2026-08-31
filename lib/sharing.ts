@@ -47,9 +47,15 @@ export async function shareAsync(fileUri: string, options: { mimeType?: string; 
       title: options.dialogTitle,
     });
   } catch (err: any) {
-    if (err && err.message && err.message.includes("User did not share")) {
+    const message = err?.message ?? "";
+    // Dismissing the sheet is a normal outcome, not a failure.
+    if (message.includes("User did not share")) {
       return;
     }
+    // Anything else (e.g. FileProvider cannot expose the path) must reach the
+    // caller so it can show the user something — silence here was the cause of
+    // the "nothing happens when I tap download" report in issue #190.
     console.error("Native shareAsync failed:", err);
+    throw err instanceof Error ? err : new Error(message || "Share failed");
   }
 }

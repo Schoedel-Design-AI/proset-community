@@ -28,14 +28,25 @@ test("computeRmsFromPcm: full-scale square wave ≈ 32768", () => {
   assert.ok(rms > 32700, `expected near-full-scale RMS, got ${rms}`);
 });
 
-test("computeRmsFromPcm: room-tone (~-45 dBFS) is below the silence threshold", () => {
-  const amplitude = 32768 * 10 ** (-45 / 20); // ≈ 184
-  const rms = computeRmsFromPcm(tonePcm(amplitude));
-  assert.ok(rms < SILENCE_RMS_THRESHOLD, `expected silent, got RMS ${rms}`);
+// A real quiet phone recording measured RMS 126 (issue #196): a 4-second voice
+// note at arm's length that Whisper returned no text for but which clearly had
+// speech. The threshold must sit well below that so genuine speech is never
+// declared silent — the whole point of the recalibration.
+test("the threshold is calibrated below real (quiet) phone speech", () => {
+  assert.ok(SILENCE_RMS_THRESHOLD < 126, `threshold ${SILENCE_RMS_THRESHOLD} must be below 126 (a measured real recording)`);
+  assert.ok(SILENCE_RMS_THRESHOLD > 5, "threshold must stay above digital silence / room-tone noise floor");
 });
 
-test("computeRmsFromPcm: speech-level tone (~-25 dBFS) is above the silence threshold", () => {
-  const amplitude = 32768 * 10 ** (-25 / 20); // ≈ 1842
+test("a speech-level tone is above the silence threshold", () => {
+  const amplitude = 32768 * 10 ** (-25 / 20); // ≈ 1842, normal speech
   const rms = computeRmsFromPcm(tonePcm(amplitude));
   assert.ok(rms > SILENCE_RMS_THRESHOLD, `expected audible, got RMS ${rms}`);
+});
+
+// The real regression case: RMS 126 with real speech must NOT be declared
+// silent. We synthesize the same amplitude and assert the classification.
+test("quiet phone speech (RMS ~126) is not declared silent", () => {
+  const amplitude = Math.round(126 * Math.SQRT2); // RMS of a sine ≈ amplitude / √2
+  const rms = computeRmsFromPcm(tonePcm(amplitude));
+  assert.ok(rms > SILENCE_RMS_THRESHOLD, `quiet speech (${Math.round(rms)} RMS) must clear the threshold ${SILENCE_RMS_THRESHOLD}`);
 });

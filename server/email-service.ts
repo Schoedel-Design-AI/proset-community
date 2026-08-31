@@ -31,6 +31,12 @@ export async function sendFeedbackEmail(opts: {
   userEmail?: string;
   userName?: string;
   userNumber?: string;
+  /** "Android app 1.0.61 (build 96) · Android 14 · Pixel 7" */
+  reportedFrom?: string;
+  /** "Android + Web" — every surface this account has been seen on. */
+  accountSurfaces?: string;
+  /** True when the account uses more than one surface, so both need checking. */
+  crossSurface?: boolean;
   attachment?: {
     filename: string;
     content: string;
@@ -39,12 +45,14 @@ export async function sendFeedbackEmail(opts: {
 }): Promise<boolean> {
   if (!ensureInitialized()) return false;
 
-  const { category, message, userEmail, userName, userNumber } = opts;
+  const { category, message, userEmail, userName, userNumber, reportedFrom, accountSurfaces, crossSurface } = opts;
   const subject = `[Proset Feedback] ${category}`;
   const userInfo = [
     userName ? `Name: ${userName}` : null,
     userEmail ? `Email: ${userEmail}` : null,
     userNumber ? `User #: ${userNumber}` : null,
+    reportedFrom ? `Reported from: ${reportedFrom}` : null,
+    accountSurfaces ? `Account uses: ${accountSurfaces}${crossSurface ? " (verify the fix on both)" : ""}` : null,
   ].filter(Boolean).join("\n");
 
   const [response] = await sgMail.send({
@@ -65,6 +73,8 @@ export async function sendFeedbackEmail(opts: {
             ${userName ? `<tr><td style="padding: 6px 0; font-weight: 600; color: #F0F4F8;">Name:</td><td>${escapeHtml(userName)}</td></tr>` : ""}
             ${userEmail ? `<tr><td style="padding: 6px 0; font-weight: 600; color: #F0F4F8;">Email:</td><td><a href="mailto:${escapeHtml(userEmail)}" style="color: #00B4D8;">${escapeHtml(userEmail)}</a></td></tr>` : ""}
             ${userNumber ? `<tr><td style="padding: 6px 0; font-weight: 600; color: #F0F4F8;">User #:</td><td>${escapeHtml(userNumber)}</td></tr>` : ""}
+            ${reportedFrom ? `<tr><td style="padding: 6px 0; font-weight: 600; color: #F0F4F8;">From:</td><td>${escapeHtml(reportedFrom)}</td></tr>` : ""}
+            ${accountSurfaces ? `<tr><td style="padding: 6px 0; font-weight: 600; color: #F0F4F8;">Uses:</td><td>${escapeHtml(accountSurfaces)}${crossSurface ? ` <span style="color: #FFB703;">— verify on both</span>` : ""}</td></tr>` : ""}
           </table>
           <hr style="border: none; border-top: 1px solid #1E3355; margin: 16px 0;" />
           <div style="color: #F0F4F8; font-size: 15px; line-height: 1.7; white-space: pre-wrap;">${escapeHtml(message)}</div>

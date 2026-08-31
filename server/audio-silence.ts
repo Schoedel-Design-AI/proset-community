@@ -2,14 +2,20 @@ import { spawn } from "node:child_process";
 import ffmpegPath from "ffmpeg-static";
 
 /**
- * RMS threshold below which decoded audio is considered silent, ~ -38 dBFS.
- * Real speech (even quiet speech) sits well above this; digital silence and
- * room-tone-only recordings sit below. Only consulted when the ASR provider
- * already returned fewer than 3 meaningful characters, so the stakes are low:
- * the check only decides whether to tell the user "no speech" (re-record)
- * vs "transcription failed" (retry).
+ * RMS threshold below which decoded audio is considered silent.
+ *
+ * Calibrated against a real phone recording (2026-08-28): a quiet 4-second
+ * voice note held at arm's length measured RMS 126 with clearly audible
+ * speech, while the old threshold of 400 (~ -38 dBFS) declared it "silent" and
+ * — because transcription_no_speech was non-retryable — locked the user out
+ * of a recording that had real content. Digital silence sits near 0 and
+ * room tone is a handful of counts, so 60 keeps a wide margin below real
+ * speech while still catching genuinely empty recordings.
+ *
+ * Only consulted when the ASR provider already returned fewer than 3
+ * meaningful characters, so it is a tiebreaker, never a gate on real text.
  */
-export const SILENCE_RMS_THRESHOLD = 400;
+export const SILENCE_RMS_THRESHOLD = 60;
 
 /** Cap decoded PCM at ~1.1 hours of 16 kHz mono (matches 16-bit s16le). */
 const MAX_PCM_BYTES = 128 * 1024 * 1024;

@@ -24,9 +24,17 @@ export function useAudioInputSettings(): AudioInputSettings {
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const selectDeviceRef = useRef<(deviceId: string | null) => Promise<void>>(async () => {});
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const refreshDevices = useCallback(async () => {
-    setLoading(true);
+    if (isMountedRef.current) setLoading(true);
     try {
       let deviceList: AudioInputDevice[] = [];
 
@@ -67,9 +75,11 @@ export function useAudioInputSettings(): AudioInputSettings {
         }];
       }
 
+      if (!isMountedRef.current) return;
       setDevices(deviceList);
 
       const saved = await AsyncStorage.getItem(DEVICE_ID_KEY);
+      if (!isMountedRef.current) return;
       if (saved && deviceList.some(d => d.deviceId === saved)) {
         setSelectedDeviceId(saved);
       } else if (deviceList.length > 0) {
@@ -78,7 +88,9 @@ export function useAudioInputSettings(): AudioInputSettings {
     } catch {
       // fallback
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -86,15 +98,15 @@ export function useAudioInputSettings(): AudioInputSettings {
   useEffect(() => {
     if (Platform.OS === "ios") {
       return onIosRouteChanged((newDevices) => {
-        if (newDevices.length > 0) {
+        if (isMountedRef.current && newDevices.length > 0) {
           setDevices(newDevices);
-          if (newDevices.length === 1) selectDeviceRef.current(newDevices[0].deviceId);
+          if (newDevices.length === 1) selectDeviceRef.current(newDevices[0].deviceId).catch(() => {});
         }
       });
     }
   }, []);
 
-  useEffect(() => { void refreshDevices(); }, [refreshDevices]);
+  useEffect(() => { void refreshDevices().catch(() => {}); }, [refreshDevices]);
 
   const selectDevice = useCallback(async (deviceId: string | null) => {
     if (deviceId === null || deviceId === "default") {

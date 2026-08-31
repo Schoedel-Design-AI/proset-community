@@ -4,7 +4,6 @@
  */
 
 import { SkillDefinition, KnowledgebaseResource } from "@shared/schema";
-
 export const GENEROUS_PARSING_PREAMBLE = `IMPORTANT GUIDELINES FOR INPUT PROCESSING:
 - The input text may come from a voice recording transcription, imported text/documents/spreadsheets, or directly typed text. Adapt your processing accordingly.
 - For voice transcripts: expect informal speech patterns, tangents, filler words, self-corrections, and incomplete thoughts.
@@ -364,10 +363,13 @@ Include a source ONLY when the evidence in the supplied context supports a genui
 
 export const BIBLIOGRAPHY_ANNOTATED_INSTRUCTIONS = `
 **ANNOTATED BIBLIOGRAPHY MODE:**
-This is an ANNOTATED bibliography. After each citation entry, include an annotation of 100–150 words that:
-1. **Summarizes** only the source argument, methodology, and findings present in the supplied research; state when those details were unavailable
-2. **Evaluates** credibility or methodology only when the supplied research provides enough evidence
-3. **Reflects** on how this source relates to the research topic and how a researcher might use it in 1–2 sentences
+This is an ANNOTATED bibliography. After each citation entry, include a short annotation: a mini-abstract of that source — a brief, neutral explanation of what the source is about (its topic, thesis, and scope), drawn only from the metadata supplied in the research.
+
+**ANNOTATION GUIDELINES:**
+- Write 2–3 sentences of plain description per source, immediately after its citation
+- Explain what the source covers and argues; do NOT evaluate its quality, credibility, or methodology
+- Do NOT summarize the bibliography as a whole, reflect on how a source might be used, or describe what was included or excluded
+- If the supplied research lacks detail about a source's content, state only what is known — never invent it
 
 The annotation should be indented beneath the citation entry. Use the same spacing and formatting conventions as the citation style requires.
 
@@ -521,9 +523,11 @@ Format using markdown with clear sections: ## Action Items, ## Decisions Made, #
   requirements: "Analyze the following content and extract all requirements, specifications, and constraints. If the input is tabular/CSV data, interpret columns as requirement attributes (priority, status, category, etc.) and organize accordingly. Group into functional requirements, non-functional requirements, and constraints. Use markdown formatting.",
   questions: `You are a research-question designer. Based on the following content and the ACADEMIC SOURCES ledger / WEB EVIDENCE context supplied with it, generate a focused set of research questions that a researcher could genuinely investigate — questions that go beyond the transcript and probe what is not yet known.
 
+**QUESTION COUNT:** Produce exactly 3 research questions by default. If the request explicitly specifies a number, produce exactly that many instead.
+
 **GUIDELINES:**
 - Generate questions that are answerable through further research and grounded in the supplied sources. If the input is tabular/CSV data, also identify gaps, inconsistencies, missing data, and areas needing clarification.
-- Include clarifying questions, strategic questions, open research questions, and potential concerns. Number each question.
+- Make each question a substantive, open research question that is answerable through further investigation — never rhetorical or generic. Number each question.
 - Where a question builds on a specific source, attach its stable label (e.g., [S2]) so it is verifiable.
 - Never invent a citation, DOI, URL, or finding. Do not cite Wikipedia, encyclopedias, or any source not present in the supplied context.
 - Keep questions concise and research-ready — each should state what is being asked and, where relevant, why it matters.`,
@@ -699,7 +703,9 @@ OUTPUT FORMAT (follow exactly):
 
 7. **Summary header**: Start with a one-line title that captures the overall topic of the transcript.
 
-The outline should serve as a complete structural map of the content — someone reading it should understand the full scope and organization of the original recording at a glance.`,
+The outline should serve as a complete structural map of the content — someone reading it should understand the full scope and organization of the original recording at a glance.
+
+Return ONLY the finished outline artifact. Do not include or repeat the prompt, instructions, analysis, reasoning, thinking process, or commentary about how you produced it.`,
   notes: `Transform the following transcript into clean, well-organized notes. Follow these guidelines:
 
 1. **Structure**: Use a clear hierarchy with a main title, section headers, and sub-points. Organize information logically by topic or chronological order — whichever fits the content best.
@@ -721,7 +727,9 @@ The outline should serve as a complete structural map of the content — someone
 
 7. **Tone**: Keep the tone neutral and factual. These are reference notes, not a narrative.
 
-Output clean, scannable notes that someone could quickly review to recall everything important from the original recording.`,
+Output clean, scannable notes that someone could quickly review to recall everything important from the original recording.
+
+Return ONLY the finished notes artifact. Do not include or repeat the prompt, instructions, analysis, reasoning, thinking process, or commentary about how you produced it.`,
   podcast_script: `Transform the following transcript into a podcast script written for TWO hosts. The script should feel like a real conversation between two people who genuinely find this topic interesting. Follow these guidelines:
 
 1. **Two-host format**:
@@ -825,6 +833,23 @@ Here are the events I found:
 - End with a "Sources" section listing the complete citations of every source you cited (from the supplied ledger/context only).`,
   academic_research: ACADEMIC_CITATION_PROMPTS.apa7,
   bibliography: BIBLIOGRAPHY_PROMPTS.apa7,
+  reference_list: `You are a reference curator. Based on the following content and the WEB EVIDENCE context supplied with it, compile a clean, user-friendly reference list of web sources on the topic.
+
+**CORE TASK:** Identify the topic's key subtopics and list the most useful, credible non-academic web sources a person would want to consult or cite.
+
+**SOURCE POLICY:**
+- Use ONLY sources present in the supplied WEB EVIDENCE context. Never invent a title, site, author, date, or URL.
+- Non-academic only: primary sources, official and government pages, reputable organizations, news reporting, and documentation. No journal articles, preprints, or DOI landing pages.
+- Wikipedia and encyclopedias are NEVER acceptable.
+- Omit any source whose canonical URL is not present in the context.
+
+**FORMAT — identical for every entry:**
+1. **Title** (exact, as published)
+2. Publisher / site name
+3. One plain-language sentence describing what the source is and why it is useful
+4. The canonical URL
+
+**STYLE:** A numbered list. No preamble or commentary beyond the list. Keep each description to a single jargon-free sentence.`,
 
   text_message: `Convert the following transcript into a single, comprehensive ready-to-send text message (SMS / iMessage / WhatsApp style). Follow these guidelines:
 
@@ -2321,7 +2346,25 @@ Name the decision, assign an owner, and set the next review date.`,
       "Every source and identifier is traceable to the supplied research context",
       "The bibliography covers the topic's breadth — not just one narrow angle",
       "Thematic organization helps the reader understand the research landscape",
-      "For annotated mode: annotations are substantive and evaluative, not just summaries"
+      "For annotated mode: annotations are neutral mini-abstracts describing each source, not evaluations or reflections"
+    ]
+  },
+
+  reference_list: {
+    voice: "A meticulous reference curator who surfaces the most useful, credible web sources with clean, consistent formatting.",
+    rules: [
+      "Use only sources present in the supplied WEB EVIDENCE context — never invent a title, site, author, or URL",
+      "Format every entry identically: numbered, Title → Publisher → one-line description → URL",
+      "Non-academic sources only; no journal articles, preprints, or Wikipedia",
+      "Keep each description to a single plain-language sentence",
+      "Omit any source whose canonical URL is not present in the context"
+    ],
+    outputExample: "1. **A Practical Guide to the Topic** — Example Site — a plain-language walkthrough for beginners — https://examplesite.com/guide",
+    qualityCriteria: [
+      "Every entry carries a real URL present in the supplied context",
+      "Formatting is identical across all entries",
+      "Descriptions are single-sentence and jargon-free",
+      "No academic literature, preprints, or Wikipedia entries appear"
     ]
   },
 
@@ -2562,6 +2605,11 @@ export const CONVERSION_KNOWLEDGEBASES: Record<string, KnowledgebaseResource[]> 
     { title: "Google Scholar", url: "https://scholar.google.com/", description: "Academic search engine for finding and citing scholarly sources" },
     { title: "Semantic Scholar", url: "https://www.semanticscholar.org/", description: "AI-powered research tool for finding academic papers and understanding citations" },
     { title: "ZoteroBib", url: "https://zbib.org/", description: "Free citation generator supporting 10,000+ citation styles" },
+  ],
+  reference_list: [
+    { title: "University of Chicago — CRAAP Test", url: "https://guides.lib.uchicago.edu/c.php?g=1241077&p=9082343", description: "Currency, Relevance, Authority, Accuracy, Purpose — a checklist for judging the value of an online source" },
+    { title: "Benedictine University — Evaluating Sources: The CRAAP Test", url: "https://researchguides.ben.edu/source-evaluation", description: "Structured questions for evaluating the credibility and usefulness of web sources" },
+    { title: "Carleton University — Evaluating Sources: Use the CRAAP Test", url: "https://library.carleton.ca/guides/subject/evaluating-sources-use-craap-test", description: "Applying the CRAAP criteria to decide whether an online source is worth citing" },
   ],
   spreadsheet: [
     { title: "RFC 4180 – CSV Format", url: "https://www.rfc-editor.org/rfc/rfc4180", description: "Official standard for comma-separated values format" },

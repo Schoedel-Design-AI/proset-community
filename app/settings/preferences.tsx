@@ -17,6 +17,7 @@ import { useResponsiveLayout } from "@/lib/useResponsiveLayout";
 import { useLanguage, type Language } from "@/lib/i18n";
 import { useTextScale, useTextSizePref, sf, type TextScale, type TextSizePreference } from "@/lib/typography";
 import { useRecordings } from "@/lib/recordings-context";
+import { useClarifyMode, type ClarifyMode } from "@/lib/clarify-mode";
 
 
 function AutoTranscribeSetting() {
@@ -92,6 +93,49 @@ function TextSizeSetting() {
   );
 }
 
+function ClarifyModeSetting() {
+  const { t } = useLanguage();
+  const { clarifyMode, setClarifyMode } = useClarifyMode();
+  const ts = useTextScale();
+  const aStyles = useMemo(() => makeAStyles(ts), [ts]);
+  const options: { key: ClarifyMode; label: string }[] = [
+    { key: "always", label: t("settings.clarifyModeAlways" as any) },
+    { key: "when_needed", label: t("settings.clarifyModeWhenNeeded" as any) },
+    { key: "never", label: t("settings.clarifyModeNever" as any) },
+  ];
+  return (
+    <View style={aStyles.section}>
+      <View style={aStyles.menuRow}>
+        <Feather name="help-circle" size={18} color={Colors.textSecondary} />
+        <Text style={[aStyles.menuLabel, { flex: 1 }]}>{t("settings.clarifyMode" as any)}</Text>
+      </View>
+      <View style={{ flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingBottom: 14 }}>
+        {options.map((o) => (
+          <Pressable
+            key={o.key}
+            style={[aStyles.clarifySeg, clarifyMode === o.key && aStyles.clarifySegActive]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setClarifyMode(o.key);
+            }}
+            accessibilityRole="button"
+            accessibilityState={{ selected: clarifyMode === o.key }}
+            accessibilityLabel={o.label}
+          >
+            <Text
+              style={[aStyles.langPillText, clarifyMode === o.key && aStyles.langPillTextActive]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              {o.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 export default function PreferencesScreen() {
   const insets = useSafeAreaInsets();
   const layout = useResponsiveLayout();
@@ -156,6 +200,8 @@ export default function PreferencesScreen() {
         <AutoTranscribeSetting />
 
         <TextSizeSetting />
+
+        <ClarifyModeSetting />
 
         <Pressable
           style={styles.privacyCard}
@@ -248,6 +294,18 @@ const makeAStyles = (ts: TextScale) => StyleSheet.create({
   langPillTextActive: {
     color: Colors.primary,
     fontFamily: "Inter_600SemiBold",
+  },
+  clarifySeg: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+    backgroundColor: Colors.surfaceLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  clarifySegActive: {
+    backgroundColor: "rgba(0, 180, 216, 0.2)",
   },
 });
 

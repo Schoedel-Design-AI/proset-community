@@ -6,12 +6,7 @@ export interface PasswordRequirements {
   requireSpecialCharacter: boolean;
 }
 
-export type PasswordValidationErrorCode =
-  | "minLength"
-  | "missingUppercase"
-  | "missingLowercase"
-  | "missingNumber"
-  | "missingSpecialCharacter";
+export type PasswordValidationErrorCode = "minLength";
 
 export interface PasswordValidationResult {
   valid: boolean;
@@ -19,20 +14,23 @@ export interface PasswordValidationResult {
   minLength?: number;
 }
 
+export const USER_PASSWORD_MIN_LENGTH = 15;
+export const ADMIN_PASSWORD_MIN_LENGTH = 15;
+
 const DEFAULT_REQUIREMENTS: PasswordRequirements = {
-  minLength: 8,
-  requireUppercase: true,
-  requireLowercase: true,
-  requireNumbers: true,
-  requireSpecialCharacter: true,
+  minLength: USER_PASSWORD_MIN_LENGTH,
+  requireUppercase: false,
+  requireLowercase: false,
+  requireNumbers: false,
+  requireSpecialCharacter: false,
 };
 
 const ADMIN_REQUIREMENTS: PasswordRequirements = {
-  minLength: 32,
-  requireUppercase: true,
-  requireLowercase: true,
-  requireNumbers: true,
-  requireSpecialCharacter: true,
+  minLength: ADMIN_PASSWORD_MIN_LENGTH,
+  requireUppercase: false,
+  requireLowercase: false,
+  requireNumbers: false,
+  requireSpecialCharacter: false,
 };
 
 export function getPasswordRequirements(isAdmin: boolean): PasswordRequirements {
@@ -47,22 +45,6 @@ export function validatePassword(
 
   if (password.length < reqs.minLength) {
     return { valid: false, errorCode: "minLength", minLength: reqs.minLength };
-  }
-
-  if (reqs.requireUppercase && !/[A-Z]/.test(password)) {
-    return { valid: false, errorCode: "missingUppercase" };
-  }
-
-  if (reqs.requireLowercase && !/[a-z]/.test(password)) {
-    return { valid: false, errorCode: "missingLowercase" };
-  }
-
-  if (reqs.requireNumbers && !/[0-9]/.test(password)) {
-    return { valid: false, errorCode: "missingNumber" };
-  }
-
-  if (reqs.requireSpecialCharacter && !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)) {
-    return { valid: false, errorCode: "missingSpecialCharacter" };
   }
 
   return { valid: true };

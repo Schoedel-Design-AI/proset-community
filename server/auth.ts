@@ -3,7 +3,8 @@ import { randomBytes, randomUUID } from "node:crypto";
 import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
 import { trackEvent } from "./analytics-service";
-import { getUserRole, getEffectiveUserRole, validatePassword, isPasswordExpired, isAdminRole, syncUserRole, getPasswordRequirements, daysUntilPasswordExpiry, REGISTRATION_OPEN, isRegistrationAllowed } from "./password-policy";
+import { recordUserSurface } from "./client-surface";
+import { getUserRole, getEffectiveUserRole, validatePasswordPolicy, isPasswordExpired, isAdminRole, syncUserRole, getPasswordRequirements, daysUntilPasswordExpiry, REGISTRATION_OPEN, isRegistrationAllowed } from "./password-policy";
 import { JOB_TYPES } from "@shared/schema";
 import {
   hasProAvatarEntitlement,
@@ -88,6 +89,11 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
       if (dbUser) {
         const role = getEffectiveUserRole(dbUser.email, dbUser.role, dbUser.friendsOfBarryExpiresAt);
+        // Learn which surfaces this account uses (Android app / iOS app / Web).
+        // Fire-and-forget: it writes at most once per surface per account and
+        // must never delay or fail the request. Feedback triage reads it so an
+        // Android report is not mistaken for an Android-only bug.
+        void recordUserSurface(dbUser, req);
         req.user = {
           ...req.user,
           role,
@@ -257,6 +263,16 @@ export function setupAuthRoutes(app: IRouter) {
     skip: (req) => (process.env.NODE_ENV !== "production" && (req.hostname === "localhost" || req.hostname === "127.0.0.1")) || process.env.DISABLE_RATE_LIMIT === "true",
   });
 
+  const passwordValidationLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 10,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    message: { error: "We've paused password checks briefly for safety. Try again in about 15 minutes.", code: "RATE_LIMIT_EXCEEDED" },
+    keyGenerator: userKeyGenerator,
+    skip: (req) => (process.env.NODE_ENV !== "production" && (req.hostname === "localhost" || req.hostname === "127.0.0.1")) || process.env.DISABLE_RATE_LIMIT === "true",
+  });
+
   app.get("/api/auth/providers", (_req: Request, res: Response) => {
     res.json({
       google: false,
@@ -337,6 +353,34 @@ export function setupAuthRoutes(app: IRouter) {
     }
   });
 
+  app.post("/api/auth/validate-password", passwordValidationLimiter, async (req: Request, res: Response) => {
+    try {
+      const password = typeof req.body?.password === "string" ? req.body.password : "";
+      if (!password) {
+        return res.status(400).json({ error: "Please enter a password." });
+      }
+
+      let email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
+      let role = getUserRole(email || "");
+
+      if (req.userId) {
+        const user = await storage.users.get(req.userId);
+        if (!user) return res.status(404).json({ error: "User not found." });
+        email = user.email;
+        role = getEffectiveUserRole(user.email, user.role, user.friendsOfBarryExpiresAt);
+      }
+
+      const validation = await validatePasswordPolicy(password, role, { email });
+      if (!validation.valid) {
+        return res.status(400).json({ error: validation.error, code: validation.code });
+      }
+
+      return res.json({ ok: true, requirements: getPasswordRequirements(role) });
+    } catch {
+      return res.status(500).json({ error: "We had trouble checking that password. Please try again." });
+    }
+  });
+
   app.post("/api/auth/change-password", requireAuth, accountChangeLimiter, async (req: Request, res: Response) => {
     try {
       if (req.authSource !== "firebase") {
@@ -348,8 +392,8 @@ export function setupAuthRoutes(app: IRouter) {
         const user = await storage.users.get(req.userId!);
         if (!user) return res.status(404).json({ error: "User not found." });
         const role = getEffectiveUserRole(user.email, user.role, user.friendsOfBarryExpiresAt);
-        const validation = validatePassword(newPassword, role);
-        if (!validation.valid) return res.status(400).json({ error: validation.error });
+        const validation = await validatePasswordPolicy(newPassword, role, { email: user.email });
+        if (!validation.valid) return res.status(400).json({ error: validation.error, code: validation.code });
         const account = await storage.accounts.getByUserAndProvider(user.id, "credential");
         if (!account?.password) return res.status(409).json({ error: "This account has no legacy password." });
         const bcrypt = await import("bcryptjs");
@@ -777,9 +821,9 @@ export function setupAuthRoutes(app: IRouter) {
 
       // Validate password strength
       const role = getUserRole(cleanEmail, user.role);
-      const validation = validatePassword(newPassword, role);
+      const validation = await validatePasswordPolicy(newPassword, role, { email: cleanEmail });
       if (!validation.valid) {
-        return res.status(400).json({ error: validation.error });
+        return res.status(400).json({ error: validation.error, code: validation.code });
       }
 
       // Hash and update password
@@ -882,9 +926,9 @@ export function setupAuthRoutes(app: IRouter) {
       }
 
       const role = getUserRole(cleanEmail);
-      const validation = validatePassword(password, role);
+      const validation = await validatePasswordPolicy(password, role, { email: cleanEmail });
       if (!validation.valid) {
-        return res.status(400).json({ error: validation.error });
+        return res.status(400).json({ error: validation.error, code: validation.code });
       }
 
       // Check if user already exists

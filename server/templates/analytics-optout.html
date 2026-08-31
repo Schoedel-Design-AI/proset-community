@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Analytics opt-out · ProSet AI</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <!--
+      Internal utility page. Deliberately loads NO analytics script.
+
+      Plausible's tracker checks localStorage.plausible_ignore before sending
+      anything (verified in the served script: "true" === window.localStorage
+      .plausible_ignore -> return). Setting that flag is the only way to exclude
+      a device that changes networks — an IP/Shield rule cannot catch a phone on
+      cellular data.
+
+      Scope caveats, both intentional:
+        - localStorage is per ORIGIN, so proset.ai and www.proset.ai are separate.
+        - It is per BROWSER, so each browser on each device needs one visit.
+    -->
+    <style>
+        :root { color-scheme: dark; }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            padding: 24px; background: #0b1120; color: #e2e8f0;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.6;
+        }
+        .card {
+            width: 100%; max-width: 30rem; background: #141c2f; border: 1px solid #26324a;
+            border-radius: 1rem; padding: 1.75rem; box-shadow: 0 10px 30px rgba(0,0,0,.35);
+        }
+        h1 { margin: 0 0 .25rem; font-size: 1.35rem; }
+        .sub { margin: 0 0 1.25rem; color: #93a1bb; font-size: .95rem; }
+        .state { border-radius: .75rem; padding: 1rem; margin-bottom: 1.25rem; font-weight: 600; }
+        .state.excluded { background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.45); color: #86efac; }
+        .state.counted  { background: rgba(250,204,21,.10); border: 1px solid rgba(250,204,21,.40); color: #fde68a; }
+        button {
+            width: 100%; padding: .85rem 1rem; font-size: 1rem; font-weight: 600; cursor: pointer;
+            border-radius: .75rem; border: 1px solid transparent; margin-bottom: .6rem;
+        }
+        .primary { background: #6366f1; color: #fff; }
+        .ghost { background: transparent; border-color: #33415c; color: #cbd5e1; }
+        .note { font-size: .82rem; color: #7d8ba6; margin: 1rem 0 0; }
+        .note code { background: #0b1120; padding: .1rem .3rem; border-radius: .25rem;
+            white-space: pre-wrap; overflow-wrap: break-word; }
+        .lang { margin-top: 1rem; font-size: .82rem; color: #7d8ba6; }
+    </style>
+</head>
+
+<body>
+    <main class="card">
+        <h1>Analytics opt-out</h1>
+        <p class="sub" id="sub">Keep this device out of ProSet AI traffic statistics.</p>
+
+        <div class="state" id="state" role="status" aria-live="polite">Checking…</div>
+
+        <button type="button" class="primary" id="exclude">Exclude this device</button>
+        <button type="button" class="ghost" id="include">Count this device again</button>
+
+        <p class="note" id="note">
+            Applies to this browser on this device only, for
+            <code id="origin"></code>. Clearing site data undoes it.
+        </p>
+        <p class="lang" id="es">
+            <strong>Español:</strong> Este dispositivo quedará excluido de las
+            estadísticas de tráfico. Solo afecta a este navegador.
+        </p>
+    </main>
+
+    <script>
+        (function () {
+            var KEY = 'plausible_ignore';
+            var stateEl = document.getElementById('state');
+            var originEl = document.getElementById('origin');
+            originEl.textContent = window.location.origin;
+
+            function isExcluded() {
+                try { return window.localStorage.getItem(KEY) === 'true'; } catch (e) { return false; }
+            }
+
+            function render() {
+                var excluded = isExcluded();
+                stateEl.className = 'state ' + (excluded ? 'excluded' : 'counted');
+                stateEl.textContent = excluded
+                    ? '✅ Excluded — visits from this browser are not counted.'
+                    : '⚠️ Not excluded — visits from this browser are being counted.';
+            }
+
+            function setExcluded(on) {
+                try {
+                    if (on) window.localStorage.setItem(KEY, 'true');
+                    else window.localStorage.removeItem(KEY);
+                } catch (e) {
+                    stateEl.className = 'state counted';
+                    stateEl.textContent = 'Storage is blocked in this browser, so the opt-out cannot be saved.';
+                    return;
+                }
+                render();
+            }
+
+            document.getElementById('exclude').addEventListener('click', function () { setExcluded(true); });
+            document.getElementById('include').addEventListener('click', function () { setExcluded(false); });
+
+            // Allow a one-tap bookmark: /analytics-optout/?exclude=1
+            if (/[?&]exclude=1(&|$)/.test(window.location.search)) setExcluded(true);
+
+            render();
+        })();
+    </script>
+</body>
+
+</html>

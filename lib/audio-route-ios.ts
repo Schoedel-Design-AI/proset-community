@@ -36,7 +36,7 @@ function mapDevice(d: { deviceId?: string; label?: string }): AudioInputDevice {
 export function getIosAudioDevices(): Promise<AudioInputDevice[]> {
   const mod = getNativeModule();
   if (!mod) return Promise.resolve([]);
-  return mod.getCurrentRoute().then((devices) => devices.map(mapDevice));
+  return mod.getCurrentRoute().then((devices) => devices.map(mapDevice)).catch(() => []);
 }
 
 export function onIosRouteChanged(callback: (devices: AudioInputDevice[]) => void): () => void {

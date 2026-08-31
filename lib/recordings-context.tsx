@@ -148,6 +148,14 @@ export function RecordingsProvider({ children }: { children: ReactNode }) {
   const [, setMaxRecordingsLoaded] = useState(false);
   const [lastRecordingLimitEvent, setLastRecordingLimitEvent] = useState(0);
 
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const scopedStorageKey = useMemo(() => getScopedStorageKey(user?.id), [user?.id]);
   const scopedCloudSyncKey = useMemo(() => getScopedCloudSyncKey(user?.id), [user?.id]);
   const scopedAutoTranscribeKey = useMemo(() => getScopedAutoTranscribeKey(user?.id), [user?.id]);
@@ -166,7 +174,9 @@ export function RecordingsProvider({ children }: { children: ReactNode }) {
           if (res.ok) {
             const data = await res.json();
             const recordingsList = Array.isArray(data) ? data : (data.recordings || []);
-            setRecordings(recordingsList.map(normalizeRecording));
+            if (isMountedRef.current) {
+              setRecordings(recordingsList.map(normalizeRecording));
+            }
             return;
           }
         } catch (e) {
@@ -174,6 +184,7 @@ export function RecordingsProvider({ children }: { children: ReactNode }) {
         }
       }
       const stored = await AsyncStorage.getItem(scopedStorageKey);
+      if (!isMountedRef.current) return;
       if (stored) {
         const parsed: Recording[] = JSON.parse(stored);
         const cleaned = parsed.map(r => {
@@ -190,16 +201,22 @@ export function RecordingsProvider({ children }: { children: ReactNode }) {
           return r;
         });
         if (cleaned.some((r, i) => r !== parsed[i])) {
-          await AsyncStorage.setItem(scopedStorageKey, JSON.stringify(cleaned));
+          await AsyncStorage.setItem(scopedStorageKey, JSON.stringify(cleaned)).catch(() => {});
         }
-        setRecordings(cleaned);
+        if (isMountedRef.current) {
+          setRecordings(cleaned);
+        }
       } else {
-        setRecordings([]);
+        if (isMountedRef.current) {
+          setRecordings([]);
+        }
       }
     } catch (e) {
       console.error("Failed to load recordings:", e);
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [canUseCloud, scopedStorageKey]);
 
@@ -213,7 +230,7 @@ export function RecordingsProvider({ children }: { children: ReactNode }) {
       let resolved = false;
       const loadMaxRecordings = async () => {
         const cached = await AsyncStorage.getItem(MAX_RECORDINGS_CACHE_KEY).catch(() => null);
-        if (cached) {
+        if (cached && isMountedRef.current) {
           const parsed = parseInt(cached, 10);
           if (!isNaN(parsed) && parsed > 0) {
             setMaxRecordings(parsed);
@@ -227,7 +244,7 @@ export function RecordingsProvider({ children }: { children: ReactNode }) {
             credentials: "include",
             headers: getAuthHeaders(),
           });
-          if (res.ok) {
+          if (res.ok && isMountedRef.current) {
             const data = await res.json();
             const nextMaxRecordings = data.maxRecordings || data.maxItems;
             if (nextMaxRecordings) {
@@ -238,14 +255,16 @@ export function RecordingsProvider({ children }: { children: ReactNode }) {
             }
           }
         } catch {}
-        if (!resolved) {
+        if (!resolved && isMountedRef.current) {
           setMaxRecordingsLoaded(true);
         }
       };
       loadMaxRecordings();
     } else {
-      setMaxRecordings(UNAUTHENTICATED_MAX_RECORDINGS);
-      setMaxRecordingsLoaded(true);
+      if (isMountedRef.current) {
+        setMaxRecordings(UNAUTHENTICATED_MAX_RECORDINGS);
+        setMaxRecordingsLoaded(true);
+      }
       AsyncStorage.removeItem(MAX_RECORDINGS_CACHE_KEY).catch(() => {});
     }
   }, [isAuthLoading, user, isCloudSyncEnabled]);
@@ -253,19 +272,21 @@ export function RecordingsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isAuthLoading) return;
     AsyncStorage.getItem(scopedCloudSyncKey).then(val => {
-      setIsCloudSyncEnabled(val === "true");
-    });
+      if (isMountedRef.current && val !== null) setIsCloudSyncEnabled(val === "true");
+    }).catch(() => {});
+
     AsyncStorage.getItem(scopedAutoTranscribeKey).then(val => {
-      setIsAutoTranscribeEnabled(val !== "false"); // Default true
-    });
+      if (isMountedRef.current && val !== null) setIsAutoTranscribeEnabled(val !== "false"); // Default true
+    }).catch(() => {});
+
     if (canUseCloud) {
       apiFetch("/api/cloud-sync").then(res => {
         if (res.ok) return res.json();
         return null;
       }).then(data => {
-        if (data && typeof data.enabled === "boolean") {
+        if (isMountedRef.current && data && typeof data.enabled === "boolean") {
           setIsCloudSyncEnabled(data.enabled);
-          AsyncStorage.setItem(scopedCloudSyncKey, data.enabled ? "true" : "false");
+          AsyncStorage.setItem(scopedCloudSyncKey, data.enabled ? "true" : "false").catch(() => {});
         }
       }).catch(() => {});
     }
@@ -321,7 +342,7 @@ export function RecordingsProvider({ children }: { children: ReactNode }) {
       }
 
       const mergedRes = await apiFetch("/api/recordings");
-      if (mergedRes.ok) {
+      if (mergedRes.ok && isMountedRef.current) {
         const mergedData = await mergedRes.json();
         const mergedList = Array.isArray(mergedData) ? mergedData : (mergedData.recordings || []);
         setRecordings(mergedList.map(normalizeRecording));
@@ -329,7 +350,9 @@ export function RecordingsProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       console.error("Sync to cloud failed:", e);
     } finally {
-      setIsSyncing(false);
+      if (isMountedRef.current) {
+        setIsSyncing(false);
+      }
     }
   }, [canUseCloud, scopedStorageKey]);
 
@@ -611,9 +634,9 @@ export function RecordingsProvider({ children }: { children: ReactNode }) {
                 if (!hasTranscriptionContent(data)) {
                   await updateRecording(recordingId, {
                     transcript: "",
-                    transcriptionError: "No speech was detected. Try again with the microphone closer.",
+                    transcriptionError: "No speech was detected. Move closer to the microphone and retry, or re-record.",
                     transcriptionErrorCode: "transcription_no_speech",
-                    transcriptionRetryable: false,
+                    transcriptionRetryable: true,
                     isTranscribing: false,
                     transcriptionStatus: "failed",
                   });
@@ -742,9 +765,9 @@ export function RecordingsProvider({ children }: { children: ReactNode }) {
                 if (!hasTranscriptionContent(data)) {
                   await updateRecording(recordingId, {
                     transcript: "",
-                    transcriptionError: "No speech was detected. Try again with the microphone closer.",
+                    transcriptionError: "No speech was detected. Move closer to the microphone and retry, or re-record.",
                     transcriptionErrorCode: "transcription_no_speech",
-                    transcriptionRetryable: false,
+                    transcriptionRetryable: true,
                     isTranscribing: false,
                     transcriptionStatus: "failed",
                   });
@@ -817,13 +840,17 @@ export function RecordingsProvider({ children }: { children: ReactNode }) {
         }
       } catch (err) {
         console.error("Transcription error:", err);
-        await updateRecording(recordingId, {
-          transcriptionError: "Transcription didn't complete. Retrying when connected.",
-          transcriptionErrorCode: "transcription_failed",
-          transcriptionRetryable: true,
-          isTranscribing: false,
-          transcriptionStatus: "failed",
-        });
+        try {
+          await updateRecording(recordingId, {
+            transcriptionError: "Transcription didn't complete. Retrying when connected.",
+            transcriptionErrorCode: "transcription_failed",
+            transcriptionRetryable: true,
+            isTranscribing: false,
+            transcriptionStatus: "failed",
+          });
+        } catch {
+          // ignore
+        }
       }
     };
     return run();

@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, ScrollView, StyleSheet, Pressable, Linking, Platform } from "react-native";
+import { View, Text, ScrollView, StyleSheet, Pressable, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@react-native-vector-icons/feather/static";
 import { router } from "@/lib/navigation";
@@ -45,13 +45,28 @@ export default function RefundScreen() {
         </Text>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t("refund.webTitle")}</Text>
+          <Text style={styles.paragraph}>
+            {t("refund.webBody")}
+          </Text>
+          <Pressable
+            style={styles.linkButton}
+            onPress={() => Linking.openURL("mailto:support@proset.ai?subject=Proset%20refund%20request")}
+            accessibilityRole="link"
+          >
+            <Feather name="mail" size={14} color={Colors.primary} />
+            <Text style={styles.linkButtonText}>{t("refund.webLink")}</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t("refund.googleTitle")}</Text>
           <Text style={styles.paragraph}>
             {t("refund.googleBody")}
           </Text>
           <Pressable
             style={styles.linkButton}
-            onPress={() => Linking.openURL("https://play.google.com/store/account/orderhistory")}
+            onPress={() => Linking.openURL("https://support.google.com/googleplay/workflow/9813244")}
             accessibilityRole="link"
           >
             <Feather name="external-link" size={14} color={Colors.primary} />
@@ -60,31 +75,16 @@ export default function RefundScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t("refund.appleTitle")}</Text>
+          <Text style={styles.sectionTitle}>{t("refund.freeTitle")}</Text>
           <Text style={styles.paragraph}>
-            {t("refund.appleBody")}
-          </Text>
-          <Pressable
-            style={styles.linkButton}
-            onPress={() => Linking.openURL("https://reportaproblem.apple.com")}
-            accessibilityRole="link"
-          >
-            <Feather name="external-link" size={14} color={Colors.primary} />
-            <Text style={styles.linkButtonText}>{t("refund.appleLink")}</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t("refund.noCreditCardTitle")}</Text>
-          <Text style={styles.paragraph}>
-            {t("refund.noCreditCardBody")}
+            {t("refund.freeBody")}
           </Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t("refund.trialTitle")}</Text>
+          <Text style={styles.sectionTitle}>{t("refund.cancelTitle")}</Text>
           <Text style={styles.paragraph}>
-            {t("refund.trialBody")}
+            {t("refund.cancelBody")}
           </Text>
         </View>
 

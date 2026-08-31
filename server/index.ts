@@ -296,7 +296,7 @@ function setupCors(app: express.Application) {
       );
       res.header(
         "Access-Control-Allow-Headers",
-        "Content-Type, Authorization, Cookie, x-csrf-token, expo-platform, x-request-id",
+        "Content-Type, Authorization, Cookie, x-csrf-token, expo-platform, x-request-id, x-proset-surface",
       );
       res.header("Access-Control-Allow-Credentials", "true");
       res.header("Access-Control-Expose-Headers", "Set-Cookie, x-request-id");

@@ -41,6 +41,13 @@ export interface User {
   hasSeenPlanSelection: number;
   grantedTier?: string | null;
   grantedTierExpiresAt?: Date | string | null;
+  /**
+   * Every client surface this account has been seen on ("android", "ios",
+   * "web"), recorded on first sighting. Feedback triage reads it because the
+   * same person routinely uses the Android app *and* the web app, and both run
+   * the same code — see shared/client-surface.ts.
+   */
+  surfacesSeen?: string[] | null;
   createdAt: Date | string;
   updatedAt: Date | string;
 }

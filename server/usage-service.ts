@@ -369,6 +369,7 @@ export async function getSelfServiceModuleState(userId: string, moduleName: stri
 
   return {
     moduleName: moduleName as SelfServiceModuleState["moduleName"],
+    accessModel: catalogEntry.accessModel,
     requiredTier,
     eligible: isTierEligibleForModule(tier, moduleName),
     enabled,

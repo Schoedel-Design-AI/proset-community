@@ -154,7 +154,7 @@ export default function NavigationDrawer({
                     ]}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      audioInput.selectDevice("default");
+                      void audioInput.selectDevice("default").catch(() => {});
                     }}
                   >
                     <Feather
@@ -181,7 +181,7 @@ export default function NavigationDrawer({
                         ]}
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          audioInput.selectDevice(device.deviceId);
+                          void audioInput.selectDevice(device.deviceId).catch(() => {});
                         }}
                       >
                         <Feather
@@ -196,7 +196,7 @@ export default function NavigationDrawer({
                     ))
                   )}
                   {Platform.OS === "web" && audioInput.devices.length > 0 && (
-                    <Pressable style={styles.audioRefreshBtn} onPress={() => audioInput.refreshDevices()}>
+                    <Pressable style={styles.audioRefreshBtn} onPress={() => { void audioInput.refreshDevices().catch(() => {}); }}>
                       <Feather name="refresh-cw" size={14} color={Colors.primary} />
                       <Text style={styles.audioRefreshText}>Refresh devices</Text>
                     </Pressable>
@@ -283,6 +283,13 @@ export default function NavigationDrawer({
                 onPress={() => handleNav(() => router.push("/settings/ai-config" as any))}
                 ts={ts}
                 testID="drawer-ai-config"
+              />
+              <DrawerItem
+                icon="music"
+                label={t("drawer.music")}
+                locked
+                ts={ts}
+                testID="drawer-music"
               />
               <Pressable
                 onPress={() => handleNav(() => setShowAudioModal(true))}
@@ -422,14 +429,34 @@ function DrawerItem({
   ts,
   testID,
   iconColor,
+  locked,
 }: {
   icon: DrawerFeatherIconName;
   label: string;
-  onPress: () => void;
+  onPress?: () => void;
   ts: import("@/lib/typography").TextScale;
   testID?: string;
   iconColor?: string;
+  locked?: boolean;
 }) {
+  const { t } = useLanguage();
+
+  if (locked) {
+    return (
+      <View
+        style={styles.drawerItem}
+        accessibilityRole="menuitem"
+        accessibilityState={{ disabled: true }}
+        accessibilityLabel={`${label}, ${t("a11y.locked" as any)}`}
+        testID={testID}
+      >
+        <DrawerFeatherIcon name={icon} size={20} color={Colors.textMuted} />
+        <Text style={[styles.drawerItemLabel, styles.drawerItemLabelLocked, { fontSize: sf(15, ts) }]}>{label}</Text>
+        <DrawerFeatherIcon name="lock" size={14} color={Colors.textMuted} style={styles.drawerItemLock} />
+      </View>
+    );
+  }
+
   return (
     <Pressable
       onPress={onPress}
@@ -528,6 +555,12 @@ const styles = StyleSheet.create({
   drawerItemLabel: {
     fontFamily: "Inter_500Medium",
     color: Colors.text,
+  },
+  drawerItemLabelLocked: {
+    color: Colors.textMuted,
+  },
+  drawerItemLock: {
+    marginLeft: "auto",
   },
   audioDeviceSubtitle: {
     fontSize: 11,

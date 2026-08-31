@@ -14,10 +14,14 @@ export function useReducedMotion(): boolean {
 
   useEffect(() => {
     let mounted = true;
-    AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((enabled) => {
+        if (mounted) setReducedMotion(enabled);
+      })
+      .catch(() => {});
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", (enabled) => {
       if (mounted) setReducedMotion(enabled);
     });
-    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReducedMotion);
     return () => {
       mounted = false;
       subscription.remove();

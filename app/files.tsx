@@ -20,6 +20,7 @@ import * as Haptics from "@/lib/haptics";
 import * as Clipboard from "@/lib/clipboard";
 import * as Sharing from "@/lib/sharing";
 import * as FileSystem from "@/lib/file-system";
+import { useFileDownload } from "@/lib/use-file-download";
 import Colors from "@/constants/colors";
 import { getApiUrl, getAuthHeaders } from "@/lib/query-client";
 import { useResponsiveLayout } from "@/lib/useResponsiveLayout";
@@ -97,6 +98,11 @@ export default function FilesScreen() {
   const layout = useResponsiveLayout();
   const { user } = useAuth();
   const { t, language } = useLanguage();
+  // Shared download interaction: busy state, duplicate-tap guard, real outcome
+  // ("Saved to Downloads" vs "File saved"), and recovery actions on failure.
+  const { save: saveFile, busyId: savingFileId } = useFileDownload((fileName, messageKey) => {
+    if (Platform.OS !== "web") Alert.alert(t(messageKey as any), fileName);
+  });
   const ts = useTextScale();
   const styles = useMemo(() => makeStyles(ts), [ts]);
   const baseUrl = getApiUrl();
@@ -420,30 +426,12 @@ export default function FilesScreen() {
   };
 
   const handleDownloadFile = async (file: FileItem) => {
-    try {
-      if (Platform.OS === "web") {
-        const blob = new Blob([file.content], { type: "text/plain" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${file.name}.txt`;
-        a.target = "_blank";
-        a.rel = "noopener noreferrer";
-        a.style.display = "none";
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => {
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        }, 200);
-        return;
-      }
-      const filePath = `${FileSystem.documentDirectory}${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}.txt`;
-      await FileSystem.writeAsStringAsync(filePath, file.content);
-      await Sharing.shareAsync(filePath, { mimeType: "text/plain", dialogTitle: file.name });
-    } catch {
-      Alert.alert(t("common.error"), t("common.somethingWentWrong"));
-    }
+    await saveFile({
+      fileName: `${file.name}.txt`,
+      mimeType: "text/plain",
+      text: file.content,
+      dialogTitle: file.name,
+    }, `file-${file.id}`);
   };
 
   const openFolder = (folderId: string) => {

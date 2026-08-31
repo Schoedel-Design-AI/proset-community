@@ -1043,9 +1043,12 @@ router.post("/recordings/:id/transcribe", requireAuth, async (req: Request, res:
 
     // Reject near-empty garbage (punctuation-only, trivially short).
     // Distinguish true silence from provider garbage: a silent recording gets
-    // transcription_no_speech (retrying won't help — the user should re-record),
+    // transcription_no_speech (with a message pointing the user to re-record),
     // while audio that has real energy but produced no text gets
-    // transcription_failed (encoding/provider issue — keep it retryable).
+    // transcription_failed (encoding/provider issue). BOTH stay retryable —
+    // the silence detector is a heuristic and false positives on quiet phone
+    // recordings are common; the user must never be locked out of a recording
+    // they know has speech (#196).
     const meaningful = transcriptionText.replace(/[\s\p{P}\p{S}]+/gu, "");
     if (meaningful.length < 3) {
       const silence = await detectSilence(fileBuffer);
@@ -1055,9 +1058,9 @@ router.post("/recordings/:id/transcribe", requireAuth, async (req: Request, res:
         transcriptionStatus: "failed",
         transcriptionErrorCode: noSpeech ? "transcription_no_speech" : "transcription_failed",
         transcriptionError: noSpeech
-          ? "No speech was detected in this recording."
+          ? "No speech was detected. Move closer to the microphone and retry, or re-record."
           : "Transcription returned no meaningful content. The recording may need to be re-processed.",
-        transcriptionRetryable: noSpeech ? false : true,
+        transcriptionRetryable: true,
       });
       return res.json({
         text: "",
@@ -1078,8 +1081,8 @@ router.post("/recordings/:id/transcribe", requireAuth, async (req: Request, res:
           isTranscribing: false,
           transcriptionStatus: "failed",
           transcriptionErrorCode: "transcription_no_speech",
-          transcriptionError: "No speech was detected in this recording.",
-          transcriptionRetryable: false,
+          transcriptionError: "No speech was detected. Move closer to the microphone and retry, or re-record.",
+          transcriptionRetryable: true,
         });
         return res.json({
           text: "",

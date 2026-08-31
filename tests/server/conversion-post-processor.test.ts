@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  getConversionStreamChunk,
   sanitizeConversionOutput,
   sanitizePromptContextForTarget,
 } from "../../server/conversion-post-processor";
@@ -60,4 +61,53 @@ test("sanitizePromptContextForTarget removes markdown rules for plain-text targe
   const clean = sanitizePromptContextForTarget("video_script", prompt);
   assert.doesNotMatch(clean, /use bold headers/i);
   assert.doesNotMatch(clean, /format with markdown/i);
+});
+
+test("notes post-processor removes leading model reasoning and keeps only the requested conversion", () => {
+  const raw = ` \n<THINK>Review the prompt and decide how to format the answer.</THINK>
+
+<think>
+The user requested notes, so I should summarize the transcript.
+</think>
+
+# Project Notes
+
+- **Decision:** Ship the revised workflow.`;
+
+  assert.equal(
+    sanitizeConversionOutput("notes", raw),
+    "# Project Notes\n\n- **Decision:** Ship the revised workflow.",
+  );
+});
+
+test("outline post-processor removes leading model reasoning", () => {
+  const raw = `<think>Build a complete hierarchy before answering.</think>
+Quarterly Planning
+
+I. Priorities
+   A. Reliability`;
+
+  assert.equal(
+    sanitizeConversionOutput("outline", raw),
+    "Quarterly Planning\n\nI. Priorities\n   A. Reliability",
+  );
+});
+
+test("notes and outline preserve embedded or malformed think tags", () => {
+  const embedded = "# Notes\n\nThe literal example is <think>draft privately</think>.";
+  const malformed = "<think>Unclosed source text\n\n# Notes";
+
+  assert.equal(sanitizeConversionOutput("notes", embedded), embedded);
+  assert.equal(sanitizeConversionOutput("outline", malformed), malformed);
+});
+
+test("reasoning cleanup does not change other conversion types", () => {
+  const raw = "<think>Plan the response.</think>\n\nFinished email";
+  assert.equal(sanitizeConversionOutput("email", raw), raw);
+});
+
+test("notes and outline buffer provider chunks until the sanitized result is ready", () => {
+  assert.equal(getConversionStreamChunk("notes", "<think>private reasoning"), null);
+  assert.equal(getConversionStreamChunk("outline", "private reasoning</think>"), null);
+  assert.equal(getConversionStreamChunk("email", "Hello"), "Hello");
 });

@@ -93,8 +93,8 @@ android {
         applicationId 'ms.aifor.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 95
-        versionName "1.0.60"
+        versionCode 103
+        versionName "1.0.67"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         externalNativeBuild {
@@ -105,6 +105,14 @@ android {
                 // in reactNativeArchitectures or non-arm64 devices crash on open.
                 // whisper-jni is gated to arm64-v8a inside src/main/jni/CMakeLists.txt.
             }
+        }
+
+        ndk {
+            // FULL (default) debug symbols blow past the CI runner's 14 GB disk.
+            // SYMBOL_TABLE keeps function names for Play crash symbolization at a
+            // fraction of the size. Raise back to FULL only if native line-level
+            // debugging is needed.
+            debugSymbolLevel 'SYMBOL_TABLE'
         }
     }
 

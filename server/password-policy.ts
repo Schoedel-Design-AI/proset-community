@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { storage } from "./storage";
 import {
   getPasswordRequirements as getSharedPasswordRequirements,
@@ -26,6 +28,36 @@ const REGISTRATION_ALLOWLIST = [
 export type UserRole = "user" | "admin";
 
 const PASSWORD_EXPIRY_DAYS = 90;
+const HIBP_TIMEOUT_MS = 2500;
+const HIBP_RANGE_URL = "https://api.pwnedpasswords.com/range/";
+const HIBP_USER_AGENT = "Proset CE Password Security Check";
+const LOCAL_PASSWORD_BLOCKLIST = new Set([
+  "12345678",
+  "123456789",
+  "1234567890",
+  "123456789012345",
+  "abc123",
+  "admin",
+  "changeme",
+  "dragon",
+  "iloveyou",
+  "letmein",
+  "letmeinletmein",
+  "monkey",
+  "password",
+  "password1",
+  "password123",
+  "passwordpassword",
+  "passw0rd",
+  "proset",
+  "prosetai",
+  "qwerty",
+  "qwertyuiop",
+  "qwertyuiopasdfg",
+  "schoedel",
+  "schoedeldesign",
+  "welcome",
+]);
 
 export function isRegistrationAllowed(email: string): boolean {
   if (REGISTRATION_OPEN) return true;
@@ -62,6 +94,12 @@ export interface PasswordRequirements {
   passwordExpiryDays: number | null;
 }
 
+export type PasswordValidationFailureCode = "PASSWORD_TOO_SHORT" | "PASSWORD_BLOCKLISTED";
+
+export type PasswordValidationResponse =
+  | { valid: true }
+  | { valid: false; error: string; code: PasswordValidationFailureCode; minLength?: number };
+
 // 2FA enforcement: OFF by default (the TOTP flow was locking users out on the
 // hosted service, 2026-08-13). CE operators whose own TOTP enrollment works
 // can opt in for admin accounts with REQUIRE_TWO_FACTOR=true.
@@ -83,22 +121,104 @@ export function getPasswordRequirements(role: UserRole): PasswordRequirements {
   };
 }
 
-export function validatePassword(password: string, role: UserRole): { valid: boolean; error?: string } {
+function normalizePasswordForComparison(password: string): string {
+  return password.normalize("NFC").trim().toLowerCase();
+}
+
+function squashContextText(value: string): string {
+  return value.normalize("NFC").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function addBlocklistTerm(set: Set<string>, value?: string | null): void {
+  if (!value) return;
+  const normalized = normalizePasswordForComparison(value);
+  if (!normalized) return;
+  set.add(normalized);
+  const squashed = squashContextText(normalized);
+  if (squashed) set.add(squashed);
+}
+
+function isLocallyBlocklistedPassword(password: string, email?: string): boolean {
+  const normalized = normalizePasswordForComparison(password);
+  const squashed = squashContextText(password);
+  const set = new Set(LOCAL_PASSWORD_BLOCKLIST);
+
+  if (email) {
+    const cleanEmail = email.trim().toLowerCase();
+    addBlocklistTerm(set, cleanEmail);
+    addBlocklistTerm(set, cleanEmail.split("@")[0] || "");
+  }
+
+  return set.has(normalized) || (!!squashed && set.has(squashed));
+}
+
+async function isPwnedPassword(password: string): Promise<boolean | null> {
+  const hash = createHash("sha1")
+    .update(password.normalize("NFC"), "utf8")
+    .digest("hex")
+    .toUpperCase();
+  const prefix = hash.slice(0, 5);
+  const suffix = hash.slice(5);
+
+  try {
+    const response = await globalThis.fetch(`${HIBP_RANGE_URL}${prefix}`, {
+      headers: {
+        "Add-Padding": "true",
+        "User-Agent": HIBP_USER_AGENT,
+      },
+      signal: AbortSignal.timeout(HIBP_TIMEOUT_MS),
+    });
+    if (!response.ok) return null;
+    const text = await response.text();
+    for (const line of text.split(/\r?\n/)) {
+      const [candidateSuffix, countText] = line.trim().split(":");
+      if (!candidateSuffix || candidateSuffix.toUpperCase() !== suffix) continue;
+      return Number.parseInt(countText || "0", 10) > 0;
+    }
+    return false;
+  } catch {
+    return null;
+  }
+}
+
+export function validatePassword(password: string, role: UserRole): PasswordValidationResponse {
   const result = sharedValidatePassword(password, isAdminRole(role));
   if (!result.valid) {
-    switch (result.errorCode) {
-      case "minLength":
-        return { valid: false, error: `Your password needs at least ${result.minLength} characters to keep things secure.` };
-      case "missingUppercase":
-        return { valid: false, error: "Add at least one uppercase letter — it helps keep your account safe." };
-      case "missingLowercase":
-        return { valid: false, error: "Your password needs a lowercase letter in the mix." };
-      case "missingNumber":
-        return { valid: false, error: "Throw in at least one number for good measure." };
-      case "missingSpecialCharacter":
-        return { valid: false, error: "One more thing — a special character like ! or @ makes your password extra strong." };
-    }
+    return {
+      valid: false,
+      code: "PASSWORD_TOO_SHORT",
+      minLength: result.minLength,
+      error: `Your password needs at least ${result.minLength} characters.`,
+    };
   }
+  return { valid: true };
+}
+
+export async function validatePasswordPolicy(
+  password: string,
+  role: UserRole,
+  options: { email?: string } = {},
+): Promise<PasswordValidationResponse> {
+  const basic = validatePassword(password, role);
+  if (!basic.valid) return basic;
+
+  if (isLocallyBlocklistedPassword(password, options.email)) {
+    return {
+      valid: false,
+      code: "PASSWORD_BLOCKLISTED",
+      error: "That password is too common or has appeared in known data breaches. Choose a different one.",
+    };
+  }
+
+  const pwned = await isPwnedPassword(password);
+  if (pwned) {
+    return {
+      valid: false,
+      code: "PASSWORD_BLOCKLISTED",
+      error: "That password is too common or has appeared in known data breaches. Choose a different one.",
+    };
+  }
+
   return { valid: true };
 }
 

@@ -1972,17 +1972,24 @@ ${transcript}`,
 
       const { isEmailServiceAvailable, sendFeedbackEmail, sendFeedbackAcknowledgmentEmail } = await import("./email-service");
       const { isGitHubFeedbackSyncConfigured, createFeedbackGitHubIssue } = await import("./github-feedback-service");
+      const { readReportedSurface, buildFeedbackSurfaceFields } = await import("./client-surface");
       if (!isEmailServiceAvailable()) {
         return res.status(503).json({ error: "Email service is not configured. Please contact the developer directly." });
       }
 
       const user = await storage.getUser(req.userId!);
+      // Where the report came FROM (Android app / iOS app / Web), plus every
+      // surface this account has been seen on — a bug reported from Android is
+      // usually not Android-only, because both surfaces run the same code.
+      const reportedSurface = readReportedSurface(req, req.body?.surface);
+      const surfaceFields = buildFeedbackSurfaceFields(reportedSurface, user);
       const feedbackOpts: any = {
         category,
         message: message.trim(),
         userEmail: userEmail || user?.email || undefined,
         userName: user?.firstName || undefined,
         userNumber: user?.userNumber ? String(user.userNumber) : undefined,
+        ...surfaceFields,
       };
 
       if (file) {
@@ -1992,7 +1999,7 @@ ${transcript}`,
           type: file.mimetype || "image/jpeg",
         };
       }
-      console.log("Sending feedback email:", JSON.stringify({ category, userEmail: feedbackOpts.userEmail, userName: feedbackOpts.userName }));
+      console.log("Sending feedback email:", JSON.stringify({ category, userEmail: feedbackOpts.userEmail, userName: feedbackOpts.userName, reportedFrom: surfaceFields.reportedFrom, accountSurfaces: surfaceFields.accountSurfaces }));
       const sent = await sendFeedbackEmail(feedbackOpts);
       if (!sent) {
         console.error("sendFeedbackEmail returned false - email service may not be configured");

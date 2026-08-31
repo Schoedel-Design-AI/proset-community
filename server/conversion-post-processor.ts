@@ -10,6 +10,25 @@ export function sanitizeConversionOutput(type: string, rawOutput: string): strin
   const trimmed = rawOutput.trim();
 
   switch (type) {
+    case "notes":
+    case "outline": {
+      let artifact = trimmed;
+
+      while (/^<think(?:\s[^>]*)?>/i.test(artifact)) {
+        const openingTag = artifact.match(/^<think(?:\s[^>]*)?>/i)?.[0];
+        if (!openingTag) break;
+
+        const closingTag = /<\/think\s*>/i.exec(artifact.slice(openingTag.length));
+        if (!closingTag) return artifact;
+
+        artifact = artifact
+          .slice(openingTag.length + closingTag.index + closingTag[0].length)
+          .trim();
+      }
+
+      return artifact;
+    }
+
     case "calendar_event": {
       // Extract JSON array from code block if present
       const jsonBlockMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
@@ -34,6 +53,7 @@ export function sanitizeConversionOutput(type: string, rawOutput: string): strin
           // If JSON repair fails, preserve the original output
         }
       }
+
       return trimmed;
     }
 
@@ -96,6 +116,10 @@ export function sanitizeConversionOutput(type: string, rawOutput: string): strin
     default:
       return trimmed;
   }
+}
+
+export function getConversionStreamChunk(type: string, content: string): string | null {
+  return type === "notes" || type === "outline" ? null : content;
 }
 
 /**
