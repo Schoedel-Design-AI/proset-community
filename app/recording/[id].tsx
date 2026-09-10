@@ -16,6 +16,7 @@ Image,
   Linking,
   PanResponder,
   useWindowDimensions,
+  Keyboard,
 } from "react-native";
 import { router, useLocalSearchParams } from "@/lib/navigation";
 import type { NativeSyntheticEvent, TextLayoutEventData } from "react-native";
@@ -27,6 +28,12 @@ import { getAudioUploadMetadata } from "@/lib/audio-upload-metadata";
 import logoTransparent from "@/assets/images/icons-xai/105-transparent.png";
 import * as FileSystem from "@/lib/file-system";
 import * as Sharing from "@/lib/sharing";
+import {
+  arrayBufferToBase64,
+  triggerWebDownload,
+} from "@/lib/downloads";
+import { useFileDownload } from "@/lib/use-file-download";
+import { isLocalFileUri } from "@/lib/download-plan";
 import * as Haptics from "@/lib/haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Colors from "@/constants/colors";
@@ -54,8 +61,15 @@ import { useTextScale, sf, type TextScale } from "@/lib/typography";
 import ProcessingAnimation from "@/components/ProcessingAnimation";
 import {
   buildConversionSource,
+  isConversionSourceTooShort,
+  MIN_TEXT_ENTRY_CHARS,
   type ConversionSourceAttachment,
 } from "@shared/conversion-source";
+import {
+  keyboardRevealOffset,
+  keyboardScrollPadding,
+  keyboardTopEdge,
+} from "@/lib/keyboard-reveal";
 import type { SelfServiceModuleState } from "@shared/self-service-modules";
 import { continueThoughtFromRecording } from "@/lib/thought-threads";
 import {
@@ -105,38 +119,12 @@ const CUSTOM_PROMPTS_KEY = "@voicenote_custom_prompts";
 const DRAFT_KEY_PREFIX = "@voicenote_draft_";
 const MAX_SOURCE_ATTACHMENT_TEXT = 700_000;
 
-const CODE_TYPES = new Set<string>();
-
-function extractCodeFromContent(content: string, conversionType?: string): string {
-  const codeBlocks = content.match(/```\w*\n([\s\S]*?)```/g);
-  if (codeBlocks && codeBlocks.length > 0) {
-    return codeBlocks.map((block) => {
-      const inner = block.match(/```\w*\n([\s\S]*?)```/);
-      return inner ? inner[1].trim() : block;
-    }).join("\n\n");
-  }
-  if (conversionType && CODE_TYPES.has(conversionType)) {
-    const isWin = conversionType === "windows_commands";
-    const isCmd = (line: string) => {
-      const t = line.trim();
-      if (!t || /^#{1,3}\s/.test(t) || /^\*\*/.test(t) || /^[*-]\s/.test(t) || /^\d+\.\s/.test(t)) return false;
-      if (/^\$\s/.test(t) || /^#!\//.test(t)) return true;
-      if (isWin) return /^(dir|copy|move|del|echo|set|cd|md|mkdir|rmdir|xcopy|robocopy|powershell|cmd|winget|choco|net|sc|reg|icacls|sfc|dism|ipconfig|ping|netstat|Get-|Set-|New-|Remove-|Start-|Stop-|Invoke-|Install-|Import-|Export-|Update-|Add-|Write-)/i.test(t);
-      return /^(sudo|apt|yum|dnf|brew|pip|npm|git|cd|ls|mkdir|rm|cp|mv|cat|echo|chmod|chown|curl|wget|tar|grep|find|sed|awk|docker|python3?|node|source|export|alias)\s/.test(t);
-    };
-    const cmdLines = content.split("\n").filter(isCmd);
-    if (cmdLines.length > 0) return cmdLines.join("\n");
-  }
-  return content;
-}
-
 function ConversionContent({ content, conversionType, codeView }: { content: string; conversionType?: string; codeView?: boolean }) {
   const ts = useTextScale();
   const codeBlockStyles = useMemo(() => makeCodeBlockStyles(ts), [ts]);
   const richTextStyles = useMemo(() => makeRichTextStyles(ts), [ts]);
   const tableStyles = useMemo(() => makeTableStyles(ts), [ts]);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
-  const isCodeType = conversionType && CODE_TYPES.has(conversionType);
 
   const handleCopyBlock = async (code: string, index: number) => {
     try {
@@ -309,20 +297,6 @@ function ConversionContent({ content, conversionType, codeView }: { content: str
     return <View key={`text-${blockIndex}`}>{elements}</View>;
   };
 
-  const LANG_MAP: Record<string, string> = {
-    // Add code types here if needed in the future
-  };
-  const langLabel = (conversionType && LANG_MAP[conversionType]) || "code";
-
-  const isCommandLine = (line: string) => {
-    const trimmed = line.trim();
-    if (/^\$\s/.test(trimmed) || /^#\s*(!\/)/.test(trimmed)) return true;
-    if (conversionType === "windows_commands") {
-      return /^(dir|copy|move|del|ren|type|echo|set|cls|cd|md|rd|mkdir|rmdir|xcopy|robocopy|powershell|cmd|winget|choco|net|sc|reg|icacls|attrib|sfc|dism|wmic|tasklist|taskkill|shutdown|ipconfig|ping|netstat|nslookup|tracert|Get-|Set-|New-|Remove-|Start-|Stop-|Invoke-|Install-|Import-|Export-|Update-|Add-|Write-|Read-|Test-|Select-|Where-|ForEach-)\s*/i.test(trimmed);
-    }
-    return /^(sudo|apt|yum|dnf|brew|pip|npm|git|cd|ls|mkdir|rm|cp|mv|cat|echo|chmod|chown|curl|wget|tar|grep|find|sed|awk|docker|python3?|node|source|export|alias)\s/.test(trimmed);
-  };
-
   const parseContentBlocks = (): React.ReactNode[] => {
     const nodes: React.ReactNode[] = [];
     let blockIdx = 0;
@@ -340,37 +314,6 @@ function ConversionContent({ content, conversionType, codeView }: { content: str
           blockIdx++;
         }
       });
-    } else if (isCodeType) {
-      const lines = content.split("\n");
-      let currentCode: string[] = [];
-      let currentText: string[] = [];
-
-      const flushCode = () => {
-        if (currentCode.length > 0) {
-          nodes.push(renderCodeBlock(currentCode.join("\n"), langLabel, blockIdx));
-          blockIdx++;
-          currentCode = [];
-        }
-      };
-      const flushText = () => {
-        if (currentText.length > 0) {
-          nodes.push(renderTextBlock(currentText.join("\n"), blockIdx));
-          blockIdx++;
-          currentText = [];
-        }
-      };
-
-      for (const line of lines) {
-        if (isCommandLine(line) || (currentCode.length > 0 && line.trim().startsWith("#") && !line.startsWith("##"))) {
-          flushText();
-          currentCode.push(line);
-        } else {
-          flushCode();
-          currentText.push(line);
-        }
-      }
-      flushCode();
-      flushText();
     } else {
       nodes.push(renderTextBlock(content, 0));
     }
@@ -389,14 +332,6 @@ function ConversionContent({ content, conversionType, codeView }: { content: str
   return (
     <View>
       {parseContentBlocks()}
-      {isCodeType && (
-        <View style={codeBlockStyles.downloadHint}>
-          <Feather name="download" size={14} color={Colors.textSecondary} />
-          <Text style={codeBlockStyles.downloadHintText}>
-            Tap the download button above to save as a file
-          </Text>
-        </View>
-      )}
     </View>
   );
 }
@@ -497,22 +432,6 @@ function resolveBucketUri(audioUri: string): string {
     return `${window.location.origin}${audioUri}`;
   }
   return audioUri;
-}
-
-function triggerWebDownload(blob: Blob, fileName: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = fileName;
-  a.target = "_blank";
-  a.rel = "noopener noreferrer";
-  a.style.display = "none";
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => {
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, 200);
 }
 
 /** Renders a Slide Deck server response as readable markdown for the artifact view. */
@@ -691,6 +610,37 @@ function ConversionIcon({ name, size, color }: { name: string; size: number; col
   return <Feather name={name as any} size={size} color={color} />;
 }
 
+/**
+ * Scroll a field clear of the on-screen keyboard (#198).
+ *
+ * Module scope on purpose: it takes everything it needs as arguments, so the
+ * effect that calls it depends only on the keyboard and window sizes instead of
+ * an unstable callback identity.
+ */
+function revealFieldAboveKeyboard({
+  scroll,
+  field,
+  windowHeight,
+  keyboardHeight,
+  currentOffset,
+}: {
+  scroll: ScrollView | null;
+  field: View | null;
+  windowHeight: number;
+  keyboardHeight: number;
+  currentOffset: number;
+}) {
+  if (!scroll || !field || keyboardHeight <= 0) return;
+  field.measureInWindow((_x, y, _width, height) => {
+    const nextOffset = keyboardRevealOffset({
+      fieldBottom: y + height,
+      keyboardTop: keyboardTopEdge(windowHeight, keyboardHeight),
+      currentOffset,
+    });
+    if (nextOffset != null) scroll.scrollTo({ y: nextOffset, animated: true });
+  });
+}
+
 export default function RecordingDetailScreen() {
   const { id, mode, tab } = useLocalSearchParams<{ id: string; mode?: string; tab?: string }>();
   const insets = useSafeAreaInsets();
@@ -728,9 +678,6 @@ export default function RecordingDetailScreen() {
     docx: "export.word",
     csv: "export.csv",
     xlsx: "export.xlsx",
-    sql: "export.sql",
-    ps1: "export.powershell",
-    bat: "export.batch",
   };
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -792,6 +739,14 @@ export default function RecordingDetailScreen() {
 
   const [exportTarget, setExportTarget] = useState<{ conversion: Conversion; action: "share" | "save" } | null>(null);
   const [customText, setCustomText] = useState("");
+  // Keyboard reveal for the custom-text field (#198). Android 15+ enforces
+  // edge-to-edge, so `adjustResize` no longer shrinks the window and the IME
+  // draws straight over this field.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const detailScrollRef = useRef<ScrollView | null>(null);
+  const customTextCardRef = useRef<View | null>(null);
+  const detailScrollOffsetRef = useRef(0);
+  const customTextFocusedRef = useRef(false);
   const [sourceAttachments, setSourceAttachments] = useState<ConversionSourceAttachment[]>([]);
   const [editingSourceAttachment, setEditingSourceAttachment] = useState<ConversionSourceAttachment | null>(null);
   const [importingFile, setImportingFile] = useState(false);
@@ -828,8 +783,14 @@ export default function RecordingDetailScreen() {
   const [calendarExportingId, setCalendarExportingId] = useState<number | null>(null);
   const [calendarExportSuccess, setCalendarExportSuccess] = useState<Set<number>>(new Set());
 
-  const [downloadToast, setDownloadToast] = useState<{ fileName: string; visible: boolean } | null>(null);
+  const [downloadToast, setDownloadToast] = useState<{ fileName: string; messageKey: string } | null>(null);
   const downloadToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // One download interaction for the whole screen: busy state, duplicate-tap
+  // protection, outcome-accurate toast, and a failure dialog that offers
+  // "Choose location…" / "Share file" instead of silently redirecting the file.
+  const { save: saveFile, busyId: savingFileId } = useFileDownload(
+    (fileName, messageKey) => showDownloadToast(fileName, messageKey),
+  );
   const [useMarkdown, setUseMarkdown] = useState(false);
   // research_forms web-channel toggle. null = use server default per type.
   const [includeWebSources, setIncludeWebSources] = useState<boolean | null>(null);
@@ -917,6 +878,39 @@ export default function RecordingDetailScreen() {
   const [proAccessInfo, setProAccessInfo] = useState<{ actionType: string; unitCost: number; costSoFar: number; pricing: { transcription: number; conversion: number }; onConfirm: () => void } | null>(null);
 
   const { user } = useAuth();
+
+  // Keyboard height drives both the scroll padding and the field reveal (#198).
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      (event) => setKeyboardHeight(event.endCoordinates.height),
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => setKeyboardHeight(0),
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  // The keyboard opens after focus, so the reveal runs again once its height is
+  // known (and on rotation, where the window height changes).
+  useEffect(() => {
+    if (!customTextFocusedRef.current || keyboardHeight <= 0) return;
+    const timer = setTimeout(() => {
+      revealFieldAboveKeyboard({
+        scroll: detailScrollRef.current,
+        field: customTextCardRef.current,
+        windowHeight,
+        keyboardHeight,
+        currentOffset: detailScrollOffsetRef.current,
+      });
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [keyboardHeight, windowHeight]);
+
   const isDurableContextRecording = Boolean(
     user &&
     cloudContextEnabled &&
@@ -1226,7 +1220,7 @@ export default function RecordingDetailScreen() {
     }
   }, [user]);
 
-  const MIN_CUSTOM_TEXT = 100;
+  const MIN_CUSTOM_TEXT = MIN_TEXT_ENTRY_CHARS;
   const MAX_CUSTOM_TEXT = 10000;
   const isTextEntry = mode === "text" || (
     !!recording &&
@@ -1254,7 +1248,10 @@ export default function RecordingDetailScreen() {
     (isTextEntry ? effectiveTranscript : recording?.transcript || "").trim().length +
     (isTextEntry ? 0 : customText.trim().length) +
     sourceAttachments.reduce((total, attachment) => total + attachment.text.trim().length, 0);
-  const sourceTextTooShort = sourceContentLength < MIN_CUSTOM_TEXT;
+  // A short voice note is a legitimate source: only a typed text entry keeps a
+  // character floor (#195). Padding a real transcript with filler context to
+  // unlock Convert degraded the very output the floor was protecting.
+  const sourceTextTooShort = isConversionSourceTooShort({ isTextEntry, sourceContentLength });
 
   useEffect(() => {
     if (!isTextEntry || customText.trim() || !recording?.transcript) return;
@@ -1717,15 +1714,15 @@ export default function RecordingDetailScreen() {
       // Server returned no usable transcript (silence or provider garbage).
       // Mirror the server's persisted error state instead of fabricating a
       // "No speech detected" transcript, so the screen shows the mapped
-      // message (transcription_no_speech → re-record; transcription_failed →
-      // retry) and the retry affordance matches transcriptionRetryable.
+      // message. BOTH outcomes stay retryable: the silence detector is a
+      // heuristic and must never lock a user out of a recording (#196).
       if (!hasTranscriptionContent(data)) {
         const noSpeech = data?.errorCode === "transcription_no_speech";
         await updateRecording(recording.id, {
           isTranscribing: false,
           transcriptionStatus: "failed",
           transcriptionErrorCode: noSpeech ? "transcription_no_speech" : "transcription_failed",
-          transcriptionRetryable: noSpeech ? false : true,
+          transcriptionRetryable: true,
         });
         setRetryingTranscription(false);
         return;
@@ -2551,7 +2548,7 @@ export default function RecordingDetailScreen() {
 
   // Downloads the generated .pptx with the session token via the deck export
   // endpoint (self-contained stream; no bucket record lookup needed).
-  // Web: blob download. Native: cache file + system share sheet.
+  // Web: blob download. Native: Downloads collection (Android) or share sheet.
   const handleDownloadDeck = async (conversion: Conversion) => {
     if (!conversion.deckId) return;
     setDeckDownloadingId(conversion.id);
@@ -2560,32 +2557,25 @@ export default function RecordingDetailScreen() {
       const res = await authExpoFetch(url.toString(), { method: "GET" });
       if (!res.ok) throw new Error("Failed to download deck");
       const fileName = conversion.fileName || "presentation.pptx";
+      const pptxMime = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+
       if (Platform.OS === "web") {
         const blob = await res.blob();
         triggerWebDownload(blob, fileName);
         showDownloadToast(fileName);
-      } else {
-        const arrayBuffer = await res.arrayBuffer();
-        const bytes = new Uint8Array(arrayBuffer);
-        let binary = "";
-        for (let i = 0; i < bytes.length; i++) {
-          binary += String.fromCharCode(bytes[i]);
-        }
-        const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
-        const filePath = `${FileSystem.cacheDirectory}${safeName}`;
-        await FileSystem.writeAsStringAsync(filePath, btoa(binary), {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        const canShare = await Sharing.isAvailableAsync();
-        if (canShare) {
-          await Sharing.shareAsync(filePath, {
-            mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            dialogTitle: t("deck.downloadPptx"),
-          });
-        }
+        return;
       }
+
+      const base64 = arrayBufferToBase64(await res.arrayBuffer());
+      await saveFile({
+        fileName,
+        mimeType: pptxMime,
+        base64,
+        dialogTitle: t("deck.downloadPptx"),
+      }, `deck-${conversion.id}`);
     } catch (err: any) {
       console.error("Deck download error:", err);
+      notifyDownloadFailed();
     } finally {
       setDeckDownloadingId(null);
     }
@@ -2740,17 +2730,12 @@ export default function RecordingDetailScreen() {
         body: JSON.stringify({ content: selectedConversion.content }),
       });
       const icsText = await res.text();
-      if (Platform.OS === "web") {
-        const blob = new Blob([icsText], { type: "text/calendar" });
-        triggerWebDownload(blob, "event.ics");
-        showDownloadToast("event.ics");
-      } else {
-        const fileUri = FileSystem.documentDirectory + "event.ics";
-        await FileSystem.writeAsStringAsync(fileUri, icsText, { encoding: FileSystem.EncodingType.UTF8 });
-        if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(fileUri, { mimeType: "text/calendar", UTI: "com.apple.ical.ics" });
-        }
-      }
+      await saveFile({
+        fileName: "event.ics",
+        mimeType: "text/calendar",
+        text: icsText,
+        dialogTitle: t("detail.addToCalendar"),
+      }, "ics");
     } catch (err) {
       Alert.alert(t("common.error"), t("detail.failedCalendar"));
     } finally {
@@ -2800,13 +2785,25 @@ export default function RecordingDetailScreen() {
 
 
 
-  const showDownloadToast = (fileName: string) => {
+  const showDownloadToast = (fileName: string, messageKey = "detail.fileSaved") => {
     if (downloadToastTimer.current) clearTimeout(downloadToastTimer.current);
-    setDownloadToast({ fileName, visible: true });
+    setDownloadToast({ fileName, messageKey });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     downloadToastTimer.current = setTimeout(() => {
       setDownloadToast(null);
     }, 5000);
+  };
+
+  /**
+   * A failed download must never be silent (issue #190): the user tapped an
+   * icon and is owed an outcome either way.
+   */
+  const notifyDownloadFailed = () => {
+    if (Platform.OS === "web") {
+      alert(t("detail.exportFailed"));
+    } else {
+      Alert.alert(t("detail.exportFailedTitle"), t("detail.exportFailed"));
+    }
   };
 
   const handleExportWithFormat = async (format: string) => {
@@ -2818,166 +2815,62 @@ export default function RecordingDetailScreen() {
       const baseName = conversion.label.replace(/\s+/g, "_");
       const formatInfo = EXPORT_FORMATS.find((f) => f.value === format);
       if (!formatInfo) return;
+      const fullName = `${baseName}.${formatInfo.ext}`;
 
-      if (Platform.OS === "web") {
-        let blob: Blob;
-        let fullName: string;
+      // pdf/docx/xlsx are rendered server-side; txt/md/csv are built locally.
+      const generatorPath =
+        format === "pdf" ? "/api/generate-pdf" :
+        format === "docx" ? "/api/generate-docx" :
+        format === "xlsx" ? "/api/generate-xlsx" :
+        null;
 
-        if (format === "docx") {
-          const baseUrl = getApiUrl();
-          const url = new URL("/api/generate-docx", baseUrl);
-          const res = await fetch(url.toString(), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content: conversion.content, title: baseName }),
-          });
-          if (!res.ok) throw new Error("Failed to generate document");
+      let blob: Blob | undefined;
+      let base64: string | undefined;
+      let text: string | undefined;
+
+      if (generatorPath) {
+        const res = await authExpoFetch(new URL(generatorPath, getApiUrl()).toString(), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: conversion.content, title: baseName }),
+        });
+        if (!res.ok) throw new Error(`Failed to generate ${formatInfo.ext}`);
+        if (Platform.OS === "web") {
           blob = await res.blob();
-          fullName = `${baseName}.docx`;
-        } else if (format === "pdf") {
-          const url = new URL("/api/generate-pdf", getApiUrl());
-          const res = await authExpoFetch(url.toString(), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content: conversion.content, title: baseName }),
-          });
-          if (!res.ok) throw new Error("Failed to generate PDF");
-          blob = await res.blob();
-          fullName = `${baseName}.pdf`;
-        } else if (format === "xlsx") {
-          const url = new URL("/api/generate-xlsx", getApiUrl());
-          const res = await authExpoFetch(url.toString(), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content: conversion.content, title: baseName }),
-          });
-          if (!res.ok) throw new Error("Failed to generate spreadsheet");
-          blob = await res.blob();
-          fullName = `${baseName}.xlsx`;
-        } else if (["ps1", "bat", "sql"].includes(format)) {
-          fullName = `${baseName}.${formatInfo.ext}`;
-          blob = new Blob([extractCodeFromContent(conversion.content, conversion.type)], { type: formatInfo.mimeType });
         } else {
-          fullName = `${baseName}.${formatInfo.ext}`;
-          blob = new Blob([conversion.content], { type: formatInfo.mimeType });
+          base64 = arrayBufferToBase64(await res.arrayBuffer());
         }
+      } else {
+        text = conversion.content;
+        if (Platform.OS === "web") {
+          blob = new Blob([text], { type: formatInfo.mimeType });
+        }
+      }
 
-        if (action === "share") {
-          try {
-            const shared = await triggerWebShare(blob, fullName, formatInfo.mimeType);
-            if (shared) return;
-          } catch (err: any) {
-            if (err?.name === "NotAllowedError") {
-              setPendingWebShare({ blob, fileName: fullName, mimeType: formatInfo.mimeType });
-              return;
-            }
+      const dialogTitle = `${action === "share" ? t("common.share") : t("common.save")} ${conversion.label}`;
+
+      // Web share uses the Web Share API and falls back to a download.
+      if (action === "share" && Platform.OS === "web" && blob) {
+        try {
+          const shared = await triggerWebShare(blob, fullName, formatInfo.mimeType);
+          if (shared) return;
+        } catch (err: any) {
+          if (err?.name === "NotAllowedError") {
+            setPendingWebShare({ blob, fileName: fullName, mimeType: formatInfo.mimeType });
+            return;
           }
         }
-        triggerWebDownload(blob, fullName);
-        showDownloadToast(fullName);
-        return;
       }
 
-      // Native platforms
-      if (format === "pdf") {
-        const url = new URL("/api/generate-pdf", getApiUrl());
-        const res = await authExpoFetch(url.toString(), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: conversion.content, title: baseName }),
-        });
-        if (!res.ok) throw new Error("Failed to generate PDF");
-        const arrayBuffer = await res.arrayBuffer();
-        const bytes = new Uint8Array(arrayBuffer);
-        let binary = "";
-        for (let i = 0; i < bytes.length; i++) {
-          binary += String.fromCharCode(bytes[i]);
-        }
-        const filePath = `${FileSystem.cacheDirectory}${baseName}.pdf`;
-        await FileSystem.writeAsStringAsync(filePath, btoa(binary), {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        const canShare = await Sharing.isAvailableAsync();
-        if (canShare) {
-          await Sharing.shareAsync(filePath, {
-            mimeType: formatInfo.mimeType,
-            dialogTitle: `${action === "share" ? t("common.share") : t("common.save")} ${conversion.label}`,
-          });
-        }
-        return;
-      }
-
-      if (format === "xlsx") {
-        const url = new URL("/api/generate-xlsx", getApiUrl());
-        const res = await authExpoFetch(url.toString(), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: conversion.content, title: baseName }),
-        });
-        if (!res.ok) throw new Error("Failed to generate spreadsheet");
-        const arrayBuffer = await res.arrayBuffer();
-        const bytes = new Uint8Array(arrayBuffer);
-        let binary = "";
-        for (let i = 0; i < bytes.length; i++) {
-          binary += String.fromCharCode(bytes[i]);
-        }
-        const filePath = `${FileSystem.cacheDirectory}${baseName}.xlsx`;
-        await FileSystem.writeAsStringAsync(filePath, btoa(binary), {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        const canShare = await Sharing.isAvailableAsync();
-        if (canShare) {
-          await Sharing.shareAsync(filePath, {
-            mimeType: formatInfo.mimeType,
-            dialogTitle: `${action === "share" ? t("common.share") : t("common.save")} ${conversion.label}`,
-          });
-        }
-        return;
-      }
-
-      if (format === "docx") {
-        const baseUrl = getApiUrl();
-        const url = new URL("/api/generate-docx", baseUrl);
-        const res = await authExpoFetch(url.toString(), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: conversion.content, title: baseName }),
-        });
-        const arrayBuffer = await res.arrayBuffer();
-        const bytes = new Uint8Array(arrayBuffer);
-        let binary = "";
-        for (let i = 0; i < bytes.length; i++) {
-          binary += String.fromCharCode(bytes[i]);
-        }
-        const base64 = btoa(binary);
-        const filePath = `${FileSystem.cacheDirectory}${baseName}.docx`;
-        await FileSystem.writeAsStringAsync(filePath, base64, { encoding: FileSystem.EncodingType.Base64 });
-        const canShare = await Sharing.isAvailableAsync();
-        if (canShare) {
-          await Sharing.shareAsync(filePath, {
-            mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            dialogTitle: `${action === "share" ? t("common.share") : t("common.save")} ${conversion.label}`,
-          });
-        }
-        return;
-      }
-
-      // Text-based formats (txt, md, csv, ps1, bat, sql)
-      const fileName = `${baseName}_${Date.now()}.${formatInfo.ext}`;
-      const dirPath = action === "save" ? FileSystem.documentDirectory : FileSystem.cacheDirectory;
-      const filePath = `${dirPath}${fileName}`;
-      let exportContent = conversion.content;
-      if (["ps1", "bat", "sql"].includes(format)) {
-        exportContent = extractCodeFromContent(conversion.content, conversion.type);
-      }
-      await FileSystem.writeAsStringAsync(filePath, exportContent);
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(filePath, {
-          mimeType: formatInfo.mimeType,
-          dialogTitle: `${action === "share" ? t("common.share") : t("common.save")} ${conversion.label}`,
-        });
-      }
+      await saveFile({
+        fileName: fullName,
+        mimeType: formatInfo.mimeType,
+        text,
+        base64,
+        blob,
+        intent: action === "share" ? "share" : "auto",
+        dialogTitle,
+      }, `export-${conversion.id}`);
     } catch (err) {
       console.error("Export error:", err);
       if (Platform.OS === "web") {
@@ -3027,28 +2920,18 @@ export default function RecordingDetailScreen() {
 
   const handleDownloadTranscript = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const safeName = recording.title.replace(/[^a-zA-Z0-9]/g, "_");
+    const fileName = `${safeName}_transcript.txt`;
     try {
-      const safeName = recording.title.replace(/[^a-zA-Z0-9]/g, "_");
-      if (Platform.OS === "web") {
-        const blob = new Blob([effectiveTranscript], { type: "text/plain" });
-        const transcriptFile = `${safeName}_transcript.txt`;
-        triggerWebDownload(blob, transcriptFile);
-        showDownloadToast(transcriptFile);
-        return;
-      }
-
-      const fileName = `${safeName}_transcript.txt`;
-      const filePath = `${FileSystem.documentDirectory}${fileName}`;
-      await FileSystem.writeAsStringAsync(filePath, effectiveTranscript);
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(filePath, {
-          mimeType: "text/plain",
-          dialogTitle: t("detail.saveTranscript"),
-        });
-      }
+      await saveFile({
+        fileName,
+        mimeType: "text/plain",
+        text: effectiveTranscript,
+        dialogTitle: t("detail.saveTranscript"),
+      }, "transcript");
     } catch (err) {
       console.error("Download transcript error:", err);
+      notifyDownloadFailed();
     }
   };
 
@@ -3129,29 +3012,35 @@ export default function RecordingDetailScreen() {
         return;
       }
       const safeName = recording.title.replace(/[^a-zA-Z0-9]/g, "_");
+      const isBlob = recording.audioUri.startsWith("blob:") || recording.audioUri.startsWith("data:");
+      const ext = isBlob ? "webm" : "m4a";
+      const mimeType = isBlob ? "audio/webm" : "audio/mp4";
+      const audioFile = `${safeName}.${ext}`;
+
       if (Platform.OS === "web") {
-        const isBlob = recording.audioUri.startsWith("blob:") || recording.audioUri.startsWith("data:");
-        const fetchUri = resolveBucketUri(recording.audioUri);
-        const res = await fetch(fetchUri, { credentials: "include" });
+        const res = await fetch(resolveBucketUri(recording.audioUri), { credentials: "include" });
         const blob = await res.blob();
-        const ext = isBlob ? "webm" : "m4a";
-        const audioFile = `${safeName}.${ext}`;
-        triggerWebDownload(blob, audioFile);
-        showDownloadToast(audioFile);
+        await saveFile({ fileName: audioFile, mimeType, blob }, "recording");
         return;
       }
 
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(recording.audioUri, {
-          mimeType: "audio/*",
-          dialogTitle: t("detail.saveRecording"),
-        });
-      }
+      // Local recordings are copied straight out; uploaded ones stream from the
+      // bucket to disk so long recordings never sit in JS memory.
+      const local = isLocalFileUri(recording.audioUri);
+      await saveFile({
+        fileName: audioFile,
+        mimeType,
+        fileUri: local ? recording.audioUri : undefined,
+        remoteUrl: local ? undefined : resolveBucketUri(recording.audioUri),
+        headers: getAuthHeaders(),
+        dialogTitle: t("detail.saveRecording"),
+      }, "recording");
     } catch (err) {
       console.error("Download recording error:", err);
       if (Platform.OS === "web") {
         alert(t("detail.audioNotAvailable") || "Could not download audio file.");
+      } else {
+        notifyDownloadFailed();
       }
     }
   };
@@ -3272,7 +3161,11 @@ export default function RecordingDetailScreen() {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + (Platform.OS === "web" ? 34 : 24), maxWidth: layout.contentMaxWidth, alignSelf: "center", width: "100%", paddingHorizontal: layout.contentPadding }]}
+        ref={detailScrollRef}
+        onScroll={(event) => { detailScrollOffsetRef.current = event.nativeEvent.contentOffset.y; }}
+        scrollEventThrottle={16}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: keyboardScrollPadding(insets.bottom + (Platform.OS === "web" ? 34 : 24), keyboardHeight), maxWidth: layout.contentMaxWidth, alignSelf: "center", width: "100%", paddingHorizontal: layout.contentPadding }]}
         showsVerticalScrollIndicator={false}
       >
         <Text style={[styles.title, { fontSize: ts.heading2 }]} accessibilityRole="header">{recording.title}</Text>
@@ -3336,8 +3229,12 @@ export default function RecordingDetailScreen() {
                     <Pressable onPress={handleShareRecording} hitSlop={8} style={styles.playerActionBtn} accessibilityLabel={t("common.share")} accessibilityRole="button">
                       <Feather name="share" size={16} color={Colors.textSecondary} />
                     </Pressable>
-                    <Pressable onPress={handleDownloadRecording} hitSlop={8} style={styles.playerActionBtn} accessibilityLabel={t("a11y.downloadRecording")} accessibilityRole="button">
-                      <Feather name="download" size={16} color={Colors.textSecondary} />
+                    <Pressable onPress={handleDownloadRecording} disabled={savingFileId === "recording"} hitSlop={8} style={styles.playerActionBtn} accessibilityLabel={savingFileId === "recording" ? t("detail.preparingDownload") : t("a11y.downloadRecording")} accessibilityRole="button" accessibilityState={{ busy: savingFileId === "recording" }}>
+                      {savingFileId === "recording" ? (
+                        <ActivityIndicator size="small" color={Colors.textSecondary} />
+                      ) : (
+                        <Feather name="download" size={16} color={Colors.textSecondary} />
+                      )}
                     </Pressable>
                   </View>
                 </View>
@@ -3380,8 +3277,12 @@ export default function RecordingDetailScreen() {
                   <Pressable onPress={handleShareTranscript} hitSlop={8} style={styles.transcriptActionBtn} accessibilityLabel={t("a11y.shareTranscript")} accessibilityRole="button">
                     <Feather name="share" size={16} color={Colors.textSecondary} />
                   </Pressable>
-                  <Pressable onPress={handleDownloadTranscript} hitSlop={8} style={styles.transcriptActionBtn} accessibilityLabel={t("a11y.downloadTranscript")} accessibilityRole="button">
-                    <Feather name="download" size={16} color={Colors.textSecondary} />
+                  <Pressable onPress={handleDownloadTranscript} disabled={savingFileId === "transcript"} hitSlop={8} style={styles.transcriptActionBtn} accessibilityLabel={savingFileId === "transcript" ? t("detail.preparingDownload") : t("a11y.downloadTranscript")} accessibilityRole="button" accessibilityState={{ busy: savingFileId === "transcript" }}>
+                    {savingFileId === "transcript" ? (
+                      <ActivityIndicator size="small" color={Colors.textSecondary} />
+                    ) : (
+                      <Feather name="download" size={16} color={Colors.textSecondary} />
+                    )}
                   </Pressable>
                   <Pressable onPress={() => retryTranscription()} disabled={retryingTranscription} hitSlop={8} style={styles.transcriptActionBtn} accessibilityLabel={t("detail.retryTranscription")} accessibilityRole="button">
                     <Feather name="refresh-cw" size={16} color={Colors.primary} />
@@ -3542,8 +3443,12 @@ export default function RecordingDetailScreen() {
                     <Pressable onPress={handleShareTranscript} hitSlop={8} style={styles.transcriptActionBtn} accessibilityLabel={t("a11y.shareTranscript")} accessibilityRole="button">
                       <Feather name="share" size={16} color={Colors.textSecondary} />
                     </Pressable>
-                    <Pressable onPress={handleDownloadTranscript} hitSlop={8} style={styles.transcriptActionBtn} accessibilityLabel={t("a11y.downloadTranscript")} accessibilityRole="button">
-                      <Feather name="download" size={16} color={Colors.textSecondary} />
+                    <Pressable onPress={handleDownloadTranscript} disabled={savingFileId === "transcript"} hitSlop={8} style={styles.transcriptActionBtn} accessibilityLabel={savingFileId === "transcript" ? t("detail.preparingDownload") : t("a11y.downloadTranscript")} accessibilityRole="button" accessibilityState={{ busy: savingFileId === "transcript" }}>
+                      {savingFileId === "transcript" ? (
+                        <ActivityIndicator size="small" color={Colors.textSecondary} />
+                      ) : (
+                        <Feather name="download" size={16} color={Colors.textSecondary} />
+                      )}
                     </Pressable>
                   </View>
                 ) : null}
@@ -3584,7 +3489,7 @@ export default function RecordingDetailScreen() {
               </View>
             )}
 
-            <View style={styles.customTextCard}>
+            <View style={styles.customTextCard} ref={customTextCardRef}>
               <TextInput
                 style={[styles.customTextInput]}
                 placeholder={isTextEntry
@@ -3593,6 +3498,17 @@ export default function RecordingDetailScreen() {
                 placeholderTextColor={Colors.textMuted}
                 multiline
                 value={customText}
+                onFocus={() => {
+                  customTextFocusedRef.current = true;
+                  revealFieldAboveKeyboard({
+                    scroll: detailScrollRef.current,
+                    field: customTextCardRef.current,
+                    windowHeight,
+                    keyboardHeight,
+                    currentOffset: detailScrollOffsetRef.current,
+                  });
+                }}
+                onBlur={() => { customTextFocusedRef.current = false; }}
                 onChangeText={(text) => {
                   if (text.length > MAX_CUSTOM_TEXT) {
                     setCustomText(text.slice(0, MAX_CUSTOM_TEXT));
@@ -3987,11 +3903,17 @@ export default function RecordingDetailScreen() {
                       </Pressable>
                       <Pressable
                         onPress={(e) => { e.stopPropagation?.(); handleSaveConversion(conversion); }}
+                        disabled={savingFileId === `export-${conversion.id}`}
                         style={styles.conversionExpandedBtn}
-                        accessibilityLabel={`Save ${displayLabel}`}
+                        accessibilityLabel={savingFileId === `export-${conversion.id}` ? t("detail.preparingDownload") : `Save ${displayLabel}`}
                         accessibilityRole="button"
+                        accessibilityState={{ busy: savingFileId === `export-${conversion.id}` }}
                       >
-                        <Feather name="download" size={16} color={Colors.primary} />
+                        {savingFileId === `export-${conversion.id}` ? (
+                          <ActivityIndicator size="small" color={Colors.primary} />
+                        ) : (
+                          <Feather name="download" size={16} color={Colors.primary} />
+                        )}
                       </Pressable>
                       <Pressable
                         onPress={(e) => {
@@ -4864,9 +4786,7 @@ export default function RecordingDetailScreen() {
                     format.value === "pdf" ? "file" :
                     format.value === "docx" ? "file-plus" :
                     format.value === "csv" || format.value === "xlsx" ? "grid" :
-                    format.value === "ps1" ? "terminal" :
-                    format.value === "bat" ? "terminal" :
-                    "code"
+                    "file"
                   }
                   size={20}
                   color={Colors.primary}
@@ -5075,7 +4995,7 @@ export default function RecordingDetailScreen() {
             <Feather name="check-circle" size={20} color="#4ade80" />
           </View>
           <View style={styles.downloadToastText}>
-            <Text style={styles.downloadToastTitle}>{t("detail.fileSaved")}</Text>
+            <Text style={styles.downloadToastTitle}>{t(downloadToast.messageKey as any)}</Text>
             <Text style={styles.downloadToastFile} numberOfLines={1}>{downloadToast.fileName}</Text>
           </View>
           <Pressable

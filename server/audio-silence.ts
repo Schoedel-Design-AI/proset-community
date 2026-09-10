@@ -2,14 +2,20 @@ import { spawn } from "node:child_process";
 import ffmpegPath from "ffmpeg-static";
 
 /**
- * RMS threshold below which decoded audio is considered silent, ~ -38 dBFS.
- * Real speech (even quiet speech) sits well above this; digital silence and
- * room-tone-only recordings sit below. Only consulted when the ASR provider
- * already returned fewer than 3 meaningful characters, so the stakes are low:
- * the check only decides whether to tell the user "no speech" (re-record)
- * vs "transcription failed" (retry).
+ * RMS threshold below which decoded audio is considered silent.
+ *
+ * Calibrated against a real phone recording (2026-08-28): a quiet 4-second
+ * voice note held at arm's length measured RMS 126 with clearly audible
+ * speech, while the old threshold of 400 (~ -38 dBFS) declared it "silent" and
+ * — because transcription_no_speech was non-retryable — locked the user out
+ * of a recording that had real content. Digital silence sits near 0 and
+ * room tone is a handful of counts, so 60 keeps a wide margin below real
+ * speech while still catching genuinely empty recordings.
+ *
+ * Only consulted when the ASR provider already returned fewer than 3
+ * meaningful characters, so it is a tiebreaker, never a gate on real text.
  */
-export const SILENCE_RMS_THRESHOLD = 400;
+export const SILENCE_RMS_THRESHOLD = 60;
 
 /** Cap decoded PCM at ~1.1 hours of 16 kHz mono (matches 16-bit s16le). */
 const MAX_PCM_BYTES = 128 * 1024 * 1024;
@@ -119,4 +125,87 @@ export function detectSilence(fileBuffer: Buffer): Promise<SilenceCheck> {
     child.stdin.write(fileBuffer);
     child.stdin.end();
   });
+}
+
+/**
+ * Probe the duration of an audio buffer in seconds using ffmpeg (parses the
+ * container header's "Duration: hh:mm:ss.xx" line — no full decode). Resolves
+ * null when ffmpeg is unavailable or the duration cannot be determined.
+ *
+ * Used to price transcription at 1 token/second when no Recording.duration is
+ * available (developer API / MCP raw-audio endpoints).
+ */
+export function getAudioDurationSeconds(fileBuffer: Buffer): Promise<number | null> {
+  const ffmpegBinary = ffmpegPath;
+  if (!ffmpegBinary) {
+    return Promise.resolve(null);
+  }
+
+  return new Promise<number | null>((resolve) => {
+    let settled = false;
+    let stderr = "";
+
+    const finish = (result: number | null) => {
+      clearTimeout(timer);
+      if (!settled) {
+        settled = true;
+        resolve(result);
+      }
+    };
+
+    const child = spawn(
+      ffmpegBinary,
+      ["-hide_banner", "-i", "pipe:0"],
+      { stdio: ["pipe", "ignore", "pipe"] },
+    );
+
+    const timer = setTimeout(() => {
+      console.warn("[audio] ffmpeg duration probe timed out");
+      child.kill("SIGKILL");
+      finish(null);
+    }, FFMPEG_TIMEOUT_MS);
+
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString();
+      if (stderr.length > 64 * 1024) {
+        child.kill("SIGKILL");
+        finish(null);
+      }
+    });
+
+    child.on("error", (error) => {
+      console.warn("[audio] ffmpeg duration probe spawn failed (%s)", error.message);
+      finish(null);
+    });
+
+    child.on("close", () => {
+      const match = stderr.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
+      if (match) {
+        const hours = parseInt(match[1], 10);
+        const minutes = parseInt(match[2], 10);
+        const seconds = parseFloat(match[3]);
+        const total = hours * 3600 + minutes * 60 + seconds;
+        finish(Number.isFinite(total) && total > 0 ? total : null);
+      } else {
+        finish(null);
+      }
+    });
+
+    child.stdin.on("error", () => {
+      // Ignore stdin write errors; the close handler resolves the outcome.
+    });
+    child.stdin.write(fileBuffer);
+    child.stdin.end();
+  });
+}
+
+/**
+ * Best-effort audio duration for transcription pricing. Prefers the ffmpeg
+ * probe; falls back to a rough ~16 KB/s (128 kbps) size estimate (flagged)
+ * when probing is unavailable, so a hard gate always has a cost to check.
+ */
+export async function estimateAudioDurationSeconds(fileBuffer: Buffer): Promise<number> {
+  const probed = await getAudioDurationSeconds(fileBuffer);
+  if (probed != null && probed > 0) return probed;
+  return Math.max(1, Math.round(fileBuffer.length / 16000));
 }

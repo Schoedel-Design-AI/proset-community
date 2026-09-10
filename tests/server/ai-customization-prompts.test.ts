@@ -9,7 +9,8 @@ import {
   CONVERSION_SKILLS,
 } from "../../server/modules/ai-customization/prompts";
 import { TIER_CONVERSION_TYPES as SERVER_TIER_CONVERSION_TYPES } from "../../server/usage-service";
-import { CONVERSION_TYPES, TIER_CONVERSION_TYPES } from "../../lib/utils";
+import { CONVERSION_TYPES, MODULE_CONVERSION_TYPES, TIER_CONVERSION_TYPES } from "../../lib/utils";
+import { SELF_SERVICE_MODULE_CATALOG } from "../../shared/self-service-modules";
 
 test("all visible conversion types have optimized prompt, skill, and knowledgebase defaults", () => {
   for (const { value } of CONVERSION_TYPES) {
@@ -45,6 +46,19 @@ test("server and client tier conversion maps stay in sync", () => {
   }
 });
 
+test("module conversion type lists stay in sync with the self-service catalog", () => {
+  for (const [moduleName, types] of Object.entries(MODULE_CONVERSION_TYPES)) {
+    const module = SELF_SERVICE_MODULE_CATALOG[moduleName as keyof typeof SELF_SERVICE_MODULE_CATALOG];
+    const catalogTypes = module && "conversionTypes" in module ? module.conversionTypes : undefined;
+    assert.ok(catalogTypes, `module '${moduleName}' missing from self-service catalog`);
+    assert.deepEqual(
+      new Set(types),
+      new Set(catalogTypes),
+      `MODULE_CONVERSION_TYPES and SELF_SERVICE_MODULE_CATALOG disagree for '${moduleName}'`,
+    );
+  }
+});
+
 test("paid tiers retain every free conversion type", () => {
   for (const tier of ["base", "pro"] as const) {
     for (const type of TIER_CONVERSION_TYPES.free) {
@@ -66,6 +80,16 @@ test("research conversions prohibit fabricated source metadata", () => {
   assert.doesNotMatch(guidance, /generate plausible|plausible references|illustrative references/i);
   assert.match(guidance, /Never invent/i);
   assert.match(guidance, /WEB RESEARCH context/i);
+});
+
+test("notes and outline prompts require only the requested conversion artifact", () => {
+  for (const type of ["notes", "outline"] as const) {
+    const prompt = CONVERSION_PROMPTS[type];
+
+    assert.match(prompt, /only the finished/i);
+    assert.match(prompt, /do not include.*prompt/i);
+    assert.match(prompt, /reasoning|analysis|thinking/i);
+  }
 });
 
 test("essay_explainer prompt includes neurodivergent-friendly supports", () => {

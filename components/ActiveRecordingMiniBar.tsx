@@ -204,9 +204,9 @@ export default function ActiveRecordingMiniBar() {
           onPress={(event) => {
             event.stopPropagation();
             if (isPaused) {
-              void resume();
+              void resume().catch(() => {});
             } else {
-              void pause();
+              void pause().catch(() => {});
             }
           }}
           style={({ pressed }) => [
@@ -227,7 +227,7 @@ export default function ActiveRecordingMiniBar() {
           accessibilityLabel={t("activeRecording.stop")}
           onPress={(event) => {
             event.stopPropagation();
-            void stop();
+            void stop().catch(() => {});
           }}
           style={({ pressed }) => [
             styles.iconButton,

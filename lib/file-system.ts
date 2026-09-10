@@ -49,6 +49,60 @@ export async function writeAsStringAsync(
   }
 }
 
+/**
+ * Copies a local file into the device's shared Downloads collection.
+ *
+ * Android only: uses MediaStore on API 29+ (and the public Downloads directory
+ * below that) via react-native-file-access `cpExternal`, so the file is visible
+ * in Files → Downloads instead of the app's private sandbox.
+ */
+export async function copyToDownloadsAsync(fileUri: string, fileName: string): Promise<void> {
+  if (Platform.OS !== "android") {
+    throw new Error("copyToDownloadsAsync is Android-only");
+  }
+  const { FileSystem } = require("react-native-file-access");
+  await FileSystem.cpExternal(fileUri.replace(/^file:\/\//, ""), fileName, "downloads");
+}
+
+/** Deletes a file if present. Never throws for a missing path. */
+export async function deleteAsync(fileUri: string): Promise<void> {
+  if (Platform.OS === "web") {
+    delete virtualFS[fileUri];
+    return;
+  }
+  try {
+    const { FileSystem } = require("react-native-file-access");
+    const cleanPath = fileUri.replace(/^file:\/\//, "");
+    if (await FileSystem.exists(cleanPath)) {
+      await FileSystem.unlink(cleanPath);
+    }
+  } catch (err) {
+    // Best-effort cleanup of a temp file; never surface to the caller.
+  }
+}
+
+/**
+ * Streams a network response straight to disk (no base64 round-trip, so large
+ * audio files don't have to be held in JS memory).
+ */
+export async function fetchToFileAsync(
+  url: string,
+  fileUri: string,
+  headers: Record<string, string> = {},
+): Promise<void> {
+  if (Platform.OS === "web") {
+    throw new Error("fetchToFileAsync is native-only");
+  }
+  const { FileSystem } = require("react-native-file-access");
+  const res = await FileSystem.fetch(url, {
+    path: fileUri.replace(/^file:\/\//, ""),
+    headers,
+  });
+  if (!res.ok) {
+    throw new Error(`Download failed with status ${res.status}`);
+  }
+}
+
 export async function readAsStringAsync(
   fileUri: string,
   options: { encoding?: string } = {}

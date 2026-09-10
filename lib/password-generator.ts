@@ -7,7 +7,7 @@ const ALL_CHARS = UPPERCASE + LOWERCASE + DIGITS + SPECIALS;
 type UserRole = "user" | "admin" | undefined;
 
 const ADMIN_PASSWORD_LENGTH = 32;
-const USER_PASSWORD_LENGTH = 12;
+const USER_PASSWORD_LENGTH = 20;
 
 export function getPasswordLengthForRole(role: UserRole): number {
   if (role === "admin") return ADMIN_PASSWORD_LENGTH;
@@ -32,20 +32,11 @@ function randomChar(chars: string): string {
 }
 
 export function generatePassword(length: number = ADMIN_PASSWORD_LENGTH): string {
-  const required = [randomChar(UPPERCASE), randomChar(LOWERCASE), randomChar(DIGITS), randomChar(SPECIALS)];
-
-  const remaining: string[] = [];
-  for (let i = 0; i < length - required.length; i++) {
-    remaining.push(randomChar(ALL_CHARS));
+  const out: string[] = [];
+  for (let i = 0; i < length; i++) {
+    out.push(randomChar(ALL_CHARS));
   }
-
-  const all = [...required, ...remaining];
-  for (let i = all.length - 1; i > 0; i--) {
-    const j = secureRandomIndex(i + 1);
-    [all[i], all[j]] = [all[j], all[i]];
-  }
-
-  return all.join("");
+  return out.join("");
 }
 
 export function generatePasswordForRole(role: UserRole): string {

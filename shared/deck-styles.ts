@@ -130,8 +130,6 @@ export interface DeckDocument {
 
 /** Abuse/cost controls for deck generation (server-enforced). */
 export const DECK_LIMITS = {
-  basePerMonth: 2,
-  proPerMonth: 5,
   globalPerDay: 10,
   minSlides: 5,
   maxSlides: 15,

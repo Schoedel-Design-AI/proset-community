@@ -232,7 +232,4 @@ export const EXPORT_FORMATS = [
   { value: "docx", label: "Word (.docx)", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", ext: "docx" },
   { value: "csv", label: "CSV (.csv)", mimeType: "text/csv", ext: "csv" },
   { value: "xlsx", label: "Excel Workbook (.xlsx)", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ext: "xlsx" },
-  { value: "sql", label: "SQL (.sql)", mimeType: "application/sql", ext: "sql" },
-  { value: "ps1", label: "PowerShell (.ps1)", mimeType: "text/plain", ext: "ps1" },
-  { value: "bat", label: "Batch File (.bat)", mimeType: "text/plain", ext: "bat" },
 ];

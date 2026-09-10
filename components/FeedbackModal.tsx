@@ -18,6 +18,7 @@ import * as Haptics from "@/lib/haptics";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { getApiUrl, getAuthHeaders } from "@/lib/query-client";
+import { getEncodedSurface } from "@/lib/client-surface";
 import { useLanguage } from "@/lib/i18n";
 import { useTextScale } from "@/lib/typography";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -111,6 +112,10 @@ export default function FeedbackModal({ visible, onClose }: Props) {
       formData.append("category", category);
       formData.append("message", message.trim());
       formData.append("userEmail", user?.email || "");
+      // Sent in the body as well as the header (see getAuthHeaders): a proxy can
+      // strip an unknown header, and a report with no surface is the exact
+      // ambiguity this field exists to remove.
+      formData.append("surface", getEncodedSurface());
 
       if (attachment) {
         if (Platform.OS === "web") {
@@ -579,7 +584,7 @@ const styles = StyleSheet.create({
   sentTitle: {
     fontFamily: "Inter_700Bold",
     color: Colors.text,
-    marginBottom: 28,
+    marginBottom: 16,
   },
   sentSubtitle: {
     fontFamily: "Inter_400Regular",
@@ -590,8 +595,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     borderRadius: 12,
     paddingHorizontal: 32,
-    paddingVertical: 22,
+    paddingVertical: 12,
     minHeight: 44,
+    minWidth: 120,
+    alignSelf: "center",
     alignItems: "center",
     justifyContent: "center",
   },

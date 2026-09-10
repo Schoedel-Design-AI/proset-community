@@ -430,7 +430,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await fetchMeWithRetry();
       if (res.ok) {
         const data = await res.json();
-        setUser(data);
+        // An unverified account is not a usable session: setting it here
+        // makes AuthGuard redirect every screen to /verify-email. Only
+        // verified (or forced-password-change) identities become the
+        // active user; an unverified stored token is cleared so it stops
+        // lingering.
+        if (data.emailVerified !== false || data.forcePasswordChange) {
+          setUser(data);
+        } else if (data.emailVerified === false) {
+          await SecureStore.setSessionToken(null);
+        }
       } else if (res.status === 401) {
         await clearSession();
       }
@@ -451,7 +460,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await apiFetch("/api/auth/me");
       if (res.ok) {
         const data = await res.json();
-        setUser(data);
+        // Same rule as checkAuth: unverified accounts are not active
+        // sessions (setting them makes AuthGuard yank to /verify-email).
+        // Still returns the data so callers (e.g. the verify-email
+        // screen's "I've Verified My Email") can detect completion.
+        if (data.emailVerified !== false || data.forcePasswordChange) {
+          setUser(data);
+        }
         return data;
       } else if (res.status === 401) {
         setSessionExpiredMsg("Your session has expired, please sign in again.");
@@ -535,13 +550,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let meData = null;
     if (meRes.ok) {
       meData = await meRes.json();
-      setUser(meData);
       if (meData.forcePasswordChange) {
+        setUser(meData);
         throw new AuthError(getAuthErrorMessage("FORCE_PASSWORD_CHANGE", getCurrentLanguage())!, "FORCE_PASSWORD_CHANGE");
       }
       if (!meData.emailVerified) {
+        // An unverified account is NOT a usable session. Setting the user
+        // here made AuthGuard yank the login screen to /verify-email
+        // (the "verification modal overlay" bug) and left a lingering
+        // token. Clear both the stored token and the Firebase session so
+        // the inline login prompt is the only surface and the next
+        // sign-in starts clean.
+        await SecureStore.setSessionToken(null);
+        await signOutFirebase().catch(() => {});
         throw new AuthError(getAuthErrorMessage("EMAIL_NOT_VERIFIED", getCurrentLanguage())!, "EMAIL_NOT_VERIFIED");
       }
+      setUser(meData);
       // 2FA enrollment gate removed (2026-08-13): mfaRequired is always false
       // server-side while TOTP is disabled, so no MFA_REQUIRED throw here.
     } else if (meRes.status === 401) {

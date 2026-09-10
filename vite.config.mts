@@ -289,6 +289,8 @@ export default defineConfig(({ mode }) => {
       "process.env.NODE_ENV": JSON.stringify(mode),
       "process.env.AIFORMS_PUBLIC_DOMAIN": JSON.stringify(env.AIFORMS_PUBLIC_DOMAIN || ""),
       "process.env.AIFORMS_PUBLIC_STRIPE_KEY": JSON.stringify(env.AIFORMS_PUBLIC_STRIPE_KEY || ""),
+      "process.env.AIFORMS_PUBLIC_STRIPE_PUBLISHABLE_KEY": JSON.stringify(env.AIFORMS_PUBLIC_STRIPE_PUBLISHABLE_KEY || ""),
+      "process.env.AIFORMS_PUBLIC_STRIPE_PUBLISHABLE_KEY_TEST": JSON.stringify(env.AIFORMS_PUBLIC_STRIPE_PUBLISHABLE_KEY_TEST || ""),
       "process.env.AIFORMS_PUBLIC_REVENUECAT_ANDROID": JSON.stringify(env.AIFORMS_PUBLIC_REVENUECAT_ANDROID || ""),
       "process.env.AIFORMS_PUBLIC_TURNSTILE_SITE_KEY": JSON.stringify(env.AIFORMS_PUBLIC_TURNSTILE_SITE_KEY || ""),
       "process.env.AIFORMS_PUBLIC_FIREBASE_API_KEY": JSON.stringify(env.AIFORMS_PUBLIC_FIREBASE_API_KEY || ""),

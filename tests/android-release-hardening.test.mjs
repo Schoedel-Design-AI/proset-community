@@ -49,7 +49,7 @@ test("Android release is adaptive, edge-to-edge, and R8 optimized", () => {
     /includeBuild\(new File\(rootDir, "\.\.\/node_modules\/react-native"\)\)/,
   );
   assert.doesNotMatch(rules, /-keep class (?:com\.facebook\.react|okhttp3)\.\*\*/);
-  assert.equal(packageJson.dependencies["react-native"], "0.86.2");
+  assert.equal(packageJson.dependencies["react-native"], "0.86.3");
   assert.equal(packageJson.dependencies["react-native-screens"], "4.26.2");
   assert.equal(packageJson.dependencies["react-native-keyboard-controller"], "1.22.2");
 });

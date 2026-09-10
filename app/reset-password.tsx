@@ -48,6 +48,7 @@ export default function ResetPasswordScreen() {
   const [success, setSuccess] = useState(false);
   const [tokenValid, setTokenValid] = useState<boolean | null>(null);
   const [noToken, setNoToken] = useState(false);
+  const [actionEmail, setActionEmail] = useState("");
 
   const handleGeneratePassword = async () => {
     const pw = generatePasswordForRole(undefined);
@@ -86,8 +87,11 @@ export default function ResetPasswordScreen() {
     (async () => {
       try {
         if (isFirebaseClientConfigured() && params.oobCode) {
-          await verifyFirebasePasswordResetCode(params.oobCode);
-          if (!cancelled) setTokenValid(true);
+          const email = await verifyFirebasePasswordResetCode(params.oobCode);
+          if (!cancelled) {
+            setActionEmail(email.trim().toLowerCase());
+            setTokenValid(true);
+          }
         } else {
           const url = new URL("/api/auth/check-reset-token", getApiUrl());
           url.searchParams.set("token", actionCode);
@@ -114,17 +118,7 @@ export default function ResetPasswordScreen() {
 
     const validation = validatePassword(newPassword);
     if (!validation.valid) {
-      if (validation.errorCode === "minLength") {
-        setError(t("login.passwordTooShort"));
-      } else if (validation.errorCode === "missingUppercase") {
-        setError("Password must contain at least one uppercase letter.");
-      } else if (validation.errorCode === "missingLowercase") {
-        setError("Password must contain at least one lowercase letter.");
-      } else if (validation.errorCode === "missingNumber") {
-        setError("Password must contain at least one number.");
-      } else if (validation.errorCode === "missingSpecialCharacter") {
-        setError(t("login.missingSpecialCharacter"));
-      }
+      setError(t("login.passwordTooShort", { count: validation.minLength ?? 15 }));
       return;
     }
 
@@ -140,18 +134,33 @@ export default function ResetPasswordScreen() {
 
     setIsLoading(true);
     try {
+      const baseUrl = getApiUrl();
+      const validateRes = await fetch(new URL("/api/auth/validate-password", baseUrl).toString(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(actionEmail ? { email: actionEmail, password: newPassword } : { password: newPassword }),
+      });
+      const validateData = await validateRes.json().catch(() => ({}));
+      if (!validateRes.ok) {
+        setError(validateData.code === "PASSWORD_BLOCKLISTED"
+          ? t("login.passwordBlocked" as any)
+          : (validateData.error || t("common.somethingWentWrong")));
+        return;
+      }
+
       if (isFirebaseClientConfigured() && params.oobCode) {
         await confirmFirebasePasswordReset(params.oobCode, newPassword);
       } else {
-        const baseUrl = getApiUrl();
-        const res = await fetch(`${baseUrl}/api/auth/reset-password`, {
+        const res = await fetch(new URL("/api/auth/reset-password", baseUrl).toString(), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token, newPassword }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          setError(data.error || t("common.somethingWentWrong"));
+          setError(data.code === "PASSWORD_BLOCKLISTED"
+            ? t("login.passwordBlocked" as any)
+            : (data.error || t("common.somethingWentWrong")));
           return;
         }
       }

@@ -95,6 +95,7 @@ export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
   const recordingRef = useRef<Audio.Recording | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const completedDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const meterRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const micReadyRef = useRef(false);
   const durationRef = useRef(0);
@@ -212,20 +213,26 @@ export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
   // Pre-warm: request mic permissions + configure audio mode once so that
   // when the user taps record, only Recording.createAsync (~50ms) remains.
   useEffect(() => {
+    let isMounted = true;
     const prewarm = async () => {
       try {
         const permission = await Audio.requestPermissionsAsync();
-        if (!permission.granted) return;
+        if (!permission.granted || !isMounted) return;
         await Audio.setAudioModeAsync({
           allowsRecordingIOS: true,
           playsInSilentModeIOS: true,
         });
-        micReadyRef.current = true;
+        if (isMounted) {
+          micReadyRef.current = true;
+        }
       } catch {
         // permission errors are surfaced when start() is invoked
       }
     };
     void prewarm();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Fetch the user-tier recording cap.
@@ -235,6 +242,7 @@ export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
       setMaxRecordingSeconds(DEFAULT_MAX_RECORDING_SECONDS);
       return;
     }
+    let isMounted = true;
     const fetchMaxRecording = async () => {
       try {
         const res = await fetch(new URL("/api/usage", getApiUrl()).toString(), {
@@ -243,7 +251,7 @@ export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
         });
         if (res.ok) {
           const data = await res.json();
-          if (data.maxRecordingSeconds) {
+          if (data.maxRecordingSeconds && isMounted) {
             setMaxRecordingSeconds(data.maxRecordingSeconds);
           }
         }
@@ -252,6 +260,9 @@ export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
       }
     };
     void fetchMaxRecording();
+    return () => {
+      isMounted = false;
+    };
   }, [isAuthLoading, user?.id]);
 
   const startMetering = useCallback(() => {
@@ -262,7 +273,7 @@ export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
       if (!recordingRef.current) return;
       try {
         const status = await recordingRef.current.getStatusAsync();
-        if (status.isRecording && status.metering !== undefined) {
+        if (meterRef.current && status.isRecording && status.metering !== undefined) {
           setMeteringLevel(normalizeMeteringDb(status.metering));
         }
       } catch {
@@ -307,13 +318,17 @@ export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
       clearTimeout(autoStopRef.current);
       autoStopRef.current = null;
     }
+    if (completedDismissTimerRef.current) {
+      clearTimeout(completedDismissTimerRef.current);
+      completedDismissTimerRef.current = null;
+    }
   }, []);
 
   const discard = useCallback(async () => {
     clearRecordingTimers();
     stopMetering();
-    void recordingForegroundService.stop();
-    void clearRecoverySnapshot();
+    void recordingForegroundService.stop().catch(() => {});
+    void clearRecoverySnapshot().catch(() => {});
     const wasActive = stateRef.current === "recording" || stateRef.current === "paused" || stateRef.current === "preparing";
     if (wasActive) {
       setState("discarded");
@@ -349,8 +364,8 @@ export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
     setState("processing");
     stopMetering();
     clearRecordingTimers();
-    void recordingForegroundService.stop();
-    void clearRecoverySnapshot();
+    void recordingForegroundService.stop().catch(() => {});
+    void clearRecoverySnapshot().catch(() => {});
 
     try {
       await recordingRef.current.stopAndUnloadAsync();
@@ -468,7 +483,7 @@ export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
         }
 
         // Track streak for engagement rewards
-        try { void recordCompleted(); } catch {}
+        recordCompleted().catch(() => {});
       } catch (saveErr) {
         if (uploadedBucketFileId) {
           try {
@@ -487,10 +502,14 @@ export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
 
       if (isAutoTranscribeEnabledRef.current) {
         if (Platform.OS === "web" || !needsUpload) {
-          void transcribeAudio(recordingId, savedUri, lang, capturedBlob);
+          void transcribeAudio(recordingId, savedUri, lang, capturedBlob).catch((err) => {
+            console.error("[active-recording] transcribeAudio failed:", err);
+          });
         }
       } else {
-        void updateRecording(recordingId, { isTranscribing: false });
+        void updateRecording(recordingId, { isTranscribing: false }).catch((err) => {
+          console.error("[active-recording] updateRecording failed:", err);
+        });
       }
 
       setDuration(0);
@@ -499,9 +518,14 @@ export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
       setState("completed");
       setCompletionVersion(recordingId);
       // Auto-dismiss completed state after 10 seconds
-      setTimeout(() => {
-        setState("idle");
-        setCompletedRecordingId(null);
+      if (completedDismissTimerRef.current) {
+        clearTimeout(completedDismissTimerRef.current);
+      }
+      completedDismissTimerRef.current = setTimeout(() => {
+        if (stateRef.current === "completed") {
+          setState("idle");
+          setCompletedRecordingId(null);
+        }
       }, 10000);
       return { success: true };
     } catch (err) {
@@ -558,8 +582,8 @@ export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
       startMetering();
 
       // Android-only foreground service. The shim is a no-op on web/iOS.
-      void recordingForegroundService.start(buildNotificationCopy("recording", 0));
-      void writeRecoverySnapshot("recording");
+      void recordingForegroundService.start(buildNotificationCopy("recording", 0)).catch(() => {});
+      void writeRecoverySnapshot("recording").catch(() => {});
 
       timerRef.current = setInterval(() => {
         setDuration((prev) => {
@@ -571,18 +595,18 @@ export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
               stateRef.current === "paused" ? "paused" : "recording",
               next,
             ),
-          );
+          ).catch(() => {});
           return next;
         });
       }, 1000);
 
       autoStopRef.current = setTimeout(() => {
-        void stopRef.current();
+        void stopRef.current().catch(() => {});
       }, maxRecordingSecondsRef.current * 1000);
     } catch (err) {
       console.error("Failed to start recording:", err);
-      void recordingForegroundService.stop();
-      void clearRecoverySnapshot();
+      void recordingForegroundService.stop().catch(() => {});
+      void clearRecoverySnapshot().catch(() => {});
       setState("idle");
       setStartedAt(null);
     }
@@ -597,8 +621,8 @@ export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
       clearRecordingTimers();
       void recordingForegroundService.update(
         buildNotificationCopy("paused", durationRef.current),
-      );
-      void writeRecoverySnapshot("paused");
+      ).catch(() => {});
+      void writeRecoverySnapshot("paused").catch(() => {});
     } catch (err) {
       console.error("Failed to pause recording:", err);
     }
@@ -612,8 +636,8 @@ export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
       startMetering();
       void recordingForegroundService.update(
         buildNotificationCopy("recording", durationRef.current),
-      );
-      void writeRecoverySnapshot("recording");
+      ).catch(() => {});
+      void writeRecoverySnapshot("recording").catch(() => {});
       timerRef.current = setInterval(() => {
         setDuration((prev) => {
           const next = prev + 1;
@@ -622,13 +646,13 @@ export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
               stateRef.current === "paused" ? "paused" : "recording",
               next,
             ),
-          );
+          ).catch(() => {});
           return next;
         });
       }, 1000);
       const remainingMs = Math.max(0, maxRecordingSecondsRef.current - durationRef.current) * 1000;
       autoStopRef.current = setTimeout(() => {
-        void stopRef.current();
+        void stopRef.current().catch(() => {});
       }, remainingMs);
     } catch (err) {
       console.error("Failed to resume recording:", err);
@@ -661,7 +685,7 @@ export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
     return () => {
       clearRecordingTimers();
       stopMetering();
-      void recordingForegroundService.stop();
+      void recordingForegroundService.stop().catch(() => {});
       const activeRecording = recordingRef.current;
       recordingRef.current = null;
       if (activeRecording) {

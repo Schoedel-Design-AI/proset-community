@@ -412,7 +412,7 @@ export default function DeveloperSettings() {
         <Pressable
           style={({ pressed }) => [styles.connectRow, pressed && { opacity: 0.7 }]}
           onPress={() => {
-            const docsUrl = new URL("/documentation/", getApiUrl()).toString();
+            const docsUrl = new URL("/documentation/tutorials/build-your-first-proset-api-request", getApiUrl()).toString();
             if (Platform.OS === "web") window.open(docsUrl, "_blank");
             else Linking.openURL(docsUrl);
           }}

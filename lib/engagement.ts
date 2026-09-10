@@ -24,7 +24,7 @@ export type StreakMilestone = {
 export const STREAK_MILESTONES: StreakMilestone[] = [
   { days: 3, label: "3-day streak", reward: "+5 transcriptions" },
   { days: 7, label: "7-day streak", reward: "+10 transcriptions, +50MB storage" },
-  { days: 30, label: "30-day streak", reward: "+25 transcriptions, +250MB storage, Early Adopter badge" },
+  { days: 30, label: "30-day streak", reward: "+25 transcriptions, +250MB storage" },
 ];
 
 export function todayStr(): string {

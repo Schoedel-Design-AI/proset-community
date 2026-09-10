@@ -30,10 +30,11 @@ test("Reanimated keeps the bare React Native Worklets plugin last", () => {
 
 test("React Native 0.86 dependencies stay on the approved New Architecture set", () => {
   const packageJson = JSON.parse(read("package.json"));
+  const packageLock = JSON.parse(read("package-lock.json"));
 
   assert.equal(packageJson.dependencies.react, "19.2.7");
   assert.equal(packageJson.dependencies["react-dom"], "19.2.7");
-  assert.equal(packageJson.dependencies["react-native"], "0.86.2");
+  assert.equal(packageJson.dependencies["react-native"], "0.86.3");
   assert.equal(packageJson.dependencies["react-native-reanimated"], "4.5.3");
   assert.equal(packageJson.dependencies["react-native-worklets"], "0.11.3");
   assert.equal(packageJson.dependencies["react-native-nitro-modules"], "0.36.3");
@@ -43,8 +44,13 @@ test("React Native 0.86 dependencies stay on the approved New Architecture set",
   assert.equal(packageJson.dependencies["react-native-safe-area-context"], "5.8.0");
   assert.equal(packageJson.dependencies["react-native-screens"], "4.26.2");
   assert.equal(packageJson.devDependencies["@react-native-community/cli"], "20.2.0");
-  assert.equal(packageJson.devDependencies["@react-native/babel-preset"], "0.86.2");
-  assert.equal(packageJson.devDependencies["@react-native/metro-config"], "0.86.2");
+  assert.equal(packageJson.devDependencies["@react-native/babel-preset"], "0.86.3");
+  assert.equal(packageJson.devDependencies["@react-native/metro-config"], "0.86.3");
+  assert.equal(packageLock.packages["node_modules/metro"].version, "0.84.5");
+  assert.equal(
+    packageLock.packages["node_modules/metro"].dependencies["image-size"],
+    undefined,
+  );
 });
 
 test("Vite validates Reanimated compatibility while keeping Worklets unbundled", () => {

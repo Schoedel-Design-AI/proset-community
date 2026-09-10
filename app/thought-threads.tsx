@@ -93,17 +93,24 @@ export default function ThoughtThreadsScreen() {
           </View>
           <View style={styles.cardBody}>
             <Text style={[styles.cardTitle, { fontSize: ts.body }]} numberOfLines={1}>{thread.title}</Text>
-            <Text style={[styles.cardMeta, { fontSize: ts.caption }]}>
-              {t("thread.cardMeta" as any, {
-                recordings: thread.recordingCount,
-                contexts: thread.contextCount,
-                runs: thread.runCount,
-              })}
-            </Text>
-            <Text style={[styles.cardMeta, { fontSize: ts.caption }]}>
-              {thread.status === "ready" ? t("thread.ready" as any) : thread.status === "archived" ? t("thread.archived" as any) : t("thread.open" as any)}
-              {" · "}{t("thread.updated" as any, { date: new Date(thread.updatedAt).toLocaleDateString(language) })}
-            </Text>
+            <View style={styles.cardMetaRow}>
+              <View style={styles.cardMetaItem} accessibilityLabel={t("thread.metaRecordings" as any, { count: thread.recordingCount })}>
+                <Feather name="mic" size={12} color={Colors.textMuted} />
+                <Text style={[styles.cardMeta, { fontSize: ts.caption }]}>{thread.recordingCount}</Text>
+              </View>
+              <View style={styles.cardMetaItem} accessibilityLabel={t("thread.metaContexts" as any, { count: thread.contextCount })}>
+                <Feather name="message-square" size={12} color={Colors.textMuted} />
+                <Text style={[styles.cardMeta, { fontSize: ts.caption }]}>{thread.contextCount}</Text>
+              </View>
+              <View style={styles.cardMetaItem} accessibilityLabel={t("thread.metaRuns" as any, { count: thread.runCount })}>
+                <Feather name="zap" size={12} color={Colors.textMuted} />
+                <Text style={[styles.cardMeta, { fontSize: ts.caption }]}>{thread.runCount}</Text>
+              </View>
+              <View style={styles.cardMetaItem}>
+                <Feather name="clock" size={12} color={Colors.textMuted} />
+                <Text style={[styles.cardMeta, { fontSize: ts.caption }]}>{new Date(thread.updatedAt).toLocaleDateString(language)}</Text>
+              </View>
+            </View>
           </View>
           <Feather name="chevron-right" size={20} color={Colors.textMuted} />
         </Pressable>
@@ -165,9 +172,6 @@ export default function ThoughtThreadsScreen() {
             },
           ]}
         >
-          <Text style={[styles.intro, { fontSize: ts.body2 }]}>
-            {t("thread.intro" as any)}
-          </Text>
           {error ? (
             <Pressable onPress={load} style={styles.errorCard}>
               <Feather name="alert-circle" size={18} color={Colors.error} />
@@ -214,7 +218,6 @@ const styles = StyleSheet.create({
   iconButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   title: { color: Colors.text, fontFamily: "Inter_700Bold" },
   content: { paddingTop: 20, gap: 20 },
-  intro: { color: Colors.textSecondary, lineHeight: 22 },
   section: { gap: 10 },
   sectionTitle: { color: Colors.text, fontFamily: "Inter_700Bold", marginBottom: 2 },
   card: {
@@ -240,6 +243,8 @@ const styles = StyleSheet.create({
   cardBody: { flex: 1, gap: 4 },
   cardTitle: { color: Colors.text, fontFamily: "Inter_600SemiBold" },
   cardMeta: { color: Colors.textMuted },
+  cardMetaRow: { flexDirection: "row", alignItems: "center", gap: 12, flexWrap: "wrap" },
+  cardMetaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   errorCard: {
     borderRadius: 12,
     borderWidth: 1,

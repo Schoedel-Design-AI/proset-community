@@ -422,6 +422,9 @@ export class FirestoreStorage implements IStorage {
         twoFactorEnabled: user.twoFactorEnabled ?? 0,
         proAccessEnabled: user.proAccessEnabled ?? 0,
         hasSeenPlanSelection: user.hasSeenPlanSelection ?? 0,
+        tokenBalance: user.tokenBalance ?? 0,
+        tokenAllowanceMonth: user.tokenAllowanceMonth ?? null,
+        storageAddonGb: user.storageAddonGb ?? 0,
         role: user.role || "user",
         cachedTier: user.cachedTier || "free",
         createdAt: user.createdAt || new Date().toISOString(),
@@ -558,6 +561,51 @@ export class FirestoreStorage implements IStorage {
           ...eventRecord,
           outcome: "applied",
         });
+        return "applied";
+      });
+    },
+  };
+
+  billingRedemptions = {
+    apply: async (
+      redemption: { id: string; userId: string; kind: "token_pack" | "storage_addon"; productId: string | null },
+      updates: Partial<User>,
+    ): Promise<"applied" | "duplicate" | "user_not_found"> => {
+      const documentId = crypto.createHash("sha256").update(redemption.id).digest("hex");
+      const redemptionCol = this.getCol<any>("billing_redemptions");
+      const userCol = this.getCol<User>("users");
+      const now = new Date().toISOString();
+      const record = { ...redemption, receivedAt: now };
+
+      if (dbClient) {
+        return dbClient.runTransaction(async (transaction: any) => {
+          const redemptionRef = redemptionCol.doc(documentId);
+          const userRef = userCol.doc(redemption.userId);
+          const [existing, userDocument] = await Promise.all([
+            transaction.get(redemptionRef),
+            transaction.get(userRef),
+          ]);
+          if (existing.exists) return "duplicate";
+          if (!userDocument.exists) {
+            transaction.create(redemptionRef, sanitizeForFirestore({ ...record, outcome: "user_not_found" }));
+            return "user_not_found";
+          }
+          transaction.update(userRef, sanitizeForFirestore({ ...updates, updatedAt: now }));
+          transaction.create(redemptionRef, sanitizeForFirestore({ ...record, outcome: "applied" }));
+          return "applied";
+        });
+      }
+
+      return withLocalMutationLock(`billingRedemption:${documentId}`, async () => {
+        const existing = await redemptionCol.get(documentId);
+        if (existing) return "duplicate";
+        const user = await userCol.get(redemption.userId);
+        if (!user) {
+          await redemptionCol.set(documentId, { ...record, outcome: "user_not_found" });
+          return "user_not_found";
+        }
+        await userCol.set(redemption.userId, { ...updates, updatedAt: now });
+        await redemptionCol.set(documentId, { ...record, outcome: "applied" });
         return "applied";
       });
     },

@@ -8,10 +8,10 @@ import { apiKeyAuth, generateApiKey } from "./api-keys";
 import { runCoreConversion } from "./conversion";
 import { transcribeAudioLatencyFirst } from "../../transcription-routing";
 import { paragraphizeTranscript } from "@shared/transcript-format";
+import { estimateAudioDurationSeconds } from "../../audio-silence";
 import {
-  checkLimit,
-  incrementUsage,
-  reportExtendedAccessIfNeeded,
+  checkTranscriptionLimit,
+  deductTranscriptionTokens,
   getUserUsageSummary,
 } from "../../usage-service";
 
@@ -146,12 +146,12 @@ developerApiRouter.get("/me", apiKeyAuth, async (req: Request, res: Response) =>
       tier: usage.tier,
       displayTier: usage.displayTier,
       usage: {
-        transcriptions: usage.transcriptions,
-        conversions: usage.conversions,
-        recordings: usage.recordings,
+        tokenBalance: usage.tokenBalance,
+        monthlyTokenAllowance: usage.monthlyTokenAllowance,
+        tokensUsedThisMonth: usage.tokensUsedThisMonth,
         storageMb: usage.storageMb,
-        maxRecordings: usage.maxRecordings,
-        maxItems: usage.maxItems,
+        maxRecordingSeconds: usage.maxRecordingSeconds,
+        maxFileImportMB: usage.maxFileImportMB,
         proAccessEnabled: usage.proAccessEnabled,
       },
     });
@@ -289,34 +289,19 @@ developerApiRouter.post("/transcribe", apiKeyAuth, aiRateLimiter, upload.single(
     const language = typeof req.body?.language === "string" ? req.body.language : undefined;
     const prompt = typeof req.body?.prompt === "string" ? req.body.prompt : undefined;
 
-    const limitCheck = await checkLimit(userId, "transcription");
+    const durationSeconds = await estimateAudioDurationSeconds(fileBuffer);
+    const limitCheck = await checkTranscriptionLimit(userId, durationSeconds);
     if (!limitCheck.allowed) {
-      if (limitCheck.spendingCapReached) {
-        return res.status(429).json({
-          error: "spending_cap_reached",
-          message: "You've reached your monthly spending cap for Pro plan overages.",
-        });
-      }
       return res.status(429).json({
-        error: "monthly_limit_reached",
-        message: `You've used all ${limitCheck.limit} included transcriptions this month.`,
-      });
-    }
-
-    const confirmExtendedAccess =
-      req.body?.confirmExtendedAccess === true || req.body?.confirmExtendedAccess === "true";
-    if (limitCheck.isExtendedAccess && !limitCheck.proAccessEnabled && !confirmExtendedAccess) {
-      return res.status(402).json({
-        error: "pro_access_required",
-        message: "Overage consent required. Pass confirmExtendedAccess: true to continue with pay-as-you-go overage.",
+        error: "insufficient_tokens",
+        message: "You've used your monthly AI Credits. Upgrade for more credits — they reset each month.",
       });
     }
 
     const result = await transcribeAudioLatencyFirst({ fileBuffer, fileName, language, prompt });
     const formatted = paragraphizeTranscript(result.text);
 
-    await incrementUsage(userId, "transcription");
-    reportExtendedAccessIfNeeded(userId, "transcription");
+    await deductTranscriptionTokens(userId, durationSeconds);
 
     res.json({ text: formatted, provider: result.provider, model: result.model });
   } catch (error: any) {

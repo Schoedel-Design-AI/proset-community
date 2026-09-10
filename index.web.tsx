@@ -11,29 +11,29 @@ const style = document.createElement("style");
 style.textContent = `
   @font-face {
     font-family: 'Inter_400Regular';
-    src: local('Inter Regular'), local('Inter-Regular'), url('https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfMZ0.woff2') format('woff2');
-    font-weight: normal;
+    src: url('/fonts/inter-400.woff2') format('woff2');
+    font-weight: 400;
     font-style: normal;
     font-display: swap;
   }
   @font-face {
     font-family: 'Inter_500Medium';
-    src: local('Inter Medium'), local('Inter-Medium'), url('https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuI6fMZ0.woff2') format('woff2');
-    font-weight: normal;
+    src: url('/fonts/inter-500.woff2') format('woff2');
+    font-weight: 500;
     font-style: normal;
     font-display: swap;
   }
   @font-face {
     font-family: 'Inter_600SemiBold';
-    src: local('Inter SemiBold'), local('Inter-SemiBold'), url('https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuGKYMZ0.woff2') format('woff2');
-    font-weight: normal;
+    src: url('/fonts/inter-600.woff2') format('woff2');
+    font-weight: 600;
     font-style: normal;
     font-display: swap;
   }
   @font-face {
     font-family: 'Inter_700Bold';
-    src: local('Inter Bold'), local('Inter-Bold'), url('https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuFuYMZ0.woff2') format('woff2');
-    font-weight: normal;
+    src: url('/fonts/inter-700.woff2') format('woff2');
+    font-weight: 700;
     font-style: normal;
     font-display: swap;
   }

@@ -20,6 +20,7 @@ import * as Haptics from "@/lib/haptics";
 import * as Clipboard from "@/lib/clipboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "@/lib/navigation";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Feather from "@react-native-vector-icons/feather/static";
 import Colors from "@/constants/colors";
 import { useAuth, AuthError } from "@/lib/auth-context";
@@ -69,7 +70,7 @@ export default function LoginScreen() {
   const layout = useResponsiveLayout();
   const ts = useTextScale();
   const styles = useMemo(() => makeStyles(ts), [ts]);
-  const params = useLocalSearchParams<{ tab?: string; magic_token?: string; verified?: string; from?: string; returnTo?: string }>();
+  const params = useLocalSearchParams<{ tab?: string; magic_token?: string; verified?: string; from?: string; returnTo?: string; plan?: string }>();
   const fromLanding = params.from === "landing";
   const [mode, setMode] = useState<"login" | "register">(params.tab === "signup" ? "register" : "login");
   const [firstName, setFirstName] = useState("");
@@ -99,6 +100,7 @@ export default function LoginScreen() {
   const turnstileRef = useRef<HTMLDivElement | null>(null);
   const turnstileWidgetId = useRef<string | null>(null);
   const [debugMode, setDebugMode] = useState(false);
+  const [pwReqsOpen, setPwReqsOpen] = useState(false);
   const debugTapCount = useRef(0);
   const debugTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [debugInfo, setDebugInfo] = useState<Record<string, unknown> | null>(null);
@@ -108,6 +110,15 @@ export default function LoginScreen() {
     setSkipAuthRedirect(fromLanding);
     return () => setSkipAuthRedirect(false);
   }, [fromLanding, setSkipAuthRedirect]);
+
+  // Persist a landing-page plan choice (free/base/pro) so the post-signup
+  // choose-plan screen can pre-highlight the tier the visitor picked.
+  useEffect(() => {
+    const plan = params.plan;
+    if (plan === "free" || plan === "base" || plan === "pro") {
+      AsyncStorage.setItem("proset-plan-intent", plan).catch(() => {});
+    }
+  }, [params.plan]);
 
   useEffect(() => {
     if (mode !== "register") return;
@@ -451,17 +462,7 @@ export default function LoginScreen() {
     if (mode === "register") {
       const validation = validatePassword(password);
       if (!validation.valid) {
-        if (validation.errorCode === "minLength") {
-          setError(t("login.passwordTooShort"));
-        } else if (validation.errorCode === "missingUppercase") {
-          setError("Password must contain at least one uppercase letter.");
-        } else if (validation.errorCode === "missingLowercase") {
-          setError("Password must contain at least one lowercase letter.");
-        } else if (validation.errorCode === "missingNumber") {
-          setError("Password must contain at least one number.");
-        } else if (validation.errorCode === "missingSpecialCharacter") {
-          setError(t("login.missingSpecialCharacter"));
-        }
+        setError(t("login.passwordTooShort", { count: validation.minLength ?? 15 }));
         return;
       }
     }
@@ -942,7 +943,6 @@ export default function LoginScreen() {
                     style={styles.input}
                     value={firstName}
                     onChangeText={(text) => { setFirstName(text); clearError(); }}
-                    placeholder={t("login.firstNamePlaceholder")}
                     placeholderTextColor={Colors.textMuted}
                     autoCapitalize="words"
                     autoCorrect={false}
@@ -964,7 +964,6 @@ export default function LoginScreen() {
                   style={styles.input}
                   value={email}
                   onChangeText={(text) => { setEmail(text); clearError(); }}
-                  placeholder={t("login.emailPlaceholder")}
                   placeholderTextColor={Colors.textMuted}
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -980,14 +979,40 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>{t("login.password")}</Text>
+              {mode === "register" ? (
+                <View style={styles.labelRow}>
+                  <Text style={[styles.label, styles.labelInRow]}>{t("login.password")}</Text>
+                  <Pressable
+                    onPress={() => setPwReqsOpen(!pwReqsOpen)}
+                    style={styles.pwReqsBtn}
+                    hitSlop={10}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("login.passwordRequirements")}
+                    accessibilityState={{ expanded: pwReqsOpen }}
+                    testID="password-requirements-toggle"
+                  >
+                    <Feather
+                      name="help-circle"
+                      size={16}
+                      color={pwReqsOpen ? Colors.primary : Colors.textMuted}
+                    />
+                  </Pressable>
+                </View>
+              ) : (
+                <Text style={styles.label}>{t("login.password")}</Text>
+              )}
+              {mode === "register" && pwReqsOpen && (
+                <View style={styles.pwReqsTooltip} testID="password-requirements-tooltip">
+                  <Feather name="shield" size={13} color={Colors.primary} style={{ marginTop: 2 }} />
+                  <Text style={styles.pwReqsText}>{t("login.passwordRequirements")}</Text>
+                </View>
+              )}
               <View style={styles.inputContainer}>
                 <Feather name="lock" size={18} color={Colors.textMuted} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   value={password}
                   onChangeText={(text) => { setPassword(text); clearError(); }}
-                  placeholder={t("login.passwordPlaceholder")}
                   placeholderTextColor={Colors.textMuted}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
@@ -1008,9 +1033,6 @@ export default function LoginScreen() {
                   <Feather name={showPassword ? "eye-off" : "eye"} size={18} color={Colors.textMuted} />
                 </Pressable>
               </View>
-              {mode === "register" && (
-                <Text style={styles.passwordHint}>{t("login.passwordRequirements" as any)}</Text>
-              )}
               {mode === "register" && (
                 <View style={styles.generateRow}>
                   <Pressable style={styles.generateBtn} onPress={handleGeneratePassword} accessibilityRole="button" accessibilityLabel={t("login.generatePassword")}>
@@ -1036,7 +1058,6 @@ export default function LoginScreen() {
                     style={styles.input}
                     value={confirmPassword}
                     onChangeText={(text) => { setConfirmPassword(text); clearError(); }}
-                    placeholder={t("login.confirmPasswordPlaceholder")}
                     placeholderTextColor={Colors.textMuted}
                     secureTextEntry={!showConfirmPassword}
                     autoCapitalize="none"
@@ -1550,6 +1571,37 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
     color: Colors.textSecondary,
     marginBottom: 8,
   },
+  labelRow: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 6,
+    marginBottom: 8,
+  },
+  labelInRow: {
+    marginBottom: 0,
+  },
+  pwReqsBtn: {
+    padding: 2,
+  },
+  pwReqsTooltip: {
+    flexDirection: "row" as const,
+    alignItems: "flex-start" as const,
+    gap: 8,
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  pwReqsText: {
+    flex: 1,
+    fontSize: sf(12, ts),
+    fontFamily: "Inter_400Regular",
+    color: Colors.textSecondary,
+    lineHeight: 18,
+  },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -1577,13 +1629,6 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
     paddingLeft: 8,
     paddingRight: 12,
     flexShrink: 0,
-  },
-  passwordHint: {
-    fontSize: sf(12, ts),
-    fontFamily: "Inter_400Regular",
-    color: Colors.textMuted,
-    marginTop: 6,
-    paddingHorizontal: 2,
   },
   generateRow: {
     flexDirection: "row" as const,

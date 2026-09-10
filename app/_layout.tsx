@@ -127,7 +127,13 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const onDocsNow = segment === "documentation";
   const onResetNow = segment === "reset-password";
   const onPrivacyNow = segment === "privacy";
-  const needsRedirect = !user && isProtectedNow && !onLoginNow && !onDocsNow && !onResetNow && !onPrivacyNow;
+  // MUST mirror the effect's exceptions exactly — the verify-email +
+  // oobCode case is a legit logged-out route (email action link): if this
+  // guard nulls it out while the effect allows it, the screen stays blank
+  // forever (no redirect fires). Real incident 2026-08-26.
+  const onVerifyNow = segment === "verify-email";
+  const hasActionCodeNow = typeof emailActionCode === "string" && emailActionCode.length > 0;
+  const needsRedirect = !user && isProtectedNow && !onLoginNow && !onDocsNow && !onResetNow && !onPrivacyNow && !(onVerifyNow && hasActionCodeNow);
   if (needsRedirect && Platform.OS === "web") return null;
 
   return <>{children}</>;

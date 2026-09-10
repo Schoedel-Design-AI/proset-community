@@ -378,17 +378,7 @@ function AccountTab({
     }
     const validation = validatePassword(newPw, isAdmin);
     if (!validation.valid) {
-      if (validation.errorCode === "minLength") {
-        setPwError(`Password must be at least ${validation.minLength} characters`);
-      } else if (validation.errorCode === "missingUppercase") {
-        setPwError("Password must contain at least one uppercase letter");
-      } else if (validation.errorCode === "missingLowercase") {
-        setPwError("Password must contain at least one lowercase letter");
-      } else if (validation.errorCode === "missingNumber") {
-        setPwError("Password must contain at least one number");
-      } else if (validation.errorCode === "missingSpecialCharacter") {
-        setPwError(t("login.missingSpecialCharacter"));
-      }
+      setPwError(`Password must be at least ${validation.minLength ?? 15} characters`);
       return;
     }
     if (newPw !== confirmPw) {

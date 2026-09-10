@@ -6,6 +6,14 @@ type FeedbackWorkItemOptions = {
   userEmail?: string;
   userName?: string;
   userNumber?: string;
+  /** "Android app 1.0.61 (build 96) · Android 14 · Pixel 7" */
+  reportedFrom?: string;
+  /** "android" | "ios" | "web" — the surface the report was filed from. */
+  reportedSurface?: string;
+  /** "Android + Web" — every surface this account has been seen on. */
+  accountSurfaces?: string;
+  /** True when the account uses more than one surface. */
+  crossSurface?: boolean;
 };
 
 type GitHubIssueResponse = {
@@ -44,6 +52,8 @@ function buildIssueDescription(opts: FeedbackWorkItemOptions): string {
     opts.userNumber ? `User number: ${opts.userNumber}` : null,
     `Submitted at: ${submittedAt}`,
     "Source: Proset in-app feedback modal",
+    opts.reportedFrom ? `Reported from: ${opts.reportedFrom}` : null,
+    opts.accountSurfaces ? `Account surfaces: ${opts.accountSurfaces}` : null,
   ].filter(Boolean);
 
   return [
@@ -52,10 +62,34 @@ function buildIssueDescription(opts: FeedbackWorkItemOptions): string {
     `Category: ${opts.category}`,
     ...userLines,
     "",
+    ...(opts.crossSurface
+      ? [
+          "> Reproduce on **both** surfaces before closing: this account uses " +
+            `${opts.accountSurfaces}, and Proset ships one React Native codebase to all of them.`,
+          "",
+        ]
+      : []),
     "## Message",
     "",
     opts.message.trim(),
   ].join("\n");
+}
+
+/**
+ * Labels: the surface the report came FROM, plus a cross-surface flag when the
+ * account also uses another one. `platform:android` alone would read as
+ * "Android-only bug", which is usually wrong — the same TypeScript ships to the
+ * browser, so the filter that matters during triage is "does this need a web
+ * check too?".
+ */
+function buildIssueLabels(opts: FeedbackWorkItemOptions): string[] {
+  const labels = ["feedback", opts.category.toLowerCase()];
+  const surface = opts.reportedSurface?.toLowerCase();
+  if (surface === "android" || surface === "ios" || surface === "web") {
+    labels.push(`platform:${surface}`);
+  }
+  if (opts.crossSurface) labels.push("platform:cross-surface");
+  return labels.filter(Boolean);
 }
 
 export async function createFeedbackGitHubIssue(
@@ -75,7 +109,7 @@ export async function createFeedbackGitHubIssue(
     repo: repoName,
     title: buildIssueTitle(opts.category, opts.message),
     body: buildIssueDescription(opts),
-    labels: ["feedback", opts.category.toLowerCase()].filter(Boolean) as string[],
+    labels: buildIssueLabels(opts),
   });
 
   return {

@@ -130,6 +130,7 @@ export function getRecordingTransferMessageKey(
     pro_access_required: "detail.transcriptionProRequired",
     monthly_limit_reached: "detail.transcriptionLimitReached",
     spending_cap_reached: "detail.transcriptionSpendingCapReached",
+    insufficient_tokens: "detail.transcriptionInsufficientTokens",
     transcription_no_speech: "detail.transcriptionNoSpeech",
     transcription_failed: "detail.transcriptionFailed",
   };

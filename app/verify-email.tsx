@@ -105,6 +105,10 @@ export default function VerifyEmailScreen() {
       const refreshedUser = await refreshUser();
       if (refreshedUser?.emailVerified) {
         router.replace("/");
+      } else if (refreshedUser) {
+        // Still unverified — give the user a concrete next step instead of
+        // silently doing nothing (the old behavior left people confused).
+        setError("Your email still isn't verified. Tap the link in the email (check spam too), or resend below.");
       }
     } catch {
       setError("Failed to check verification status.");

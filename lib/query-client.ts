@@ -1,6 +1,7 @@
 import { Platform } from "react-native";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { getCachedSessionToken } from "@/lib/secure-store";
+import { getSurfaceHeaders } from "@/lib/client-surface";
 
 function isLocalHost(hostOrOrigin: string): boolean {
   const normalized = hostOrOrigin.replace(/^https?:\/\//i, "");
@@ -29,6 +30,9 @@ export function getNativeOriginHeaders(): Record<string, string> {
 
 export function getAuthHeaders(): Record<string, string> {
   const headers = getNativeOriginHeaders();
+  // Surface identity travels with every authenticated request, not just with
+  // feedback: that is how the server learns an account uses Android *and* Web.
+  Object.assign(headers, getSurfaceHeaders());
   try {
     const token = getCachedSessionToken();
     if (token) {
