@@ -56,7 +56,6 @@ test("local WorkManager failure terminates polling even when server reporting wa
       errorCode: "upload_auth_failed",
       retryable: true,
     },
-    true,
   );
 
   assert.equal(result.terminal, true);
@@ -85,7 +84,6 @@ test("durably uploaded audio wins over a stale local WorkManager failure", () =>
       errorCode: "upload_retry_exhausted",
       retryable: true,
     },
-    true,
   );
 
   assert.equal(result.updates.uploadStatus, "uploaded");
@@ -108,7 +106,6 @@ test("uploaded audio keeps polling while server transcription is active", () => 
       runAttemptCount: 0,
       uploadStatus: "uploaded",
     },
-    true,
   );
 
   assert.equal(result.terminal, false);
@@ -125,7 +122,6 @@ test("successful or failed server transcription terminates polling", () => {
       transcript: "Finished transcript",
     },
     null,
-    true,
   );
   const failed = reconcileRecordingTransfer(
     {
@@ -136,7 +132,6 @@ test("successful or failed server transcription terminates polling", () => {
       transcriptionRetryable: true,
     },
     null,
-    true,
   );
 
   assert.equal(succeeded.terminal, true);

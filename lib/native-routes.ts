@@ -63,6 +63,7 @@ export const NATIVE_ROUTE_NAMES: readonly string[] = [
   "verify-email",
   "mfa-setup",
   "choose-plan",
+  "discord/link",
   NOT_FOUND_ROUTE,
 ];
 

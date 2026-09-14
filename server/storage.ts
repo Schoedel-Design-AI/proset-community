@@ -5,10 +5,12 @@ import {
   BackupProvider, BackupLog, TaskProvider, CalendarProvider, ConnectorProvider, TrustedDevice,
   UsageEvent, StylePreference, UserFolder, UserFile, UsageLimit, UserSkill,
   UserKnowledgebase, UserLearning, UserAiModelPreference, BucketFile, KbPrompt, KbPromptSkill,
-  Passkey, UserModule, Coupon, DeveloperApiKey
+  Passkey, UserModule, Coupon, DeveloperApiKey,
+  DiscordCaptureSession, DiscordGuildSettings, DiscordJob, DiscordLinkState
   , ThoughtThread, ThoughtThreadItem, ThoughtThreadContext, ThoughtThreadConversionRun, ThoughtThreadRunChunk,
   UsageReservation, RecordingContextSource
 } from "@shared/schema";
+
 
 export type RevenueCatWebhookEventRecord = {
   id: string;
@@ -25,6 +27,19 @@ export type RevenueCatWebhookApplyResult =
   | "duplicate"
   | "stale"
   | "user_not_found";
+
+export type TokenBalanceMutation = {
+  monthKey: string;
+  monthlyAllowance: number;
+  debit?: number;
+};
+
+export type TokenBalanceMutationResult = {
+  monthly: number;
+  purchased: number;
+  total: number;
+  credited: boolean;
+};
 
 export interface IStorage {
   // Backwards compatibility legacy top-level methods
@@ -54,6 +69,7 @@ export interface IStorage {
     apply(
       event: RevenueCatWebhookEventRecord,
       updates: Partial<User>,
+      purchasedTokenCredit?: number,
     ): Promise<RevenueCatWebhookApplyResult>;
   };
 
@@ -66,7 +82,12 @@ export interface IStorage {
         productId: string | null;
       },
       updates: Partial<User>,
+      purchasedTokenCredit?: number,
     ): Promise<"applied" | "duplicate" | "user_not_found">;
+  };
+
+  tokenBalances: {
+    mutate(userId: string, mutation: TokenBalanceMutation): Promise<TokenBalanceMutationResult | null>;
   };
   
   recordings: {
@@ -187,6 +208,11 @@ export interface IStorage {
     create(account: Account): Promise<Account>;
     update(id: string, updates: Partial<Account>): Promise<Account>;
     delete(id: string): Promise<boolean>;
+    linkDiscord(userId: string, discordUserId: string, now: Date): Promise<{
+      status: "linked" | "already_linked" | "discord_in_use" | "user_has_other";
+      account?: Account;
+    }>;
+    unlinkDiscord(userId: string): Promise<boolean>;
   };
   
   verifications: {
@@ -365,6 +391,32 @@ export interface IStorage {
     update(id: string, updates: Partial<DeveloperApiKey>): Promise<DeveloperApiKey | undefined>;
     delete(id: string): Promise<boolean>;
   };
+
+  discordCaptureSessions: {
+    get(id: string): Promise<DiscordCaptureSession | undefined>;
+    arm(session: DiscordCaptureSession): Promise<DiscordCaptureSession>;
+    claim(id: string, discordUserId: string, channelId: string, voiceMessageId: string, now: Date): Promise<DiscordCaptureSession | undefined>;
+    update(id: string, updates: Partial<DiscordCaptureSession>): Promise<DiscordCaptureSession | undefined>;
+  };
+
+  discordJobs: {
+    get(id: string): Promise<DiscordJob | undefined>;
+    createIfAbsent(job: DiscordJob): Promise<{ created: boolean; job: DiscordJob }>;
+    claim(id: string, now: Date): Promise<DiscordJob | undefined>;
+    claimPublication(id: string, discordUserId: string, now: Date): Promise<boolean>;
+    update(id: string, updates: Partial<DiscordJob>): Promise<DiscordJob | undefined>;
+  };
+
+  discordGuildSettings: {
+    get(guildId: string): Promise<DiscordGuildSettings | undefined>;
+    upsert(settings: DiscordGuildSettings): Promise<DiscordGuildSettings>;
+  };
+
+  discordLinkStates: {
+    create(state: DiscordLinkState): Promise<DiscordLinkState>;
+    consume(stateHash: string, now: Date, kind?: DiscordLinkState["kind"]): Promise<DiscordLinkState | undefined>;
+  };
+
 
   clearUserData(userId: string): Promise<void>;
   checkHealth(): Promise<{ status: string; type: string; error?: string }>;

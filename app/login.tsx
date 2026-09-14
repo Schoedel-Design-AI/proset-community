@@ -1335,7 +1335,7 @@ export default function LoginScreen() {
                 <>
                   <View style={styles.resetHeader}>
                     <Feather name="check-circle" size={40} color={Colors.success} />
-                    <Text style={[styles.resetTitle, { fontSize: ts.heading2 }]}>{t("login.resetLinkSent")}</Text>
+                    <Text style={styles.resetDesc}>{t("login.resetLinkSent")}</Text>
                   </View>
 
                   <Pressable
@@ -1884,7 +1884,7 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
   resetDesc: {
     fontSize: sf(14, ts),
     fontFamily: "Inter_400Regular",
-    color: Colors.textSecondary,
+    color: Colors.text,
     textAlign: "center",
     lineHeight: 20,
   },

@@ -45,9 +45,7 @@ function serializeSelfServiceModule(module: SelfServiceModuleState) {
 // --- Routes ---
 
 router.get("/default-prompts", async (_req: Request, res: Response) => {
-  const filtered = { ...CONVERSION_PROMPTS };
-  delete filtered.github_issue;
-  res.json(filtered);
+  res.json(CONVERSION_PROMPTS);
 });
 
 router.get("/default-skills", (_req: Request, res: Response) => {

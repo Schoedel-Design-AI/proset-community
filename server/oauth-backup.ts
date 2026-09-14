@@ -113,6 +113,11 @@ function sanitizeReturnTo(returnTo?: string): string | undefined {
   return undefined;
 }
 
+function hasBackupOAuthStateSecret(): boolean {
+  const secret = process.env.BACKUP_OAUTH_STATE_SECRET || process.env.BETTER_AUTH_SECRET || "";
+  return secret.trim().length > 0;
+}
+
 function getBackupOAuthStateSecret(): Buffer {
   const secret = process.env.BACKUP_OAUTH_STATE_SECRET || process.env.BETTER_AUTH_SECRET || "";
   if (!secret.trim()) {
@@ -180,6 +185,8 @@ function verifyBackupOAuthState(state: string): OAuthStatePayload | null {
  * to show.
  */
 export function getAvailableBackupOAuthProviders(): string[] {
+  if (!hasBackupOAuthStateSecret()) return [];
+
   const available: string[] = [];
   if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     available.push("google_drive");
@@ -198,6 +205,8 @@ export function getAvailableBackupOAuthProviders(): string[] {
  * Returns the URL the client should redirect to.
  */
 export function generateAuthorizationUrl(userId: string, provider: string, returnTo?: string): string | null {
+  if (!hasBackupOAuthStateSecret()) return null;
+
   const config = getProviderConfig(provider);
   if (!config) return null;
 

@@ -179,7 +179,12 @@ export function getAvatarSvg(avatarId: string, options: AvatarRenderOptions = {}
 
 export function getAvatarDataUri(avatarId: string, options: AvatarRenderOptions = {}): string | null {
   const svg = getAvatarSvg(avatarId, options);
-  return svg ? `data:image/svg+xml;utf8,${encodeURIComponent(svg)}` : null;
+  // Use the explicit `;charset=utf-8,` media type. react-native-web's Image
+  // special-cases the legacy `data:image/svg+xml;utf8,` form by RE-ENCODING the
+  // already-encoded body (double-encode), which corrupts the URI and blanks the
+  // avatar on web. The `;charset=utf-8,` form skips that path and flows the
+  // pre-encoded SVG straight through.
+  return svg ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}` : null;
 }
 
 export function getAvatarById(avatarId: string): AvatarEntry | undefined {

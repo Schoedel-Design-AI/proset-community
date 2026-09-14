@@ -77,7 +77,7 @@ const ActiveRecordingContext = createContext<ActiveRecordingValue | null>(null);
 const DEFAULT_MAX_RECORDING_SECONDS = TIER_LIMITS.free.maxRecordingSeconds;
 
 export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
-  const { addRecording, transcribeAudio, updateRecording, isAutoTranscribeEnabled, isCloudSyncEnabled } = useRecordings();
+  const { addRecording, updateRecording, isCloudSyncEnabled } = useRecordings();
   const { user, isLoading: isAuthLoading } = useAuth();
   const { language, t } = useLanguage();
   const reduceMotion = useReducedMotion();
@@ -104,7 +104,6 @@ export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
   const reduceMotionRef = useRef(reduceMotion);
   const languageRef = useRef(language);
   const tRef = useRef(t);
-  const isAutoTranscribeEnabledRef = useRef(isAutoTranscribeEnabled);
   const isCloudSyncEnabledRef = useRef(isCloudSyncEnabled);
 
   // Audio input device: the user's last selection from the nav drawer, persisted
@@ -119,7 +118,6 @@ export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
   useEffect(() => { reduceMotionRef.current = reduceMotion; }, [reduceMotion]);
   useEffect(() => { languageRef.current = language; }, [language]);
   useEffect(() => { tRef.current = t; }, [t]);
-  useEffect(() => { isAutoTranscribeEnabledRef.current = isAutoTranscribeEnabled; }, [isAutoTranscribeEnabled]);
   useEffect(() => { isCloudSyncEnabledRef.current = isCloudSyncEnabled; }, [isCloudSyncEnabled]);
 
   // ---- Crash/kill recovery snapshot --------------------------------------
@@ -453,16 +451,14 @@ export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
         transcript: localTranscript,
         conversions: [],
         createdAt: now,
-        isTranscribing: !localTranscript && !needsUpload,
+        // Transcription is user-initiated now: a freshly saved recording is never
+        // queued for transcription, so nothing is ever in flight at this point.
+        isTranscribing: false,
         needsUpload,
         uploadStatus: needsUpload ? "pending" : "uploaded",
         uploadErrorCode: null,
         uploadRetryable: null,
-        transcriptionStatus: localTranscript
-          ? "succeeded"
-          : needsUpload
-            ? "idle"
-            : "transcribing",
+        transcriptionStatus: "idle",
         transcriptionErrorCode: null,
         transcriptionError: null,
         transcriptionRetryable: null,
@@ -477,7 +473,6 @@ export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
             nativeUpload.uploadUrl,
             nativeUpload.authToken,
             recordingId,
-            isAutoTranscribeEnabledRef.current,
             lang,
           );
         }
@@ -500,17 +495,11 @@ export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
         throw saveErr;
       }
 
-      if (isAutoTranscribeEnabledRef.current) {
-        if (Platform.OS === "web" || !needsUpload) {
-          void transcribeAudio(recordingId, savedUri, lang, capturedBlob).catch((err) => {
-            console.error("[active-recording] transcribeAudio failed:", err);
-          });
-        }
-      } else {
-        void updateRecording(recordingId, { isTranscribing: false }).catch((err) => {
-          console.error("[active-recording] updateRecording failed:", err);
-        });
-      }
+      // No automatic transcription. The recording is saved and uploaded; the
+      // transcribe screen owns the explicit Transcribe action.
+      void updateRecording(recordingId, { isTranscribing: false, transcriptionStatus: "idle" }).catch((err) => {
+        console.error("[active-recording] updateRecording failed:", err);
+      });
 
       setDuration(0);
       setStartedAt(null);
@@ -545,7 +534,7 @@ export function ActiveRecordingProvider({ children }: { children: ReactNode }) {
       );
       return { success: false };
     }
-  }, [addRecording, clearRecordingTimers, clearRecoverySnapshot, stopMetering, transcribeAudio, updateRecording]);
+  }, [addRecording, clearRecordingTimers, clearRecoverySnapshot, stopMetering, updateRecording]);
 
   useEffect(() => { stopRef.current = stop; }, [stop]);
 

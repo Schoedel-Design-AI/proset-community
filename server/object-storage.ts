@@ -86,6 +86,17 @@ function shouldUseForcePathStyle(): boolean {
 }
 
 const objectStorageProvider = resolveObjectStorageProvider();
+
+/**
+ * True when object storage is durable + shared (S3-compatible), i.e. files
+ * survive instance restarts and are reachable from any instance. The local
+ * filesystem provider is instance-local and ephemeral on Cloud Run, so a
+ * "public URL" to a local file would 404 on the next cold start.
+ */
+export function isObjectStorageDurable(): boolean {
+  return objectStorageProvider === "s3";
+}
+
 const s3BucketName = objectStorageProvider === "s3"
   ? getRequiredObjectStorageEnv("OBJECT_STORAGE_BUCKET")
   : null;
@@ -452,3 +463,52 @@ export function toBucketUri(bucketKey: string): string {
 export function fromBucketUri(uri: string): string {
   return uri.replace("bucket://", "");
 }
+
+/**
+ * True when a feedback screenshot key is older than the cutoff day. Feedback
+ * images are stored under `feedback/YYYY-MM-DD/<uuid>.<ext>` so their age is
+ * encoded in the key — no metadata lookup is needed to age them out.
+ * Non-feedback (or malformed) keys return false and are never auto-deleted.
+ */
+export function isFeedbackImageKeyExpired(bucketKey: string, cutoffDay: string): boolean {
+  const m = /^feedback\/(\d{4}-\d{2}-\d{2})\/[A-Za-z0-9-]{8,}\.(png|jpe?g|gif|webp)$/.exec(bucketKey);
+  if (!m) return false;
+  const createdAt = new Date(`${m[1]}T00:00:00.000Z`);
+  if (Number.isNaN(createdAt.getTime()) || createdAt.toISOString().slice(0, 10) !== m[1]) {
+    return false;
+  }
+  return m[1] < cutoffDay; // ISO date strings compare lexicographically
+}
+
+/**
+ * Delete feedback screenshots older than `cutoffDays` (default 365). Idempotent
+ * and safe to run repeatedly; a failed delete is skipped so one bad object
+ * never blocks the rest.
+ */
+export async function deleteExpiredFeedbackImages(cutoffDays = 365): Promise<number> {
+  const cutoffDay = new Date(Date.now() - cutoffDays * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const keys = await listFiles("feedback/");
+  let deleted = 0;
+  for (const key of keys) {
+    if (!isFeedbackImageKeyExpired(key, cutoffDay)) continue;
+    try {
+      await deleteFile(key);
+      deleted++;
+    } catch {
+      // keep going — one undeletable object must not block the sweep
+    }
+  }
+  return deleted;
+}
+
+// Feedback image retention sweep (1 year). Unref'd so the timer never keeps a
+// process alive on its own (same pattern as the MCP session sweep). Runs daily;
+// on serverless hosts it is eventually-consistent, which is fine for a 1-year
+// retention window.
+setInterval(() => {
+  deleteExpiredFeedbackImages(365)
+    .then((n) => {
+      if (n > 0) console.log(`[object-storage] Deleted ${n} expired feedback image(s).`);
+    })
+    .catch((err) => console.error("[object-storage] Feedback image cleanup failed:", err));
+}, 24 * 60 * 60 * 1000).unref();

@@ -97,11 +97,11 @@ export function getAIModel(provider: AIClientProvider): string {
     case "qwen":
       return getFirstEnvValue(["AI_QWEN_MODEL", "QWEN_MODEL"]) || "Qwen/Qwen3.5-14B-Instruct";
     case "deepseek":
-      return getFirstEnvValue(["AI_DEEPSEEK_MODEL", "DEEPSEEK_MODEL"]) || "deepseek-v4-flash";
+      return getFirstEnvValue(["AI_DEEPSEEK_MODEL", "DEEPSEEK_MODEL"]) || "deepseek-flash";
     case "groq":
       return getFirstEnvValue(["GROQ_MODEL"]) || "qwen/qwen3.6-27b";
     case "fireworks":
-      return getFirstEnvValue(["AI_FIREWORKS_MODEL", "FIREWORKS_MODEL"]) || "accounts/fireworks/models/deepseek-v4-flash";
+      return getFirstEnvValue(["AI_FIREWORKS_MODEL", "FIREWORKS_MODEL"]) || "accounts/fireworks/models/deepseek-v4p1-flash";
     default:
       return "gpt-5.4-mini";
   }

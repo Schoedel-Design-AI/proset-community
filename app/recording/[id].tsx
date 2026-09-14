@@ -44,7 +44,7 @@ import FeedbackIconButton from "@/components/FeedbackIconButton";
 import FloatingActionHalo from "@/components/FloatingActionHalo";
 import ProfileDropdown from "@/components/ProfileDropdown";
 import { useFeedback } from "@/lib/feedback-context";
-import { formatDuration, generateId, CONVERSION_TYPES, CONVERSION_COMPLEXITY_GROUPS, CONVERSION_COMPLEXITY_MAP, PACK_GROUPS, EXPORT_FORMATS, CITATION_STYLES, TIER_DISPLAY_NAMES, getRequiredTierForConversionType, isConversionTypeAvailable, RESEARCH_FORMS_TYPES, researchFormWebDefault, type SubscriptionTier } from "@/lib/utils";
+import { formatDuration, generateId, CONVERSION_TYPES, CONVERSION_COMPLEXITY_GROUPS, CONVERSION_COMPLEXITY_MAP, PACK_GROUPS, EXPORT_FORMATS, AUDIO_EXPORT_FORMATS, type AudioExportFormat, CITATION_STYLES, TIER_DISPLAY_NAMES, getRequiredTierForConversionType, isConversionTypeAvailable, RESEARCH_FORMS_TYPES, researchFormWebDefault, type SubscriptionTier } from "@/lib/utils";
 import { useCyclingStatus } from "@/lib/useCyclingStatus";
 import { getApiUrl, getAuthHeaders } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
@@ -58,6 +58,7 @@ import {
 import { useResponsiveLayout } from "@/lib/useResponsiveLayout";
 import { useLanguage } from "@/lib/i18n";
 import { useTextScale, sf, type TextScale } from "@/lib/typography";
+import ConversionContent from "@/components/ConversionContent";
 import ProcessingAnimation from "@/components/ProcessingAnimation";
 import {
   buildConversionSource,
@@ -83,6 +84,7 @@ import {
 import { paragraphizeTranscript } from "@shared/transcript-format";
 import { DECK_STYLES } from "@shared/deck-styles";
 import { createUtf8Decoder } from "@/lib/utf8";
+import { transcribeOnDevice, isOnDeviceTranscriptionAvailable } from "@/lib/whisper";
 
 function authFetch(url: string, options?: RequestInit): Promise<Response> {
   const headers = { ...options?.headers, ...getAuthHeaders() };
@@ -119,311 +121,6 @@ const CUSTOM_PROMPTS_KEY = "@voicenote_custom_prompts";
 const DRAFT_KEY_PREFIX = "@voicenote_draft_";
 const MAX_SOURCE_ATTACHMENT_TEXT = 700_000;
 
-function ConversionContent({ content, conversionType, codeView }: { content: string; conversionType?: string; codeView?: boolean }) {
-  const ts = useTextScale();
-  const codeBlockStyles = useMemo(() => makeCodeBlockStyles(ts), [ts]);
-  const richTextStyles = useMemo(() => makeRichTextStyles(ts), [ts]);
-  const tableStyles = useMemo(() => makeTableStyles(ts), [ts]);
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
-
-  const handleCopyBlock = async (code: string, index: number) => {
-    try {
-      if (Platform.OS === "web" && typeof navigator !== "undefined" && navigator.clipboard) {
-        await navigator.clipboard.writeText(code);
-      } else {
-        const Clipboard = await import("@/lib/clipboard");
-        await Clipboard.setStringAsync(code);
-      }
-      setCopiedIndex(index);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setTimeout(() => setCopiedIndex(null), 2000);
-    } catch {}
-  };
-
-  const renderCodeBlock = (code: string, lang: string, blockIndex: number) => (
-    <View key={`code-${blockIndex}`} style={codeBlockStyles.container}>
-      <View style={codeBlockStyles.header}>
-        <Text style={codeBlockStyles.lang}>{lang || "code"}</Text>
-        <Pressable
-          onPress={() => handleCopyBlock(code, blockIndex)}
-          hitSlop={8}
-          style={codeBlockStyles.copyBtn}
-          accessibilityLabel="Copy code"
-          accessibilityRole="button"
-        >
-          <Feather name={copiedIndex === blockIndex ? "check" : "copy"} size={14} color={copiedIndex === blockIndex ? "#4ade80" : "#94a3b8"} />
-          <Text style={[codeBlockStyles.copyText, copiedIndex === blockIndex && { color: "#4ade80" }]}>
-            {copiedIndex === blockIndex ? "Copied" : "Copy"}
-          </Text>
-        </Pressable>
-      </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={Platform.OS === "web"}>
-        <Text style={codeBlockStyles.code} selectable>{code}</Text>
-      </ScrollView>
-    </View>
-  );
-
-  const renderTable = (headerLine: string, separatorLine: string, bodyLines: string[], tableKey: string) => {
-    const parseCells = (row: string) => {
-      let r = row.trim();
-      if (r.startsWith("|")) r = r.slice(1);
-      if (r.endsWith("|")) r = r.slice(0, -1);
-      return r.split("|").map((c) => c.trim());
-    };
-    const alignments = (() => {
-      let s = separatorLine.trim();
-      if (s.startsWith("|")) s = s.slice(1);
-      if (s.endsWith("|")) s = s.slice(0, -1);
-      return s.split("|").map((c) => c.trim());
-    })().map((c) => {
-      if (c.startsWith(":") && c.endsWith(":")) return "center" as const;
-      if (c.endsWith(":")) return "right" as const;
-      return "left" as const;
-    });
-    const headers = parseCells(headerLine);
-    const rows = bodyLines.map(parseCells);
-    return (
-      <View key={tableKey} style={tableStyles.container}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={Platform.OS === "web"}>
-          <View>
-            <View style={tableStyles.headerRow}>
-              {headers.map((h, ci) => (
-                <View key={ci} style={[tableStyles.cell, tableStyles.headerCell, ci === 0 && tableStyles.firstCell]}>
-                  <Text style={[tableStyles.headerText, { textAlign: alignments[ci] || "left" }]}>{renderInlineFormatting(h, ts)}</Text>
-                </View>
-              ))}
-            </View>
-            {rows.map((row, ri) => (
-              <View key={ri} style={[tableStyles.row, ri % 2 === 1 && tableStyles.altRow]}>
-                {row.map((cell, ci) => (
-                  <View key={ci} style={[tableStyles.cell, ci === 0 && tableStyles.firstCell]}>
-                    <Text style={[tableStyles.cellText, { textAlign: alignments[ci] || "left" }]}>{renderInlineFormatting(cell, ts)}</Text>
-                  </View>
-                ))}
-              </View>
-            ))}
-          </View>
-        </ScrollView>
-      </View>
-    );
-  };
-
-  const renderTextBlock = (text: string, blockIndex: number) => {
-    const lines = text.split("\n");
-    const elements: React.ReactNode[] = [];
-    let li = 0;
-
-    while (li < lines.length) {
-      const line = lines[li];
-      if (!line.trim()) { elements.push(<View key={li} style={{ height: 12 }} />); li++; continue; }
-
-      if (line.includes("|") && li + 1 < lines.length && /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/.test(lines[li + 1])) {
-        const headerLine = line;
-        const separatorLine = lines[li + 1];
-        const bodyLines: string[] = [];
-        let ti = li + 2;
-        while (ti < lines.length && lines[ti].includes("|") && lines[ti].trim() !== "") {
-          bodyLines.push(lines[ti]);
-          ti++;
-        }
-        elements.push(renderTable(headerLine, separatorLine, bodyLines, `table-${blockIndex}-${li}`));
-        li = ti;
-        continue;
-      }
-
-      const headingMatch = line.match(/^(#{1,3})\s+(.*)/);
-      if (headingMatch) {
-        const level = headingMatch[1].length;
-        const hText = headingMatch[2].replace(/\*\*(.*?)\*\*/g, "$1");
-        elements.push(
-          <Text key={li} style={[
-            richTextStyles.heading,
-            level === 1 && { fontSize: sf(20, ts) },
-            level === 2 && { fontSize: sf(18, ts) },
-            level === 3 && { fontSize: sf(16, ts) },
-          ]}>{hText}</Text>
-        );
-        li++; continue;
-      }
-
-      const taskMatch = line.match(/^(\s*)[-*]\s+\[([ xX])\]\s+(.*)/);
-      if (taskMatch) {
-        const checked = taskMatch[2] !== " ";
-        const indent = Math.min(Math.floor(taskMatch[1].length / 2), 3);
-        elements.push(
-          <View key={li} style={[richTextStyles.bulletRow, { paddingLeft: 8 + indent * 16 }]}>
-            <Text style={[richTextStyles.bulletDot, checked && { color: Colors.primary }]}>{checked ? "☑" : "☐"}</Text>
-            <Text style={[richTextStyles.bodyText, checked && { textDecorationLine: "line-through", color: Colors.textSecondary }]}>{renderInlineFormatting(taskMatch[3], ts)}</Text>
-          </View>
-        );
-        li++; continue;
-      }
-
-      const bulletMatch = line.match(/^(\s*)[*-]\s+(.*)/);
-      if (bulletMatch) {
-        const indent = Math.min(Math.floor(bulletMatch[1].length / 2), 3);
-        elements.push(
-          <View key={li} style={[richTextStyles.bulletRow, { paddingLeft: 8 + indent * 16 }]}>
-            <Text style={richTextStyles.bulletDot}>•</Text>
-            <Text style={richTextStyles.bodyText}>{renderInlineFormatting(bulletMatch[2], ts)}</Text>
-          </View>
-        );
-        li++; continue;
-      }
-
-      const numMatch = line.match(/^(\s*)\d+\.\s+(.*)/);
-      if (numMatch) {
-        elements.push(
-          <Text key={li} style={[richTextStyles.bodyText, { paddingLeft: 8 }]}>{renderInlineFormatting(line, ts)}</Text>
-        );
-        li++; continue;
-      }
-      if (line.startsWith("> ")) {
-        elements.push(
-          <View key={li} style={richTextStyles.blockquote}>
-            <Text style={richTextStyles.blockquoteText}>{renderInlineFormatting(line.slice(2), ts)}</Text>
-          </View>
-        );
-        li++; continue;
-      }
-      if (line.trim() === "---") {
-        elements.push(<View key={li} style={richTextStyles.hr} />);
-        li++; continue;
-      }
-      elements.push(<Text key={li} style={richTextStyles.bodyText}>{renderInlineFormatting(line, ts)}</Text>);
-      li++;
-    }
-
-    return <View key={`text-${blockIndex}`}>{elements}</View>;
-  };
-
-  const parseContentBlocks = (): React.ReactNode[] => {
-    const nodes: React.ReactNode[] = [];
-    let blockIdx = 0;
-
-    if (content.includes("```")) {
-      const parts = content.split(/(```[^\n]*\n[\s\S]*?```)/g);
-      parts.forEach((part) => {
-        const codeMatch = part.match(/^```(\w*)\n?([\s\S]*?)```$/s);
-        if (codeMatch) {
-          const code = codeMatch[2].replace(/\n$/, "");
-          nodes.push(renderCodeBlock(code, codeMatch[1] || "", blockIdx));
-          blockIdx++;
-        } else if (part.trim()) {
-          nodes.push(renderTextBlock(part, blockIdx));
-          blockIdx++;
-        }
-      });
-    } else {
-      nodes.push(renderTextBlock(content, 0));
-    }
-
-    return nodes;
-  };
-
-  if (codeView) {
-    return (
-      <View>
-        {renderCodeBlock(content, "markdown", 0)}
-      </View>
-    );
-  }
-
-  return (
-    <View>
-      {parseContentBlocks()}
-    </View>
-  );
-}
-
-function renderInlineFormatting(text: string, ts?: TextScale): React.ReactNode {
-  const parts: React.ReactNode[] = [];
-  let remaining = text;
-  let key = 0;
-  while (remaining.length > 0) {
-    const boldMatch = remaining.match(/\*\*(.*?)\*\*/);
-    const codeMatch = remaining.match(/`([^`]+)`/);
-    const strikeMatch = remaining.match(/~~(.*?)~~/);
-    const italicMatch = remaining.match(/(?<!\*)\*([^*]+?)\*(?!\*)/);
-    const linkMatch = remaining.match(/\[([^\]]+)\]\(([^)]+)\)/);
-    type InlineType = "bold" | "code" | "strike" | "italic" | "link";
-    let earliest: { type: InlineType; index: number; match: RegExpMatchArray } | null = null;
-    const consider = (type: InlineType, m: RegExpMatchArray | null) => {
-      if (m && m.index !== undefined && (!earliest || m.index < earliest.index)) earliest = { type, index: m.index, match: m };
-    };
-    consider("bold", boldMatch);
-    consider("code", codeMatch);
-    consider("strike", strikeMatch);
-    consider("italic", italicMatch);
-    consider("link", linkMatch);
-    if (!earliest) {
-      parts.push(remaining);
-      break;
-    }
-    const hit: { type: InlineType; index: number; match: RegExpMatchArray } = earliest;
-    if (hit.index > 0) parts.push(remaining.slice(0, hit.index));
-    if (hit.type === "bold") {
-      parts.push(<Text key={key++} style={{ fontFamily: "Inter_700Bold" }}>{hit.match[1]}</Text>);
-    } else if (hit.type === "code") {
-      parts.push(
-        <Text key={key++} style={{ fontFamily: Platform.OS === "web" ? "monospace" : "Courier", backgroundColor: "rgba(255,255,255,0.06)", paddingHorizontal: 4, borderRadius: 3, ...(ts ? { fontSize: sf(13, ts) } : {}) }}>
-          {hit.match[1]}
-        </Text>
-      );
-    } else if (hit.type === "strike") {
-      parts.push(<Text key={key++} style={{ textDecorationLine: "line-through", color: Colors.textSecondary }}>{hit.match[1]}</Text>);
-    } else if (hit.type === "italic") {
-      parts.push(<Text key={key++} style={{ fontStyle: "italic" }}>{hit.match[1]}</Text>);
-    } else if (hit.type === "link") {
-      const linkUrl = hit.match[2];
-      const isSafe = /^(https?:|mailto:)/i.test(linkUrl.trim());
-      parts.push(
-        <Text
-          key={key++}
-          style={{ color: Colors.primary, textDecorationLine: "underline" }}
-          onPress={isSafe ? () => Linking.openURL(linkUrl.trim()) : undefined}
-          accessibilityRole="link"
-        >{hit.match[1]}</Text>
-      );
-    }
-    remaining = remaining.slice(hit.index + hit.match[0].length);
-  }
-  return parts.length === 1 && typeof parts[0] === "string" ? parts[0] : <>{parts}</>;
-}
-
-const makeCodeBlockStyles = (ts: TextScale) => StyleSheet.create({
-  container: { backgroundColor: "#1e1e2e", borderRadius: 12, marginVertical: 8, overflow: "hidden", borderWidth: 0 },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 14, paddingVertical: 8, backgroundColor: "rgba(255,255,255,0.04)", borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.06)" },
-  lang: { fontFamily: Platform.OS === "web" ? "monospace" : "Courier", fontSize: sf(11, ts), color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.5 },
-  copyBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4, paddingHorizontal: 8, borderRadius: 6, backgroundColor: "rgba(255,255,255,0.06)" },
-  copyText: { fontFamily: "Inter_500Medium", fontSize: sf(12, ts), color: "#94a3b8" },
-  code: { fontFamily: Platform.OS === "web" ? "monospace" : "Courier", fontSize: sf(13, ts), color: "#e2e8f0", lineHeight: 22, padding: 14 },
-  downloadHint: { flexDirection: "row", alignItems: "center", gap: 6, paddingTop: 12, paddingBottom: 4 },
-  downloadHintText: { fontFamily: "Inter_400Regular", fontSize: sf(13, ts), color: Colors.textSecondary },
-});
-
-const makeRichTextStyles = (ts: TextScale) => StyleSheet.create({
-  heading: { fontFamily: "Inter_700Bold", color: Colors.text, marginTop: 16, marginBottom: 6 },
-  bodyText: { fontFamily: "Inter_400Regular", fontSize: sf(15, ts), color: Colors.text, lineHeight: 26 },
-  bulletRow: { flexDirection: "row", alignItems: "flex-start", marginVertical: 2 },
-  bulletDot: { fontFamily: "Inter_400Regular", fontSize: sf(15, ts), color: Colors.textSecondary, marginRight: 8, lineHeight: 26 },
-  blockquote: { borderLeftWidth: 3, borderLeftColor: Colors.primary, paddingLeft: 12, marginVertical: 6 },
-  blockquoteText: { fontFamily: "Inter_400Regular", fontSize: sf(15, ts), color: Colors.textSecondary, lineHeight: 26, fontStyle: "italic" },
-  hr: { height: 1, backgroundColor: "rgba(255,255,255,0.1)", marginVertical: 16 },
-});
-
-const makeTableStyles = (ts: TextScale) => StyleSheet.create({
-  container: { marginVertical: 12, borderRadius: 10, overflow: "hidden", borderWidth: 0 },
-  headerRow: { flexDirection: "row", backgroundColor: "rgba(255,255,255,0.08)" },
-  row: { flexDirection: "row", borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.06)" },
-  altRow: { backgroundColor: "rgba(255,255,255,0.03)" },
-  cell: { minWidth: 100, paddingHorizontal: 12, paddingVertical: 10, borderLeftWidth: 1, borderLeftColor: "rgba(255,255,255,0.06)" },
-  firstCell: { borderLeftWidth: 0 },
-  headerCell: {},
-  headerText: { fontFamily: "Inter_600SemiBold", fontSize: sf(13, ts), color: Colors.text, lineHeight: 20 },
-  cellText: { fontFamily: "Inter_400Regular", fontSize: sf(14, ts), color: Colors.text, lineHeight: 22 },
-});
-
 function resolveBucketUri(audioUri: string): string {
   if (audioUri.startsWith("bucket://")) {
     return resolveBucketUriWithBase(audioUri, getApiUrl());
@@ -433,6 +130,12 @@ function resolveBucketUri(audioUri: string): string {
   }
   return audioUri;
 }
+
+const BASE_WAVEFORM_PROFILE = [
+  6, 10, 14, 18, 22, 16, 12, 20, 24, 28,
+  22, 15, 26, 30, 25, 22, 28, 18, 14, 22,
+  26, 19, 15, 21, 25, 17, 13, 16, 10, 6,
+];
 
 /** Renders a Slide Deck server response as readable markdown for the artifact view. */
 function deckToMarkdown(data: {
@@ -641,10 +344,14 @@ function revealFieldAboveKeyboard({
   });
 }
 
+// First press plus this many retries before the on-device fallback
+// is offered (Barry's rule: retry up to two times, then fall back).
+const MAX_CLOUD_TRANSCRIPTION_ATTEMPTS = 3;
+
 export default function RecordingDetailScreen() {
   const { id, mode, tab } = useLocalSearchParams<{ id: string; mode?: string; tab?: string }>();
   const insets = useSafeAreaInsets();
-  const { getRecording, fetchRecording, updateRecording, applyLocalRecording, addConversion, deleteConversion, deleteRecording, addRecording, isAutoTranscribeEnabled, isCloudSyncEnabled } =
+  const { getRecording, fetchRecording, updateRecording, applyLocalRecording, addConversion, deleteConversion, deleteRecording, addRecording, isCloudSyncEnabled } =
     useRecordings();
   const existingRecording = getRecording(id);
   const isDraftTextEntry = mode === "text" && !existingRecording;
@@ -682,7 +389,27 @@ export default function RecordingDetailScreen() {
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackPosition, setPlaybackPosition] = useState(0);
+  const [playbackDuration, setPlaybackDuration] = useState(0);
+  const [visualizerTick, setVisualizerTick] = useState(0);
+  const [waveformWidth, setWaveformWidth] = useState(0);
   const soundRef = useRef<Audio.Sound | null>(null);
+
+  useEffect(() => {
+    if (!isPlaying) return;
+    const interval = setInterval(() => {
+      setVisualizerTick((t) => (t + 1) % 1000);
+    }, 80);
+    return () => clearInterval(interval);
+  }, [isPlaying]);
+
+  useEffect(() => {
+    return () => {
+      if (soundRef.current) {
+        soundRef.current.unloadAsync().catch(() => {});
+        soundRef.current = null;
+      }
+    };
+  }, []);
   const [showConvertMenu, setShowConvertMenu] = useState(false);
   // Convert sheet: draggable height — pull up on the top handle to elongate.
   const { height: windowHeight } = useWindowDimensions();
@@ -738,6 +465,9 @@ export default function RecordingDetailScreen() {
   const cyclingVerb = useCyclingStatus(conversionPhase, language, 2200, !!convertingType);
 
   const [exportTarget, setExportTarget] = useState<{ conversion: Conversion; action: "share" | "save" } | null>(null);
+  const [audioExportVisible, setAudioExportVisible] = useState(false);
+  const [showElectiveTooltip, setShowElectiveTooltip] = useState(false);
+  const [showContextTooltip, setShowContextTooltip] = useState(false);
   const [customText, setCustomText] = useState("");
   // Keyboard reveal for the custom-text field (#198). Android 15+ enforces
   // edge-to-edge, so `adjustResize` no longer shrinks the window and the IME
@@ -760,12 +490,24 @@ export default function RecordingDetailScreen() {
     recordingCount: number;
   }>>([]);
   const [retryingTranscription, setRetryingTranscription] = useState(false);
+  // Cloud attempts are PERSISTED on the recording (transcriptionAttempts), not
+  // held in component state: the cap has to survive backing out of the screen and
+  // restarting the app, or it is not a cap at all. Derived here so every read
+  // site stays simple.
+  const cloudTranscriptionAttempts = recording?.transcriptionAttempts ?? 0;
+  const [localTranscribing, setLocalTranscribing] = useState(false);
+  const [localTranscriptionPhase, setLocalTranscriptionPhase] = useState<string | null>(null);
+  const [localTranscriptionPercent, setLocalTranscriptionPercent] = useState(0);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null); // null = indeterminate, 0-100 = percent
   const [isUploading, setIsUploading] = useState(false);
   const [previewText, setPreviewText] = useState<string | null>(null); // instant preview before Firestore write
   // Transcript collapse: default shows 2 lines, "Read more" expands in place.
   const [transcriptExpanded, setTranscriptExpanded] = useState(false);
   const [transcriptLineCount, setTranscriptLineCount] = useState<number | null>(null);
+  // Transcript edit mode: edit the raw stored text as plain text.
+  const [isEditingTranscript, setIsEditingTranscript] = useState(false);
+  const [transcriptDraft, setTranscriptDraft] = useState("");
+  const [savingTranscript, setSavingTranscript] = useState(false);
   const [markdownPrompt, setMarkdownPrompt] = useState<{ text: string; filename: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [showCitationPicker, setShowCitationPicker] = useState(false);
@@ -1304,7 +1046,6 @@ export default function RecordingDetailScreen() {
           uploadUrl,
           authToken,
           recording.id,
-          isAutoTranscribeEnabled,
           language,
         );
         return;
@@ -1406,7 +1147,6 @@ export default function RecordingDetailScreen() {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    isAutoTranscribeEnabled,
     language,
     recording?.audioUri,
     recording?.id,
@@ -1418,16 +1158,12 @@ export default function RecordingDetailScreen() {
   useEffect(() => {
     if (Platform.OS === "web") return;
     if (!recording?.audioUri) return;
+    // Reconcile while an upload or a user-initiated transcription is in flight.
     const shouldReconcile =
       recording.needsUpload === true
-      || (
-        isAutoTranscribeEnabled
-        && (
-          recording.isTranscribing === true
-          || recording.transcriptionStatus === "queued"
-          || recording.transcriptionStatus === "transcribing"
-        )
-      );
+      || recording.isTranscribing === true
+      || recording.transcriptionStatus === "queued"
+      || recording.transcriptionStatus === "transcribing";
     if (!shouldReconcile) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -1443,7 +1179,6 @@ export default function RecordingDetailScreen() {
       const result = reconcileRecordingTransfer(
         remote,
         localWork,
-        isAutoTranscribeEnabled,
       );
       if (Object.keys(result.updates).length > 0) {
         // Local-only: the server is the single writer for upload/transcription
@@ -1485,7 +1220,6 @@ export default function RecordingDetailScreen() {
     };
   }, [
     fetchRecording,
-    isAutoTranscribeEnabled,
     recording?.audioUri,
     recording?.id,
     recording?.isTranscribing,
@@ -1561,6 +1295,44 @@ export default function RecordingDetailScreen() {
     setTranscriptLineCount((prev) => (prev === lines.length ? prev : lines.length));
   };
 
+  // Read-more toggle visibility. Native uses the hidden measurer's exact line
+  // count; react-native-web does NOT fire onTextLayout, so web falls back to a
+  // length heuristic — otherwise the toggle never renders and the transcript is
+  // stuck collapsed at 2 lines with no way to expand it.
+  const showTranscriptToggle = transcriptLineCount !== null
+    ? transcriptLineCount > 2
+    : transcriptToShow.length > 160;
+
+  const startEditingTranscript = () => {
+    setTranscriptDraft(recording?.transcript || "");
+    setTranscriptExpanded(true);
+    setIsEditingTranscript(true);
+  };
+
+  const cancelEditingTranscript = () => {
+    setIsEditingTranscript(false);
+    setTranscriptDraft("");
+  };
+
+  const saveTranscriptEdit = async () => {
+    if (!recording) return;
+    const next = transcriptDraft.trim();
+    setIsEditingTranscript(false);
+    if (!next || next === recording.transcript) return;
+    // Seed the reveal ref so the edited text does not re-play the typewriter
+    // effect when the display switches back to view mode.
+    revealedTranscriptRef.current = next;
+    setSavingTranscript(true);
+    try {
+      await updateRecording(recording.id, { transcript: next });
+      setPreviewText(null); // stop the preview from shadowing the edited text
+    } catch (err) {
+      console.error("Failed to save transcript edit:", err);
+    } finally {
+      setSavingTranscript(false);
+    }
+  };
+
   if (!recording) {
     if (isRemoteRecordingLoading) {
       return (
@@ -1600,6 +1372,21 @@ export default function RecordingDetailScreen() {
       || (recording.transcript?.startsWith("[Transcription failed")
         ? recording.transcript.replace(/[\[\]]/g, "")
         : t("detail.transcriptUnavailable"));
+  // Elective transcription: the recording exists but has not been transcribed
+  // yet and nothing is in flight or errored. Auto-transcribe is OFF (or this
+  // recording predates a later opt-in), so offer a single explicit action.
+  const isElectivePending = Boolean(
+    recording.audioUri
+    && !recording.isTranscribing
+    && !isUploading
+    && !previewText
+    && !recording.transcript?.trim()
+    && recording.uploadStatus !== "failed"
+    && recording.transcriptionStatus !== "failed"
+    && !recording.transcriptionError
+    && !recording.transcriptionErrorCode
+    && !recording.uploadErrorCode
+  );
   const retryUpload = async () => {
     await updateRecording(recording.id, {
       needsUpload: true,
@@ -1625,6 +1412,9 @@ export default function RecordingDetailScreen() {
       const formData = new FormData();
       const baseUrl = getApiUrl();
       const url = new URL("/api/transcribe", baseUrl);
+      // Lets the server stamp transcript provenance on this recording, so the
+      // on-device billing path can see it was already billed here.
+      formData.append("recordingId", recording.id);
       if (language && language !== "en") {
         formData.append("language", language);
       }
@@ -1723,6 +1513,7 @@ export default function RecordingDetailScreen() {
           transcriptionStatus: "failed",
           transcriptionErrorCode: noSpeech ? "transcription_no_speech" : "transcription_failed",
           transcriptionRetryable: true,
+          transcriptionAttempts: (recording.transcriptionAttempts ?? 0) + 1,
         });
         setRetryingTranscription(false);
         return;
@@ -1737,6 +1528,9 @@ export default function RecordingDetailScreen() {
         transcriptionErrorCode: null,
         transcriptionError: null,
         transcriptionRetryable: null,
+        // A success clears the budget, so deliberately re-transcribing an
+        // existing recording starts from three fresh attempts.
+        transcriptionAttempts: 0,
       });
     } catch (err) {
       console.error("Retry transcription failed:", err);
@@ -1757,9 +1551,101 @@ export default function RecordingDetailScreen() {
         transcriptionErrorCode: "transcription_failed",
         transcriptionError: userMessage,
         transcriptionRetryable: true,
+        transcriptionAttempts: (recording.transcriptionAttempts ?? 0) + 1,
       });
     } finally {
       setRetryingTranscription(false);
+    }
+  };
+
+  /**
+   * On-device fallback, offered only once the cloud attempts are spent.
+   *
+   * Billing order matters: the server's endpoint stamps transcriptSource as its
+   * idempotency marker, and EITHER value of that marker means "already billed".
+   * So we must call it BEFORE recording the source locally - writing "device"
+   * first would make the endpoint see a charged marker and skip the charge.
+   */
+  const transcribeLocally = async () => {
+    if (!recording?.audioUri || localTranscribing) return;
+    if (!(await isOnDeviceTranscriptionAvailable())) {
+      setLocalTranscriptionPhase("unavailable");
+      return;
+    }
+    setLocalTranscribing(true);
+    setLocalTranscriptionPercent(0);
+    setLocalTranscriptionPhase("checking");
+    try {
+      const localText = await transcribeOnDevice(recording.audioUri, (progress) => {
+        setLocalTranscriptionPhase(progress.phase);
+        if (progress.phase === "downloading-model" && progress.contentLength > 0) {
+          setLocalTranscriptionPercent(Math.round((progress.bytesWritten / progress.contentLength) * 100));
+        }
+      });
+      // Empty result = unavailable or nothing recognised. Keep the cloud error
+      // state rather than presenting an empty transcript as success.
+      if (!localText || !localText.trim()) {
+        setLocalTranscriptionPhase("failed");
+        return;
+      }
+      setPreviewText(localText);
+
+      const durationSeconds = Math.max(recording.duration || 0, playbackDuration || 0);
+      let chargedNow = false;
+      try {
+        const billingRes = await authFetch(
+          new URL(`/api/recordings/${encodeURIComponent(recording.id)}/transcribe-local-usage`, getApiUrl()).toString(),
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ durationSeconds }),
+            credentials: "include",
+          }
+        );
+        const billingData = await billingRes.json().catch(() => ({}));
+        chargedNow = billingData?.charged === true;
+        if (!billingRes.ok) {
+          // Loud, not silent: an unbilled local transcription is a revenue leak
+          // and must be visible in logs rather than inferred from quiet.
+          console.warn("On-device transcription was not billed:", billingRes.status, billingData?.error);
+        }
+      } catch (billingError) {
+        console.warn("On-device transcription billing request failed:", billingError);
+      }
+
+      await updateRecording(recording.id, {
+        transcript: localText,
+        // Only claim "device" when this call actually stamped it. If the server
+        // reported alreadyCharged, the existing marker may be "cloud" and
+        // overwriting it would mislabel a cloud transcript as lower quality.
+        ...(chargedNow ? { transcriptSource: "device" as const } : {}),
+        isTranscribing: false,
+        transcriptionStatus: "succeeded",
+        transcriptionErrorCode: null,
+        transcriptionError: null,
+        transcriptionRetryable: null,
+      });
+      setLocalTranscriptionPhase("done");
+    } catch (err) {
+      console.error("On-device transcription failed:", err);
+      setLocalTranscriptionPhase("failed");
+    } finally {
+      setLocalTranscribing(false);
+    }
+  };
+
+  const effectiveDuration = Math.max(recording?.duration || 0, playbackDuration || 0);
+
+  const handleSeek = async (ratio: number) => {
+    if (effectiveDuration <= 0) return;
+    const targetSeconds = Math.max(0, Math.min(effectiveDuration, ratio * effectiveDuration));
+    setPlaybackPosition(targetSeconds);
+    if (soundRef.current) {
+      try {
+        await soundRef.current.setPositionAsync(targetSeconds * 1000);
+      } catch (err) {
+        console.warn("Seek error:", err);
+      }
     }
   };
 
@@ -1773,10 +1659,13 @@ export default function RecordingDetailScreen() {
             await soundRef.current.pauseAsync();
             setIsPlaying(false);
           } else {
+            if (playbackPosition >= (effectiveDuration || 1) - 0.2) {
+              await soundRef.current.setPositionAsync(0);
+              setPlaybackPosition(0);
+            }
             await soundRef.current.playAsync();
-            // Only set playing if playAsync succeeded (web may reject silently)
-            const newStatus = await soundRef.current.getStatusAsync();
-            setIsPlaying(newStatus.isPlaying || false);
+            setIsPlaying(true);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           }
           return;
         }
@@ -1798,12 +1687,17 @@ export default function RecordingDetailScreen() {
         return;
       }
 
+      setIsPlaying(true);
       const { sound } = await Audio.Sound.createAsync(
         { uri: audioPlaybackUri },
         { shouldPlay: true },
         (status) => {
           if (status.isLoaded) {
             setPlaybackPosition(status.positionMillis / 1000);
+            if (status.durationMillis && status.durationMillis > 0) {
+              setPlaybackDuration(status.durationMillis / 1000);
+            }
+            setIsPlaying(status.isPlaying);
             if (status.didJustFinish) {
               setIsPlaying(false);
               setPlaybackPosition(0);
@@ -1812,13 +1706,7 @@ export default function RecordingDetailScreen() {
         }
       );
       soundRef.current = sound;
-      // Wait briefly so the audio element can start, then check actual state
-      await new Promise(r => setTimeout(r, 100));
-      const playStatus = await sound.getStatusAsync();
-      setIsPlaying(playStatus.isPlaying || false);
-      if (playStatus.isPlaying) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch (err) {
       console.error("Playback error:", err);
       setIsPlaying(false);
@@ -3000,7 +2888,8 @@ export default function RecordingDetailScreen() {
     }
   };
 
-  const handleDownloadRecording = async () => {
+  const handleDownloadRecording = async (targetFormat: AudioExportFormat = "mp3") => {
+    setAudioExportVisible(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       if (!recording.audioUri) {
@@ -3012,27 +2901,89 @@ export default function RecordingDetailScreen() {
         return;
       }
       const safeName = recording.title.replace(/[^a-zA-Z0-9]/g, "_");
+      const formatInfo = AUDIO_EXPORT_FORMATS.find((f: { value: string; ext: string; mimeType: string }) => f.value === targetFormat) || AUDIO_EXPORT_FORMATS[0];
+      const audioFile = `${safeName}.${formatInfo.ext}`;
+      const mimeType = formatInfo.mimeType;
+
       const isBlob = recording.audioUri.startsWith("blob:") || recording.audioUri.startsWith("data:");
-      const ext = isBlob ? "webm" : "m4a";
-      const mimeType = isBlob ? "audio/webm" : "audio/mp4";
-      const audioFile = `${safeName}.${ext}`;
+      const sourceExt = isBlob ? "webm" : recording.audioUri.split(".").pop()?.toLowerCase();
+      const alreadyInFormat = sourceExt === formatInfo.ext;
+
+      if (alreadyInFormat) {
+        if (Platform.OS === "web") {
+          const res = await fetch(resolveBucketUri(recording.audioUri), { credentials: "include" });
+          const blob = await res.blob();
+          await saveFile({ fileName: audioFile, mimeType, blob }, "recording");
+          return;
+        }
+
+        const local = isLocalFileUri(recording.audioUri);
+        await saveFile({
+          fileName: audioFile,
+          mimeType,
+          fileUri: local ? recording.audioUri : undefined,
+          remoteUrl: local ? undefined : resolveBucketUri(recording.audioUri),
+          headers: getAuthHeaders(),
+          dialogTitle: t("detail.saveRecording"),
+        }, "recording");
+        return;
+      }
+
+      // Conversion needed: send to /api/convert-audio
+      const baseUrl = getApiUrl();
+      const convertUrl = new URL("/api/convert-audio", baseUrl).toString();
+
+      let res: Response;
+      if (Platform.OS === "web") {
+        const audioSrc = resolveBucketUri(recording.audioUri);
+        const sourceRes = await fetch(audioSrc, { credentials: "include" });
+        const sourceBlob = await sourceRes.blob();
+        const formData = new FormData();
+        formData.append("audio", sourceBlob, `recording.${sourceExt || "audio"}`);
+        formData.append("format", formatInfo.value);
+        formData.append("title", safeName);
+        res = await authFetch(convertUrl, {
+          method: "POST",
+          body: formData,
+        });
+      } else if (recording.audioUri.startsWith("bucket://")) {
+        res = await authExpoFetch(convertUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            audioUri: recording.audioUri,
+            recordingId: recording.id,
+            format: formatInfo.value,
+            title: safeName,
+          }),
+        });
+      } else {
+        const formData = new FormData();
+        const upload = getAudioUploadMetadata(recording.audioUri);
+        formData.append("audio", { uri: recording.audioUri, ...upload } as any);
+        formData.append("format", formatInfo.value);
+        formData.append("title", safeName);
+        res = await authFetch(convertUrl, {
+          method: "POST",
+          body: formData,
+        });
+      }
+
+      if (!res.ok) {
+        throw new Error(`Failed to convert audio to ${formatInfo.ext}`);
+      }
 
       if (Platform.OS === "web") {
-        const res = await fetch(resolveBucketUri(recording.audioUri), { credentials: "include" });
         const blob = await res.blob();
         await saveFile({ fileName: audioFile, mimeType, blob }, "recording");
         return;
       }
 
-      // Local recordings are copied straight out; uploaded ones stream from the
-      // bucket to disk so long recordings never sit in JS memory.
-      const local = isLocalFileUri(recording.audioUri);
+      const base64 = arrayBufferToBase64(await res.arrayBuffer());
       await saveFile({
         fileName: audioFile,
         mimeType,
-        fileUri: local ? recording.audioUri : undefined,
-        remoteUrl: local ? undefined : resolveBucketUri(recording.audioUri),
-        headers: getAuthHeaders(),
+        base64,
         dialogTitle: t("detail.saveRecording"),
       }, "recording");
     } catch (err) {
@@ -3204,32 +3155,50 @@ export default function RecordingDetailScreen() {
                 <Feather name={isPlaying ? "pause" : "play"} size={24} color={Colors.white} />
               </Pressable>
               <View style={styles.playerInfo}>
-                <View style={styles.waveformPlaceholder}>
-                  {Array.from({ length: 30 }).map((_, i) => (
-                    <View
-                      key={i}
-                      style={[
-                        styles.waveBar,
-                        {
-                          height: 8 + Math.sin(i * 0.7) * 12 + Math.random() * 6,
-                          backgroundColor:
-                            playbackPosition > 0 && i / 30 < playbackPosition / recording.duration
-                              ? Colors.primary
-                              : Colors.surfaceHighlight,
-                        },
-                      ]}
-                    />
-                  ))}
-                </View>
+                <Pressable
+                  style={styles.waveformPlaceholder}
+                  onLayout={(e) => setWaveformWidth(e.nativeEvent.layout.width)}
+                  onPress={(e) => {
+                    const w = waveformWidth || 1;
+                    const x = e.nativeEvent.locationX;
+                    void handleSeek(Math.max(0, Math.min(1, x / w)));
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("a11y.seekRecording")}
+                >
+                  {Array.from({ length: 30 }).map((_, i) => {
+                    const base = BASE_WAVEFORM_PROFILE[i] ?? 12;
+                    const progress = effectiveDuration > 0 ? playbackPosition / effectiveDuration : 0;
+                    const played = progress > 0 && i / 30 < progress;
+                    let height = base;
+                    if (isPlaying) {
+                      const wave = Math.sin(i * 0.9 + visualizerTick * 0.6) * 0.35 + 1;
+                      const pulse = Math.sin(visualizerTick * 0.9 + i) * 0.15;
+                      height = base * Math.max(0.35, Math.min(1.5, wave + pulse));
+                    }
+                    return (
+                      <View
+                        key={i}
+                        style={[
+                          styles.waveBar,
+                          {
+                            height,
+                            backgroundColor: played ? Colors.primary : Colors.surfaceHighlight,
+                          },
+                        ]}
+                      />
+                    );
+                  })}
+                </Pressable>
                 <View style={styles.playerBottom}>
                   <Text style={[styles.playerDuration, { fontSize: ts.caption }]}>
-                    {formatDuration(isPlaying ? playbackPosition : 0)} / {formatDuration(recording.duration)}
+                    {formatDuration(playbackPosition)} / {formatDuration(effectiveDuration)}
                   </Text>
                   <View style={styles.playerActions}>
                     <Pressable onPress={handleShareRecording} hitSlop={8} style={styles.playerActionBtn} accessibilityLabel={t("common.share")} accessibilityRole="button">
                       <Feather name="share" size={16} color={Colors.textSecondary} />
                     </Pressable>
-                    <Pressable onPress={handleDownloadRecording} disabled={savingFileId === "recording"} hitSlop={8} style={styles.playerActionBtn} accessibilityLabel={savingFileId === "recording" ? t("detail.preparingDownload") : t("a11y.downloadRecording")} accessibilityRole="button" accessibilityState={{ busy: savingFileId === "recording" }}>
+                    <Pressable onPress={() => setAudioExportVisible(true)} disabled={savingFileId === "recording"} hitSlop={8} style={styles.playerActionBtn} accessibilityLabel={savingFileId === "recording" ? t("detail.preparingDownload") : t("a11y.downloadRecording")} accessibilityRole="button" accessibilityState={{ busy: savingFileId === "recording" }}>
                       {savingFileId === "recording" ? (
                         <ActivityIndicator size="small" color={Colors.textSecondary} />
                       ) : (
@@ -3269,8 +3238,17 @@ export default function RecordingDetailScreen() {
             </View>
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { fontSize: ts.heading3 }]} accessibilityRole="header">{t("detail.transcript")}</Text>
+              {recording.transcriptSource === "device" ? (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginLeft: 8, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: "rgba(139, 92, 246, 0.12)" }}>
+                  <Feather name="smartphone" size={12} color={Colors.textSecondary} />
+                  <Text style={{ fontSize: 11, color: Colors.textSecondary }} accessibilityLabel={t("detail.localQualityNote" as any)}>{t("detail.localQualityBadge" as any)}</Text>
+                </View>
+              ) : null}
               {recording.transcript ? (
                 <View style={styles.transcriptActions}>
+                  <Pressable onPress={startEditingTranscript} hitSlop={8} style={styles.transcriptActionBtn} accessibilityLabel={t("detail.editTranscript")} accessibilityRole="button">
+                    <Feather name="edit-3" size={16} color={Colors.textSecondary} />
+                  </Pressable>
                   <Pressable onPress={handleCopyTranscript} hitSlop={8} style={styles.transcriptActionBtn} accessibilityLabel={t("a11y.copyTranscript")} accessibilityRole="button">
                     <Feather name="copy" size={16} color={Colors.textSecondary} />
                   </Pressable>
@@ -3334,44 +3312,162 @@ export default function RecordingDetailScreen() {
                     </Text>
                   </View>
                 )}
-                <View>
-                  <Text
-                    style={styles.transcriptText}
-                    numberOfLines={transcriptExpanded ? undefined : 2}
-                    ellipsizeMode="tail"
-                    testID="recording-transcript"
-                  >
-                    {liveTranscript ?? transcriptToShow}
-                  </Text>
-                  {/* Hidden measurer: full text, no truncation, so onTextLayout
-                      reports the TRUE line count. Same width as the visible
-                      text (both inside this padding-free wrapper). */}
-                  <Text
-                    style={[styles.transcriptText, styles.transcriptMeasurer]}
-                    onTextLayout={handleTranscriptLayout}
-                    accessibilityElementsHidden
-                    importantForAccessibility="no-hide-descendants"
-                    aria-hidden
-                  >
-                    {transcriptToShow}
-                  </Text>
-                </View>
-                {transcriptLineCount !== null && transcriptLineCount > 2 && (
+                {isEditingTranscript ? (
+                  <View>
+                    <TextInput
+                      style={styles.transcriptEditor}
+                      value={transcriptDraft}
+                      onChangeText={setTranscriptDraft}
+                      multiline
+                      textAlignVertical="top"
+                      autoFocus
+                      testID="transcript-editor"
+                    />
+                    <View style={styles.transcriptEditActions}>
+                      <Pressable
+                        onPress={cancelEditingTranscript}
+                        hitSlop={8}
+                        style={styles.transcriptEditBtn}
+                        accessibilityRole="button"
+                        accessibilityLabel={t("common.cancel")}
+                      >
+                        <Text style={styles.transcriptEditBtnText}>{t("common.cancel")}</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={saveTranscriptEdit}
+                        disabled={savingTranscript}
+                        hitSlop={8}
+                        style={[styles.transcriptEditBtn, styles.transcriptEditSaveBtn]}
+                        accessibilityRole="button"
+                        accessibilityLabel={t("common.save")}
+                        accessibilityState={{ busy: savingTranscript }}
+                      >
+                        {savingTranscript ? (
+                          <ActivityIndicator size="small" color={Colors.white} />
+                        ) : (
+                          <Text style={[styles.transcriptEditBtnText, { color: Colors.white }]}>{t("common.save")}</Text>
+                        )}
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : (
+                  <>
+                    <View>
+                      <Text
+                        style={styles.transcriptText}
+                        numberOfLines={transcriptExpanded ? undefined : 2}
+                        ellipsizeMode="tail"
+                        testID="recording-transcript"
+                      >
+                        {liveTranscript ?? transcriptToShow}
+                      </Text>
+                      {/* Hidden measurer: full text, no truncation, so onTextLayout
+                          reports the TRUE line count. Same width as the visible
+                          text (both inside this padding-free wrapper). */}
+                      <Text
+                        style={[styles.transcriptText, styles.transcriptMeasurer]}
+                        onTextLayout={handleTranscriptLayout}
+                        accessibilityElementsHidden
+                        importantForAccessibility="no-hide-descendants"
+                        aria-hidden
+                      >
+                        {transcriptToShow}
+                      </Text>
+                    </View>
+                    {showTranscriptToggle && (
+                      <Pressable
+                        onPress={() => setTranscriptExpanded((value) => !value)}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel={
+                          transcriptExpanded ? t("detail.transcriptShowLess") : t("detail.transcriptReadMore")
+                        }
+                        style={styles.readMoreButton}
+                        testID="transcript-read-more"
+                      >
+                        <Text style={styles.readMoreText}>
+                          {transcriptExpanded ? t("detail.transcriptShowLess") : t("detail.transcriptReadMore")}
+                        </Text>
+                      </Pressable>
+                    )}
+                  </>
+                )}
+              </View>
+            ) : isElectivePending ? (
+              <View style={styles.electiveCard} testID="elective-transcribe-card">
+                <View style={styles.electiveHeader}>
+                  <View style={styles.electiveIconBadge}>
+                    <Feather name="mic" size={18} color={Colors.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.electiveTitle}>{t("detail.transcribeElectiveTitle")}</Text>
+                  </View>
                   <Pressable
-                    onPress={() => setTranscriptExpanded((value) => !value)}
+                    onPress={() => setShowElectiveTooltip((v) => !v)}
                     hitSlop={8}
                     accessibilityRole="button"
-                    accessibilityLabel={
-                      transcriptExpanded ? t("detail.transcriptShowLess") : t("detail.transcriptReadMore")
-                    }
-                    style={styles.readMoreButton}
-                    testID="transcript-read-more"
+                    accessibilityLabel={t("detail.transcribeElectiveDesc")}
+                    testID="elective-transcribe-info"
                   >
-                    <Text style={styles.readMoreText}>
-                      {transcriptExpanded ? t("detail.transcriptShowLess") : t("detail.transcriptReadMore")}
-                    </Text>
+                    <Feather name="info" size={16} color={Colors.textSecondary} />
                   </Pressable>
+                </View>
+                {showElectiveTooltip && (
+                  <View style={styles.electiveTooltip}>
+                    <Text style={styles.electiveDescription}>{t("detail.transcribeElectiveDesc")}</Text>
+                  </View>
                 )}
+                <Pressable
+                  onPress={() => void retryTranscription()}
+                  disabled={retryingTranscription}
+                  style={({ pressed }) => [styles.electiveBtn, pressed && styles.electiveBtnPressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("detail.transcribeAction")}
+                  testID="elective-transcribe-button"
+                >
+                  {retryingTranscription ? (
+                    <ActivityIndicator size="small" color={Colors.white} />
+                  ) : (
+                    <>
+                      <Feather name="file-text" size={16} color={Colors.white} />
+                      <Text style={styles.electiveBtnText}>{t("detail.transcribeAction")}</Text>
+                    </>
+                  )}
+                </Pressable>
+                {cloudTranscriptionAttempts >= MAX_CLOUD_TRANSCRIPTION_ATTEMPTS ? (
+                  <View style={{ marginTop: 12 }}>
+                    <Text style={styles.electiveDescription}>{t("detail.localFallbackDesc" as any)}</Text>
+                    <Pressable
+                      onPress={() => void transcribeLocally()}
+                      disabled={localTranscribing}
+                      style={({ pressed }) => [styles.electiveBtn, { marginTop: 10 }, pressed && styles.electiveBtnPressed]}
+                      accessibilityRole="button"
+                      accessibilityLabel={t("detail.localFallbackAction" as any)}
+                      accessibilityState={{ busy: localTranscribing }}
+                      testID="on-device-transcribe-button"
+                    >
+                      {localTranscribing ? (
+                        <>
+                          <ActivityIndicator size="small" color={Colors.white} />
+                          <Text style={styles.electiveBtnText}>
+                            {localTranscriptionPhase === "downloading-model"
+                              ? t("detail.localFallbackDownloading" as any, { percent: localTranscriptionPercent })
+                              : t("detail.localFallbackPreparing" as any)}
+                          </Text>
+                        </>
+                      ) : (
+                        <>
+                          <Feather name="smartphone" size={16} color={Colors.white} />
+                          <Text style={styles.electiveBtnText}>{t("detail.localFallbackAction" as any)}</Text>
+                        </>
+                      )}
+                    </Pressable>
+                  </View>
+                ) : cloudTranscriptionAttempts > 0 ? (
+                  <Text style={styles.electiveDescription}>
+                    {t("detail.transcribeAttempt" as any, { n: cloudTranscriptionAttempts + 1, total: MAX_CLOUD_TRANSCRIPTION_ATTEMPTS })}
+                  </Text>
+                ) : null}
               </View>
             ) : (
               <View style={styles.transcriptCard}>
@@ -3456,7 +3552,23 @@ export default function RecordingDetailScreen() {
             ) : (
               <View style={styles.sectionHeader}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.sectionTitle, { fontSize: ts.heading3 }]} accessibilityRole="header">{t("detail.additionalContext" as any)}</Text>
+                  <View style={styles.contextTitleRow}>
+                    <Text style={[styles.sectionTitle, { fontSize: ts.heading3 }]} accessibilityRole="header">{t("detail.additionalContext" as any)}</Text>
+                    <Pressable
+                      onPress={() => setShowContextTooltip((v) => !v)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={t("detail.contextTooltip")}
+                      testID="context-tooltip-toggle"
+                    >
+                      <Feather name="info" size={12} color={Colors.textMuted} style={styles.contextSuperscript} />
+                    </Pressable>
+                  </View>
+                  {showContextTooltip && (
+                    <View style={styles.contextTooltip}>
+                      <Text style={styles.contextTooltipText}>{t("detail.contextTooltip")}</Text>
+                    </View>
+                  )}
                 </View>
               </View>
             )}
@@ -4308,7 +4420,6 @@ export default function RecordingDetailScreen() {
                   const groupTypes = CONVERSION_TYPES
                   .filter(ct => !ct.module)
                   .filter(ct => CONVERSION_COMPLEXITY_MAP[ct.value] === group.key)
-                  .filter(ct => ct.value !== "github_issue")
                   .filter(ct => !convertSearchQuery.trim() || t(`conversion.${ct.value}` as any).toLowerCase().includes(convertSearchQuery.trim().toLowerCase()))
                   .sort((a, b) => t(`conversion.${a.value}` as any).localeCompare(t(`conversion.${b.value}` as any)));
                 if (groupTypes.length === 0) return null;
@@ -4798,6 +4909,53 @@ export default function RecordingDetailScreen() {
         </Pressable>
       </Modal>
 
+      {/* Audio Format Selection Modal */}
+      <Modal
+        visible={audioExportVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAudioExportVisible(false)}
+        accessibilityViewIsModal={true}
+      >
+        <Pressable style={styles.formatModalOverlay} onPress={() => setAudioExportVisible(false)} accessibilityLabel={t("common.close")} accessibilityRole="button">
+          <Pressable style={styles.formatModalContent} onPress={(e) => e.stopPropagation?.()}>
+            <View style={styles.formatModalHeader}>
+              <Text style={styles.formatModalTitle} accessibilityRole="header">
+                {t("detail.downloadAudioAs")}
+              </Text>
+              <Pressable onPress={() => setAudioExportVisible(false)} hitSlop={8} accessibilityLabel={t("common.close")} accessibilityRole="button" style={{ minWidth: 44, minHeight: 44, justifyContent: "center", alignItems: "center" }}>
+                <Feather name="x" size={20} color={Colors.text} />
+              </Pressable>
+            </View>
+            {AUDIO_EXPORT_FORMATS.map((format: { value: string; label: string; mimeType: string; ext: string }) => (
+              <Pressable
+                key={format.value}
+                style={({ pressed }) => [styles.formatOption, pressed && styles.formatOptionPressed]}
+                onPress={() => {
+                  setAudioExportVisible(false);
+                  handleDownloadRecording(format.value as any);
+                }}
+                accessibilityLabel={`Download as ${format.label}`}
+                accessibilityRole="button"
+              >
+                <Feather
+                  name={
+                    format.value === "mp3" ? "music" :
+                    format.value === "wav" ? "volume-2" :
+                    format.value === "m4a" ? "headphones" :
+                    format.value === "flac" ? "disc" :
+                    "radio"
+                  }
+                  size={20}
+                  color={Colors.primary}
+                />
+                <Text style={styles.formatLabel}>{t(`export.${format.value}` as any)}</Text>
+              </Pressable>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <Modal visible={!!pendingWebShare} transparent animationType="fade" onRequestClose={() => setPendingWebShare(null)}>
         <View style={styles.formatModalOverlay}>
           <View style={[styles.formatModalContent, { alignItems: "center", padding: 24, maxWidth: 320 }]}>
@@ -5153,6 +5311,7 @@ export default function RecordingDetailScreen() {
             bottom:
               insets.bottom +
               getFloatingActionBottomOffset(RECORDING_DETAIL_ACTION_SIZE),
+            right: containedFabInset,
           },
         ]}
       >
@@ -5383,11 +5542,31 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
     color: Colors.text,
   },
+  contextTitleRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  contextSuperscript: {
+    marginLeft: 4,
+    marginTop: 1,
+  },
+  contextTooltip: {
+    backgroundColor: "rgba(0, 180, 216, 0.06)",
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 8,
+  },
+  contextTooltipText: {
+    fontSize: sf(12, ts),
+    fontFamily: "Inter_400Regular",
+    color: Colors.textSecondary,
+    lineHeight: 17,
+  },
   transcribingCard: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.surface,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 20,
     gap: 12,
     borderWidth: 0,
@@ -5400,22 +5579,110 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
   },
   transcriptCard: {
     backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 0,
+    marginBottom: 28,
+  },
+  electiveCard: {
+    backgroundColor: Colors.surface,
     borderRadius: 12,
     padding: 16,
     borderWidth: 0,
     marginBottom: 28,
   },
+  electiveHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  electiveIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(0, 180, 216, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  electiveTitle: {
+    fontSize: sf(15, ts),
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  electiveDescription: {
+    fontSize: sf(13, ts),
+    fontFamily: "Inter_400Regular",
+    color: Colors.textSecondary,
+    lineHeight: 19,
+  },
+  electiveTooltip: {
+    backgroundColor: "rgba(0, 180, 216, 0.06)",
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 10,
+  },
+  electiveBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: Colors.primary,
+  },
+  electiveBtnPressed: {
+    opacity: 0.85,
+  },
+  electiveBtnText: {
+    fontSize: sf(15, ts),
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.white,
+  },
   transcriptText: {
     fontSize: sf(16, ts),
     fontFamily: "Inter_400Regular",
     color: Colors.text,
-    lineHeight: 27,
+    lineHeight: 29,
     letterSpacing: 0.2,
-    includeFontPadding: false,
+  },
+  transcriptEditor: {
+    fontSize: sf(16, ts),
+    fontFamily: "Inter_400Regular",
+    color: Colors.text,
+    lineHeight: 25,
+    minHeight: 120,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: Colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    textAlignVertical: "top",
+  },
+  transcriptEditActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+    marginTop: 12,
+  },
+  transcriptEditBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: Colors.surfaceHighlight,
+  },
+  transcriptEditSaveBtn: {
+    backgroundColor: Colors.primary,
+  },
+  transcriptEditBtnText: {
+    fontSize: sf(14, ts),
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.textSecondary,
   },
   readMoreButton: {
     alignSelf: "flex-start",
-    marginTop: 10,
+    marginTop: 12,
     paddingVertical: 4,
   },
   readMoreText: {
@@ -6136,7 +6403,7 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
     flex: 1,
   },
   fullModalContent: {
-    padding: 20,
+    padding: 24,
   },
   fullModalText: {
     fontSize: sf(15, ts),
@@ -6642,7 +6909,6 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
   },
   composeShortcutWrap: {
     position: "absolute",
-    right: 20,
     alignItems: "center",
   },
   composeShortcutPressed: {

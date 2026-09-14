@@ -24,6 +24,7 @@ import {
 import { getUserConversionModelPreferences } from "../ai-customization/utils";
 import { resolveConversionModelRouteChain } from "../../conversion-model-routing";
 import { createOpenAIClient, getChatCompletionTokenOptions } from "../../openai-client";
+import { stripThinking } from "../../conversion-post-processor";
 import {
   DECK_LIMITS,
   DECK_STYLES,
@@ -121,7 +122,7 @@ async function generateDeck(transcript: string, styleId: string, language: "en" 
         },
         { signal: controller.signal },
       );
-      const raw = completion.choices[0]?.message?.content || "";
+      const raw = stripThinking(completion.choices[0]?.message?.content || "");
       const deck = parseDeckJson(raw);
       if (deck) {
         const tokenCost = computeConversionTokenCost({

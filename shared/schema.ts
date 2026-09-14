@@ -14,6 +14,7 @@ export interface User {
   avatarId?: string | null;
   stripeCustomerId?: string | null;
   stripeSubscriptionId?: string | null;
+  stripeStorageSubscriptionId?: string | null;
   cloudSyncSubscriptionId?: string | null;
   cloudSyncGracePeriodEnd?: Date | string | null;
   cloudSyncEnabled: number;
@@ -36,6 +37,8 @@ export interface User {
   revenueCatLastEventAt?: Date | string | null;
   spendingCap?: number | null;
   tokenBalance: number;
+  monthlyTokenBalance?: number | null;
+  purchasedTokenBalance?: number | null;
   tokenAllowanceMonth?: string | null;
   storageAddonGb: number;
   hasSeenPlanSelection: number;
@@ -93,6 +96,15 @@ export interface Verification {
   updatedAt: Date | string;
 }
 
+/**
+ * Provenance of a stored transcript. "cloud" transcripts were produced and
+ * billed by the server transcription chain; "device" transcripts were produced
+ * on-device after that chain failed and billed through
+ * POST /api/recordings/:id/transcribe-local-usage. Optional so every existing
+ * Firestore recording document stays valid.
+ */
+export type TranscriptSource = "cloud" | "device";
+
 export interface Recording extends RecordingTransferFields {
   id: string;
   userId: string;
@@ -103,6 +115,13 @@ export interface Recording extends RecordingTransferFields {
   transcriptRevision?: number;
   transcriptHash?: string | null;
   transcriptUpdatedAt?: Date | string | null;
+  transcriptSource?: TranscriptSource;
+  /**
+   * Cloud transcription attempts already spent on this recording. Persisted so
+   * the cap survives navigation and restarts rather than living in component
+   * state (see MAX_CLOUD_TRANSCRIPTION_ATTEMPTS on the recording screen).
+   */
+  transcriptionAttempts?: number;
   conversions: any;
   createdAt: Date | string;
 }
@@ -433,6 +452,110 @@ export interface DeveloperApiKey {
   updatedAt: Date | string;
   revokedAt?: Date | string | null;
   expiresAt?: Date | string | null;
+}
+
+export type DiscordLocale = "en" | "es";
+
+export type DiscordCaptureSessionStatus =
+  | "armed"
+  | "claimed"
+  | "completed"
+  | "failed"
+  | "cancelled"
+  | "expired";
+
+export interface DiscordCaptureSession {
+  id: string;
+  discordUserId: string;
+  userId: string;
+  applicationId: string;
+  guildId?: string | null;
+  channelId: string;
+  interactionId: string;
+  /** AES-GCM envelope. The plaintext interaction token is never persisted. */
+  interactionToken: {
+    ciphertext: string;
+    iv: string;
+    authTag: string;
+  } | null;
+  locale: DiscordLocale;
+  conversionType?: string | null;
+  thoughtThreadId?: string | null;
+  status: DiscordCaptureSessionStatus;
+  voiceMessageId?: string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  expiresAt: Date | string;
+  claimedAt?: Date | string | null;
+  completedAt?: Date | string | null;
+}
+
+export type DiscordJobAction =
+  | "capture"
+  | "transcribe"
+  | "convert"
+  | "thread_create"
+  | "thread_add"
+  | "thread_convert"
+  | "publish"
+  | "remove_publication";
+
+export type DiscordJobStatus = "queued" | "running" | "succeeded" | "failed";
+
+export interface DiscordJob {
+  id: string;
+  action: DiscordJobAction;
+  status: DiscordJobStatus;
+  userId: string;
+  discordUserId: string;
+  applicationId: string;
+  guildId?: string | null;
+  channelId: string;
+  sourceMessageId?: string | null;
+  captureSessionId?: string | null;
+  interactionId?: string | null;
+  attachmentUrl?: string | null;
+  attachmentName?: string | null;
+  attachmentContentType?: string | null;
+  attachmentSize?: number | null;
+  attachmentDurationSeconds?: number | null;
+  recordingId?: string | null;
+  thoughtThreadId?: string | null;
+  conversionId?: string | null;
+  conversionType?: string | null;
+  locale: DiscordLocale;
+  attemptCount: number;
+  errorCode?: string | null;
+  publicMessageId?: string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  startedAt?: Date | string | null;
+  completedAt?: Date | string | null;
+  expiresAt: Date | string;
+}
+
+export interface DiscordGuildSettings {
+  id: string;
+  guildId: string;
+  publishingEnabled: boolean;
+  inboxChannelIds: string[];
+  publishChannelIds: string[];
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  updatedByDiscordUserId: string;
+}
+
+export interface DiscordLinkState {
+  id: string;
+  kind: "command" | "oauth";
+  stateHash: string;
+  discordUserId: string;
+  userId?: string | null;
+  applicationId: string;
+  locale: DiscordLocale;
+  createdAt: Date | string;
+  expiresAt: Date | string;
+  consumedAt?: Date | string | null;
 }
 
 export interface UsageLimit {

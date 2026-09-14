@@ -111,7 +111,10 @@ class UploadWorker(
             "upload_rejected",
             false
         )
-        val autoTranscribe = inputData.getBoolean(KEY_AUTO_TRANSCRIBE, true)
+        // Transcription is always user-initiated (transcribe screen). Default
+        // false so a caller that forgets the flag cannot silently reinstate
+        // automatic transcription.
+        val autoTranscribe = inputData.getBoolean(KEY_AUTO_TRANSCRIBE, false)
         val language = inputData.getString(KEY_LANGUAGE).orEmpty()
         val file = File(fileUri.removePrefix("file://"))
 

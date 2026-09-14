@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Animated,
   Image,
@@ -8,7 +8,7 @@ import {
   type AccessibilityRole,
 } from "react-native";
 import { SvgXml } from "react-native-svg";
-import { getAvatarDataUri, getAvatarSvg, getPackKeyFromAvatarId } from "@/lib/avatars";
+import { getAvatarDataUri, getAvatarSvg } from "@/lib/avatars";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 import { isProAnimatedAvatarId } from "@shared/avatar-catalog";
 import {
@@ -42,6 +42,7 @@ export default function AvatarView({
   // Web: load the animated SVG as an <Image> so the BROWSER runs DiceBear's
   // embedded CSS keyframes (blink, breathe). This is the only place CSS runs.
   const webAnimatedSvg = getAvatarSvg(avatarId, { animate: allowAnimation });
+  const staticSvg = getAvatarSvg(avatarId, { animate: false });
   const dataUri = getAvatarDataUri(avatarId, { animate: allowAnimation });
 
   // Native: react-native-svg cannot execute the SVG's CSS, so DiceBear's
@@ -57,11 +58,18 @@ export default function AvatarView({
     () => (nativeAnimatedSvg ? splitAnimatedAvatarSvg(nativeAnimatedSvg) : null),
     [nativeAnimatedSvg],
   );
+  // The viewBox width varies by pack (voxel=128, critters/sprouts/moods=100);
+  // the animation scaling must use the real width, not a hardcoded 128.
+  const viewBoxSize = useMemo(() => {
+    if (!split) return 128;
+    const w = Number(split.viewBox.split(/\s+/)[2]);
+    return Number.isFinite(w) && w > 0 ? w : 128;
+  }, [split]);
 
   // One looping progress value per animation CLASS (layers sharing a class
   // — e.g. critters' three eye elements — animate in lockstep).
-  const progressRef = useRef<Map<string, Animated.Value>>(new Map());
-  const stopFnsRef = useRef<(() => void)[]>([]);
+  const [progressMap, setProgressMap] = useState<Map<string, Animated.Value>>(new Map());
+  const [progressSplit, setProgressSplit] = useState<typeof split>(null);
 
   useEffect(() => {
     if (Platform.OS === "web" || !split || !allowAnimation) return;
@@ -74,16 +82,16 @@ export default function AvatarView({
         stops.push(stop);
       }
     }
-    progressRef.current = progressMap;
-    stopFnsRef.current = stops;
+    setProgressMap(progressMap);
+    setProgressSplit(split);
     return () => {
       for (const stop of stops) stop();
-      progressRef.current = new Map();
-      stopFnsRef.current = [];
+      setProgressMap(new Map());
+      setProgressSplit(null);
     };
   }, [split, allowAnimation]);
 
-  if (!webAnimatedSvg) return null;
+  if (!webAnimatedSvg || !staticSvg) return null;
 
   // Browsers execute DiceBear's CSS keyframes when the SVG is loaded as an
   // image. SvgXml deliberately parses SVG elements and cannot run that CSS.
@@ -100,19 +108,22 @@ export default function AvatarView({
     );
   }
 
-  const baseXml = split ? split.baseXml : webAnimatedSvg;
+  const layersReady =
+    progressSplit === split &&
+    split?.layers.every((layer) => progressMap.has(layer.className));
+  const baseXml = allowAnimation && layersReady && split ? split.baseXml : staticSvg;
 
   // Native animated path: static base + per-element Animated.View overlays.
-  if (Platform.OS !== "web" && split && allowAnimation) {
+  if (Platform.OS !== "web" && split && allowAnimation && layersReady) {
     const overlays = split.layers.map((layer: AvatarLayer, i: number) => {
-      const progress = progressRef.current.get(layer.className);
+      const progress = progressMap.get(layer.className);
       if (!progress) return null;
       return (
         <Animated.View
           key={`${layer.className}-${i}`}
           style={[
             StyleSheet.absoluteFill,
-            animatedLayerStyle(layer.spec, progress, size, layer.originX, layer.originY),
+            animatedLayerStyle(layer.spec, progress, size, layer.originX, layer.originY, viewBoxSize),
           ] as any}
           pointerEvents="none"
         >

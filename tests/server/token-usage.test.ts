@@ -5,7 +5,7 @@ import { unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-test("token-based usage: transcription hard gate and conversion soft gate with grace", async (t) => {
+test("token-based usage: transcription hard gate and conversion soft gate without overage debt", async (t) => {
   const mockPath = join(tmpdir(), `proset-token-usage-${randomUUID()}.json`);
   process.env.MOCK_DB_PATH = mockPath;
   process.env.NODE_ENV = "test";
@@ -70,10 +70,51 @@ test("token-based usage: transcription hard gate and conversion soft gate with g
   // Conversion soft gate: allowed while balance > 0.
   assert.equal((await usageService.checkConversionLimit(userId, "summary")).allowed, true);
 
-  // Grace conversion: deduct actual tokens, allowing the balance to go negative.
+  // A conversion can consume the remaining balance, but prepaid billing never
+  // creates an automatic negative overage.
   await usageService.deductConversionTokens(userId, 20000);
-  assert.equal((await usageService.getUserTokenBalance(userId)).balance, -10030);
+  assert.equal((await usageService.getUserTokenBalance(userId)).balance, 0);
 
-  // Once balance <= 0, further conversions are blocked (debt ≤ one conversion).
+  // Once balance reaches zero, further conversions are blocked.
   assert.equal((await usageService.checkConversionLimit(userId, "summary")).allowed, false);
+});
+
+test("concurrent pack redemptions preserve both purchased-credit increments", async () => {
+  const { storage } = await import("../../server/storage");
+  const userId = `concurrent-pack-${randomUUID()}`;
+  await storage.users.create({
+    id: userId,
+    email: `${userId}@example.test`,
+    name: "Concurrent Pack User",
+    firstName: "Concurrent",
+    jobType: "other",
+    emailVerified: 1,
+    cachedTier: "pro",
+    cloudSyncEnabled: 1,
+    tokenBalance: 0,
+    monthlyTokenBalance: 0,
+    purchasedTokenBalance: 0,
+    tokenAllowanceMonth: new Date().toISOString().slice(0, 7),
+  });
+
+  const results = await Promise.all([
+    storage.billingRedemptions.apply({
+      id: `pi_${randomUUID()}`,
+      userId,
+      kind: "token_pack",
+      productId: "tokens_25k",
+    }, {}, 25_000),
+    storage.billingRedemptions.apply({
+      id: `pi_${randomUUID()}`,
+      userId,
+      kind: "token_pack",
+      productId: "tokens_25k",
+    }, {}, 25_000),
+  ]);
+
+  assert.deepEqual(results, ["applied", "applied"]);
+  const user = await storage.users.get(userId);
+  assert.equal(user?.monthlyTokenBalance, 0);
+  assert.equal(user?.purchasedTokenBalance, 50_000);
+  assert.equal(user?.tokenBalance, 50_000);
 });

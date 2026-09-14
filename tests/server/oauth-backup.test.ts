@@ -16,6 +16,7 @@ const _origMicrosoftClientId = process.env.MICROSOFT_CLIENT_ID;
 const _origMicrosoftClientSecret = process.env.MICROSOFT_CLIENT_SECRET;
 const _origDropboxAppKey = process.env.DROPBOX_APP_KEY;
 const _origDropboxAppSecret = process.env.DROPBOX_APP_SECRET;
+const _origBackupOAuthStateSecret = process.env.BACKUP_OAUTH_STATE_SECRET;
 
 // Set up env vars before module is loaded so that getBackupOAuthStateSecret()
 // and getProviderConfig() can read them.
@@ -45,6 +46,7 @@ function restoreOrDelete(key: string, original: string | undefined): void {
 
 test.after(() => {
   restoreOrDelete("BETTER_AUTH_SECRET", _origBetterAuthSecret);
+  restoreOrDelete("BACKUP_OAUTH_STATE_SECRET", _origBackupOAuthStateSecret);
   restoreOrDelete("GOOGLE_CLIENT_ID", _origGoogleClientId);
   restoreOrDelete("GOOGLE_CLIENT_SECRET", _origGoogleClientSecret);
   restoreOrDelete("MICROSOFT_CLIENT_ID", _origMicrosoftClientId);
@@ -70,6 +72,20 @@ test("getAvailableBackupOAuthProviders excludes dropbox when credentials are mis
   assert.ok(!providers.includes("dropbox"), "dropbox should not be available without credentials");
 });
 
+test("getAvailableBackupOAuthProviders hides providers when OAuth state secret is missing", () => {
+  const previousAuthSecret = process.env.BETTER_AUTH_SECRET;
+  const previousBackupSecret = process.env.BACKUP_OAUTH_STATE_SECRET;
+  delete process.env.BETTER_AUTH_SECRET;
+  delete process.env.BACKUP_OAUTH_STATE_SECRET;
+
+  try {
+    assert.deepEqual(getAvailableBackupOAuthProviders(), [], "providers should be unavailable without a signing secret");
+  } finally {
+    if (previousAuthSecret === undefined) delete process.env.BETTER_AUTH_SECRET; else process.env.BETTER_AUTH_SECRET = previousAuthSecret;
+    if (previousBackupSecret === undefined) delete process.env.BACKUP_OAUTH_STATE_SECRET; else process.env.BACKUP_OAUTH_STATE_SECRET = previousBackupSecret;
+  }
+});
+
 // ─── Authorization URL generation ────────────────────────────────────────────
 
 test("generateAuthorizationUrl returns null for an unknown provider", () => {
@@ -80,6 +96,21 @@ test("generateAuthorizationUrl returns null for an unknown provider", () => {
 test("generateAuthorizationUrl returns null for dropbox when credentials are missing", () => {
   const url = generateAuthorizationUrl("user-123", "dropbox");
   assert.equal(url, null);
+});
+
+test("generateAuthorizationUrl returns null when backup OAuth is missing its signing secret", () => {
+  const previousAuthSecret = process.env.BETTER_AUTH_SECRET;
+  const previousBackupSecret = process.env.BACKUP_OAUTH_STATE_SECRET;
+  delete process.env.BETTER_AUTH_SECRET;
+  delete process.env.BACKUP_OAUTH_STATE_SECRET;
+
+  try {
+    const url = generateAuthorizationUrl("user-123", "google_drive");
+    assert.equal(url, null, "authorization URL generation should fail without a signing secret");
+  } finally {
+    if (previousAuthSecret === undefined) delete process.env.BETTER_AUTH_SECRET; else process.env.BETTER_AUTH_SECRET = previousAuthSecret;
+    if (previousBackupSecret === undefined) delete process.env.BACKUP_OAUTH_STATE_SECRET; else process.env.BACKUP_OAUTH_STATE_SECRET = previousBackupSecret;
+  }
 });
 
 test("generateAuthorizationUrl returns a valid Google accounts URL for google_drive", () => {

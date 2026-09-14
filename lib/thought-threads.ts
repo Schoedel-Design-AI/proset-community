@@ -5,8 +5,10 @@ import type {
   ThoughtThreadConversionRun,
   ThoughtThreadItem,
 } from "@shared/schema";
+import type { TranslationKey } from "@/lib/i18n";
 import { authFetch, getApiUrl } from "@/lib/query-client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Alert, Platform } from "react-native";
 
 const PENDING_ATTACHMENTS_KEY = "@thought_thread_pending_attachments_v2";
 
@@ -112,6 +114,44 @@ export class ThoughtThreadRequestError extends Error {
     this.name = "ThoughtThreadRequestError";
     this.status = status;
     this.data = data;
+  }
+}
+
+/** True when a ThoughtThreadRequestError is the server's cloud_sync_required gate. */
+export function isCloudSyncRequiredError(error: unknown): error is ThoughtThreadRequestError {
+  return error instanceof ThoughtThreadRequestError && error.data.error === "cloud_sync_required";
+}
+
+type TranslateFn = (key: TranslationKey, params?: Record<string, string | number>) => string;
+
+const CLOUD_SYNC_SETTINGS_ROUTE = "/settings/integrations";
+
+type RouterPush = (route: string) => void;
+
+/**
+ * Shown whenever a thought-thread action (the recording detail screen's
+ * cloud icon, the recordings list combine action, etc.) is blocked by Cloud
+ * Sync being disabled -- either because the client already knew that, or
+ * because the server rejected the request with cloud_sync_required after a
+ * stale client-side flag let the request through. Unlike a plain alert, this
+ * gives the user an actual way to resolve it instead of dead-ending.
+ *
+ * `push` (the caller's `router.push`) is injected rather than importing
+ * `router` from lib/navigation here, to avoid a circular import between this
+ * module and the app/thought-threads screens that both use it and are wired
+ * into lib/navigation.
+ */
+export function promptCloudSyncRequired(t: TranslateFn, push: RouterPush): void {
+  const title = t("thread.requiresCloudSync");
+  const message = t("thread.requiresCloudSyncHelp");
+  const goToSettings = () => push(CLOUD_SYNC_SETTINGS_ROUTE);
+  if (Platform.OS === "web") {
+    if (confirm(`${title}: ${message}`)) goToSettings();
+  } else {
+    Alert.alert(title, message, [
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("thread.goToSettings"), onPress: goToSettings },
+    ]);
   }
 }
 

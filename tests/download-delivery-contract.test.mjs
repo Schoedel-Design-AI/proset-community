@@ -155,6 +155,25 @@ test("every new download string ships in English and Spanish", () => {
   }
 });
 
+test("the Files screen confirms a saved download on every platform, including web", () => {
+  // Regression for issue #214 follow-up: this callback used to read
+  // `if (Platform.OS !== "web") Alert.alert(...)`, so a web download from the
+  // Files screen completed with no visible confirmation at all. `Alert.alert`
+  // also has no visible implementation on web (react-native-web ships no
+  // dialog for it), so the fix must call `alert()` there instead.
+  const match = filesScreen.match(/useFileDownload\(\(fileName, messageKey\) => \{([\s\S]*?)\n {2}\}\);/);
+  assert.ok(match, "expected the Files screen to wire up useFileDownload's onSaved callback");
+  const callbackBody = match[1];
+  assert.equal(
+    /Platform\.OS\s*!==\s*["']web["']/.test(callbackBody),
+    false,
+    "the save confirmation must not be skipped on web",
+  );
+  assert.ok(/Platform\.OS\s*===\s*["']web["']/.test(callbackBody), "web must take its own confirmation path");
+  assert.ok(/(?<!Alert\.)alert\(/.test(callbackBody), "web must confirm via the plain alert() global, not the no-op Alert.alert");
+  assert.ok(callbackBody.includes("Alert.alert("), "native must still confirm via Alert.alert");
+});
+
 test("the Community Edition override carries the same download fix", () => {
   assert.ok(ceOverride.includes("useFileDownload("), "CE override must use the shared hook");
   assert.ok(ceOverride.includes("savingFileId"), "CE override needs the busy state too");

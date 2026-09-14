@@ -38,6 +38,9 @@ const CATEGORY_DEFS: CategoryDef[] = [
 
 const cleanCategoryLabel = (label: string) => label.replace(/^Bug:\s*/i, "").replace(/^\uD83D\uDC1B\s*/, "");
 
+/** Matches the server's `upload.array("images", 10)` cap. */
+const MAX_ATTACHMENTS = 10;
+
 type Props = {
   visible: boolean;
   onClose: () => void;
@@ -55,7 +58,7 @@ export default function FeedbackModal({ visible, onClose }: Props) {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
-  const [attachment, setAttachment] = useState<DocumentPickerAsset | null>(null);
+  const [attachments, setAttachments] = useState<DocumentPickerAsset[]>([]);
   const draftLoaded = useRef(false);
 
   // Track keyboard height for precise layout
@@ -86,8 +89,8 @@ export default function FeedbackModal({ visible, onClose }: Props) {
         draftLoaded.current = true;
       }).catch((err) => { console.warn("Failed to load feedback draft:", err); draftLoaded.current = true; });
     } else {
-      // Clear attachment when modal hides so it doesn't persist forever if they don't submit
-      setAttachment(null);
+      // Clear attachments when modal hides so they don't persist if not submitted
+      setAttachments([]);
     }
   }, [visible]);
 
@@ -117,13 +120,13 @@ export default function FeedbackModal({ visible, onClose }: Props) {
       // ambiguity this field exists to remove.
       formData.append("surface", getEncodedSurface());
 
-      if (attachment) {
+      for (const attachment of attachments) {
         if (Platform.OS === "web") {
           const response = await fetch(attachment.uri);
           const blob = await response.blob();
-          formData.append("image", blob, attachment.name);
+          formData.append("images", blob, attachment.name);
         } else {
-          formData.append("image", {
+          formData.append("images", {
             uri: attachment.uri,
             type: attachment.mimeType || "image/jpeg",
             name: attachment.name,
@@ -150,7 +153,7 @@ export default function FeedbackModal({ visible, onClose }: Props) {
       setSent(true);
       setCategory("");
       setMessage("");
-      setAttachment(null);
+      setAttachments([]);
       AsyncStorage.removeItem("feedbackDraftCategory");
       AsyncStorage.removeItem("feedbackDraftMessage");
     } catch (err: any) {
@@ -277,23 +280,33 @@ export default function FeedbackModal({ visible, onClose }: Props) {
                   />
 
                   <View style={styles.attachmentContainer}>
-                    {attachment ? (
-                      <View style={styles.attachmentChip}>
+                    {attachments.map((attachment, idx) => (
+                      <View key={`${attachment.name}-${idx}`} style={styles.attachmentChip}>
                         <Feather name="image" size={14} color={Colors.primary} />
                         <Text style={[styles.attachmentName, { fontSize: ts.sm }]} numberOfLines={1}>
                           {attachment.name}
                         </Text>
-                        <Pressable onPress={() => setAttachment(null)} style={styles.removeAttachmentBtn} accessibilityRole="button" hitSlop={10}>
+                        <Pressable
+                          onPress={() => setAttachments((prev) => prev.filter((_, i) => i !== idx))}
+                          style={styles.removeAttachmentBtn}
+                          accessibilityRole="button"
+                          hitSlop={10}
+                          accessibilityLabel={t("a11y.cancelAction")}
+                        >
                           <Feather name="x" size={14} color={Colors.textSecondary} />
                         </Pressable>
                       </View>
-                    ) : (
+                    ))}
+                    {attachments.length < MAX_ATTACHMENTS && (
                       <Pressable 
                         style={({ pressed }) => [styles.attachBtn, pressed && { opacity: 0.7 }]} 
                         onPress={async () => {
-                          const result = await getDocumentAsync({ type: ["image/png", "image/jpeg"] });
+                          const result = await getDocumentAsync({ type: ["image/png", "image/jpeg"], multiple: true });
                           if (!result.canceled && result.assets && result.assets.length > 0) {
-                            setAttachment(result.assets[0]);
+                            setAttachments((prev) => [
+                              ...prev,
+                              ...result.assets!.slice(0, MAX_ATTACHMENTS - prev.length),
+                            ]);
                           }
                         }}
                         accessibilityRole="button"
@@ -452,6 +465,7 @@ const styles = StyleSheet.create({
   } as any,
   attachmentContainer: {
     marginBottom: 4,
+    gap: 8,
   },
   attachBtn: {
     flexDirection: "row",

@@ -25,6 +25,14 @@ export interface Conversion {
 }
 
 export interface Recording extends RecordingTransferFields {
+  /**
+   * Which engine produced the transcript. The server also uses this as its
+   * billed-marker for on-device transcription, so it doubles as "already
+   * charged" for that recording.
+   */
+  transcriptSource?: "cloud" | "device";
+  /** Cloud transcription attempts already spent; persisted, not component state. */
+  transcriptionAttempts?: number;
   id: string;
   title: string;
   duration: number;
@@ -62,8 +70,6 @@ interface RecordingsContextValue {
   fetchRecording: (id: string) => Promise<Recording | null>;
   setCloudSync: (enabled: boolean) => Promise<void>;
   syncToCloud: () => Promise<void>;
-  isAutoTranscribeEnabled: boolean;
-  setAutoTranscribe: (enabled: boolean) => Promise<void>;
   transcribeAudio: (recordingId: string, audioUri: string, language: string, audioBlob?: Blob) => Promise<void>;
 }
 
@@ -71,7 +77,6 @@ const RecordingsContext = createContext<RecordingsContextValue | null>(null);
 
 const STORAGE_KEY_PREFIX = "@voicenote_recordings";
 const CLOUD_SYNC_KEY_PREFIX = "@voicenote_cloud_sync";
-const AUTO_TRANSCRIBE_KEY_PREFIX = "@voicenote_auto_transcribe";
 
 function getScopedStorageKey(userId?: string | null) {
   return `${STORAGE_KEY_PREFIX}:${userId || "guest"}`;
@@ -79,10 +84,6 @@ function getScopedStorageKey(userId?: string | null) {
 
 function getScopedCloudSyncKey(userId?: string | null) {
   return `${CLOUD_SYNC_KEY_PREFIX}:${userId || "guest"}`;
-}
-
-function getScopedAutoTranscribeKey(userId?: string | null) {
-  return `${AUTO_TRANSCRIBE_KEY_PREFIX}:${userId || "guest"}`;
 }
 
 function apiFetch(path: string, options?: RequestInit) {
@@ -142,7 +143,6 @@ export function RecordingsProvider({ children }: { children: ReactNode }) {
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCloudSyncEnabled, setIsCloudSyncEnabled] = useState(false);
-  const [isAutoTranscribeEnabled, setIsAutoTranscribeEnabled] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [maxRecordings, setMaxRecordings] = useState(UNAUTHENTICATED_MAX_RECORDINGS);
   const [, setMaxRecordingsLoaded] = useState(false);
@@ -158,7 +158,6 @@ export function RecordingsProvider({ children }: { children: ReactNode }) {
 
   const scopedStorageKey = useMemo(() => getScopedStorageKey(user?.id), [user?.id]);
   const scopedCloudSyncKey = useMemo(() => getScopedCloudSyncKey(user?.id), [user?.id]);
-  const scopedAutoTranscribeKey = useMemo(() => getScopedAutoTranscribeKey(user?.id), [user?.id]);
   const canUseCloud = !isAuthLoading && !!user;
   const isServerMode = canUseCloud && isCloudSyncEnabled;
   const storageLocation: "local" | "cloud" = isServerMode ? "cloud" : "local";
@@ -275,10 +274,6 @@ export function RecordingsProvider({ children }: { children: ReactNode }) {
       if (isMountedRef.current && val !== null) setIsCloudSyncEnabled(val === "true");
     }).catch(() => {});
 
-    AsyncStorage.getItem(scopedAutoTranscribeKey).then(val => {
-      if (isMountedRef.current && val !== null) setIsAutoTranscribeEnabled(val !== "false"); // Default true
-    }).catch(() => {});
-
     if (canUseCloud) {
       apiFetch("/api/cloud-sync").then(res => {
         if (res.ok) return res.json();
@@ -290,7 +285,7 @@ export function RecordingsProvider({ children }: { children: ReactNode }) {
         }
       }).catch(() => {});
     }
-  }, [canUseCloud, isAuthLoading, scopedAutoTranscribeKey, scopedCloudSyncKey]);
+  }, [canUseCloud, isAuthLoading, scopedCloudSyncKey]);
 
   useEffect(() => {
     if (isAuthLoading) {
@@ -373,11 +368,6 @@ export function RecordingsProvider({ children }: { children: ReactNode }) {
       await syncToCloud();
     }
   }, [canUseCloud, scopedCloudSyncKey, syncToCloud]);
-
-  const setAutoTranscribe = useCallback(async (enabled: boolean) => {
-    await AsyncStorage.setItem(scopedAutoTranscribeKey, enabled ? "true" : "false");
-    setIsAutoTranscribeEnabled(enabled);
-  }, [scopedAutoTranscribeKey]);
 
   const addRecording = useCallback(async (recording: Recording) => {
     setRecordings((prev) => {
@@ -893,7 +883,6 @@ export function RecordingsProvider({ children }: { children: ReactNode }) {
       recordings,
       isLoading,
       isCloudSyncEnabled,
-      isAutoTranscribeEnabled,
       isSyncing,
       storageLocation,
       maxRecordings,
@@ -908,11 +897,10 @@ export function RecordingsProvider({ children }: { children: ReactNode }) {
       getRecording,
       fetchRecording,
       setCloudSync,
-      setAutoTranscribe,
       syncToCloud,
       transcribeAudio: doTranscribe,
     }),
-    [recordings, isLoading, isCloudSyncEnabled, isAutoTranscribeEnabled, isSyncing, storageLocation, maxRecordings, lastRecordingLimitEvent, addRecording, updateRecording, applyLocalRecording, deleteRecording, addConversion, deleteConversion, getRecording, fetchRecording, setCloudSync, setAutoTranscribe, syncToCloud, doTranscribe]
+    [recordings, isLoading, isCloudSyncEnabled, isSyncing, storageLocation, maxRecordings, lastRecordingLimitEvent, addRecording, updateRecording, applyLocalRecording, deleteRecording, addConversion, deleteConversion, getRecording, fetchRecording, setCloudSync, syncToCloud, doTranscribe]
   );
 
   return <RecordingsContext.Provider value={value}>{children}</RecordingsContext.Provider>;

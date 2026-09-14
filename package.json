@@ -1,11 +1,13 @@
 {
   "name": "proset-community",
-  "version": "1.0.67",
+  "version": "1.0.79",
   "scripts": {
     "postinstall": "patch-package",
     "lint": "eslint .",
     "migration:validate": "node scripts/validate-proset-migration.mjs",
     "okf:validate": "node scripts/validate-proset-okf.mjs",
+    "release:notes": "node scripts/release-notes.mjs",
+    "release:notes:dry": "node scripts/release-notes.mjs --dry-run",
     "android:edge-audit": "python3 scripts/audit-android-edge-to-edge.py",
     "web:dev": "vite",
     "web:build": "NODE_ENV=production vite build",
@@ -22,6 +24,9 @@
     "firebase:auth:smoke": "node scripts/smoke-firebase-auth.mjs",
     "security:prod:audit": "node scripts/audit-production-dependencies.mjs",
     "stripe:catalog": "node scripts/configure-stripe-billing.mjs",
+    "billing:audit": "npx tsx --test tests/server/billing-readiness.test.ts tests/server/billing-lifecycle-simulation.test.ts tests/server/token-balance-buckets.test.ts tests/server/token-usage.test.ts tests/server/stripe-billing.test.ts tests/server/revenuecat-billing.test.ts",
+    "discord:register": "npx tsx scripts/register-discord-commands.ts",
+    "discord:audit": "npx tsx --test tests/server/discord-app.test.ts",
     "revenuecat:catalog": "node scripts/configure-revenuecat-android.mjs",
     "play:billing": "python3 scripts/configure-google-play-billing.py",
     "db:push": "drizzle-kit push",
@@ -61,7 +66,6 @@
     "@sendgrid/mail": "^8.1.6",
     "@shopify/react-native-skia": "2.10.1",
     "@stardazed/streams-text-encoding": "^1.0.2",
-    "@stripe/stripe-js": "^9.14.0",
     "@tanstack/react-query": "^5.83.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/compression": "^1.8.1",
@@ -75,6 +79,7 @@
     "clsx": "^2.1.1",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
+    "discord.js": "14.27.0",
     "docx": "^9.5.3",
     "drizzle-orm": "^0.45.2",
     "drizzle-zod": "^0.7.1",
@@ -91,6 +96,7 @@
     "helmet": "^8.1.0",
     "html2canvas": "^1.4.1",
     "http-proxy-middleware": "^3.0.5",
+    "image-size": "file:vendor/pptxgenjs-image-size-disabled",
     "kysely": "^0.28.17",
     "mammoth": "^1.12.1",
     "multer": "^2.1.1",
@@ -171,15 +177,19 @@
     },
     "axios": "^1.18.0",
     "brace-expansion": "^2.0.3",
+    "browserslist": "^4.28.9",
+    "decode-uri-component": "^0.5.0",
     "esbuild": "^0.28.1",
-    "fast-uri": "^3.1.2",
+    "fast-uri": "^3.1.7",
     "fast-xml-builder": "^1.1.7",
     "fast-xml-parser": "^5.9.0",
     "follow-redirects": "^1.16.0",
     "form-data": "^4.0.6",
+    "image-size": "$image-size",
     "js-yaml": "^4.2.0",
+    "@xmldom/xmldom": "^0.9.12",
     "mammoth": {
-      "@xmldom/xmldom": "0.8.13"
+      "@xmldom/xmldom": "0.8.15"
     },
     "metro": {
       "ws": "$ws"
@@ -188,7 +198,7 @@
       "picomatch": "^2.3.2"
     },
     "path-to-regexp": "^8.4.2",
-    "qs": "^6.15.2",
+    "qs": "^6.16.0",
     "react-devtools-core": {
       "shell-quote": "^1.8.4",
       "ws": "$ws"

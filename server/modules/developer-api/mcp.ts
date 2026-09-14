@@ -167,7 +167,6 @@ function createMcpServer(): McpServer {
       filename: z.string().optional().describe("Original filename, used to infer the audio format."),
       language: z.string().optional().describe("Optional source language hint."),
       prompt: z.string().optional().describe("Optional transcription prompt."),
-      confirmExtendedAccess: z.boolean().optional().describe("Consent to pay-as-you-go overage (required once included transcriptions are exhausted)."),
     },
     async (args, extra) => {
       const userId = requireUserId(extra.sessionId);
@@ -202,7 +201,6 @@ function createMcpServer(): McpServer {
       bibliographyType: z.string().optional().describe("Bibliography mode (e.g. 'annotated')."),
       outputFormat: z.enum(["markdown", "plain"]).optional(),
       language: z.enum(["en", "es"]).optional(),
-      confirmExtendedAccess: z.boolean().optional().describe("Consent to pay-as-you-go overage (required once included conversions are exhausted)."),
     },
     async (args, extra) => {
       const userId = requireUserId(extra.sessionId);
@@ -215,7 +213,6 @@ function createMcpServer(): McpServer {
           bibliographyType: args.bibliographyType,
           outputFormat: args.outputFormat,
           language: args.language,
-          confirmExtendedAccess: args.confirmExtendedAccess,
         });
         return textResult(result.content);
       } catch (error: any) {

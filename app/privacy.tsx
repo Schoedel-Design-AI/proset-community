@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Text, ScrollView, StyleSheet, Pressable } from "react-native";
+import React, { useEffect } from "react";
+import { Platform, View, Text, ScrollView, StyleSheet, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@react-native-vector-icons/feather/static";
 import { router } from "@/lib/navigation";
@@ -11,6 +11,15 @@ export default function PrivacyScreen() {
   const insets = useSafeAreaInsets();
   const layout = useResponsiveLayout();
   const { t } = useLanguage();
+
+  // Web: the SPA shell serves the landing title for every route, so set the
+  // document title for this screen (crawlers and Google Play's data-safety
+  // fetcher read it without running JS).
+  useEffect(() => {
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      document.title = `${t("privacy.title")} | Proset`;
+    }
+  }, [t]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -25,7 +34,7 @@ export default function PrivacyScreen() {
         >
           <Feather name="arrow-left" size={24} color={Colors.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>{t("privacy.title")}</Text>
+        <Text style={styles.headerTitle} accessibilityRole="header">{t("privacy.title")}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -62,6 +71,13 @@ export default function PrivacyScreen() {
           <Text style={styles.sectionTitle}>{t("privacy.voiceTitle")}</Text>
           <Text style={styles.paragraph}>
             {t("privacy.voiceBody")}
+          </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t("privacy.discordTitle")}</Text>
+          <Text style={styles.paragraph}>
+            {t("privacy.discordBody")}
           </Text>
         </View>
 

@@ -107,7 +107,7 @@ function getAvailableConnectors(): { type: ConnectorType; label: string; icon: s
     { type: "sharepoint", label: "SharePoint", icon: "hard-drive", available: !!process.env.SHAREPOINT_ACCESS_TOKEN, category: "storage" },
     { type: "dropbox", label: "Dropbox", icon: "inbox", available: !!process.env.DROPBOX_ACCESS_TOKEN, category: "storage" },
     { type: "github_gist", label: "GitHub Gist", icon: "github", available: !!process.env.GITHUB_ACCESS_TOKEN, category: "developer" },
-    { type: "discord", label: "Discord", icon: "message-circle", available: !!process.env.DISCORD_BOT_TOKEN, category: "communication" },
+    { type: "discord", label: "Discord Export (webhook)", icon: "message-circle", available: !!process.env.DISCORD_BOT_TOKEN, category: "communication" },
     { type: "hubspot", label: "HubSpot", icon: "briefcase", available: !!process.env.HUBSPOT_ACCESS_TOKEN, category: "crm" },
     { type: "elevenlabs", label: "ElevenLabs TTS", icon: "volume-2", available: !!process.env.ELEVENLABS_API_KEY, category: "audio" },
     { type: "google_calendar", label: "Google Calendar", icon: "calendar", available: false, category: "productivity" },

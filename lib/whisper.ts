@@ -5,6 +5,10 @@ interface WhisperNative {
   transcribe(wavPath: string, maxDurationSec: number): Promise<string>;
   cancel(): Promise<boolean>;
   unload(): Promise<boolean>;
+  /** True only when libwhisper-jni.so actually loaded (arm64-v8a only). */
+  isAvailable(): Promise<boolean>;
+  /** Decode any supported audio file to 16 kHz mono PCM WAV; resolves with sample count. */
+  decodeToWav(inputPath: string, outputPath: string): Promise<number>;
 }
 
 interface DownloadProgress {
@@ -152,4 +156,99 @@ export async function unloadWhisperModel(): Promise<void> {
  */
 export function isWhisperAvailable(): boolean {
   return NativeWhisper !== undefined;
+}
+
+let runtimeAvailable: boolean | null = null;
+
+/**
+ * Whether on-device transcription can ACTUALLY run here. The JS module exists on
+ * every Android build, but libwhisper-jni.so only ships for arm64-v8a, so the
+ * native side is asked once and the answer cached. Use this — not
+ * isWhisperAvailable() — before offering the low-quality fallback to a user.
+ */
+export async function isOnDeviceTranscriptionAvailable(): Promise<boolean> {
+  if (runtimeAvailable !== null) return runtimeAvailable;
+  if (!NativeWhisper) {
+    runtimeAvailable = false;
+    return false;
+  }
+  try {
+    runtimeAvailable = await NativeWhisper.isAvailable();
+  } catch {
+    runtimeAvailable = false;
+  }
+  return runtimeAvailable;
+}
+
+/**
+ * Decode a recording (m4a/AAC) into the 16 kHz mono PCM WAV that whisper.cpp
+ * requires. Returns the WAV path, or null when decoding is unsupported/failed.
+ */
+export async function prepareWavForTranscription(
+  inputPath: string
+): Promise<string | null> {
+  if (!NativeWhisper) return null;
+  const { Dirs } = require("react-native-file-access");
+  const outPath = `${Dirs.CacheDir}/whisper-${Date.now()}.wav`;
+  try {
+    const samples = await NativeWhisper.decodeToWav(inputPath, outPath);
+    if (!samples || samples <= 0) return null;
+    return outPath;
+  } catch (e) {
+    console.error("[Whisper] Audio decode for on-device transcription failed:", e);
+    return null;
+  }
+}
+
+/** Delete a temporary WAV produced by prepareWavForTranscription. */
+export async function discardWav(wavPath: string): Promise<void> {
+  try {
+    const { FileSystem } = require("react-native-file-access");
+    await FileSystem.unlink(wavPath);
+  } catch {
+    // a leftover cache file is harmless; CacheDir is evictable
+  }
+}
+
+export type OnDeviceTranscriptionProgress =
+  | { phase: "checking" }
+  | { phase: "downloading-model"; bytesWritten: number; contentLength: number }
+  | { phase: "loading-model" }
+  | { phase: "decoding" }
+  | { phase: "transcribing" };
+
+/**
+ * Full on-device path: capability check -> model (downloading the ~75 MB tiny
+ * model on first use) -> decode to WAV -> transcribe -> cleanup.
+ *
+ * Returns "" when on-device transcription is unavailable or produced nothing;
+ * callers must treat an empty result as failure and keep the cloud error state.
+ */
+export async function transcribeOnDevice(
+  inputPath: string,
+  onProgress?: (progress: OnDeviceTranscriptionProgress) => void
+): Promise<string> {
+  onProgress?.({ phase: "checking" });
+  if (!(await isOnDeviceTranscriptionAvailable())) return "";
+
+  const modelReady = await ensureModelLoaded((p) =>
+    onProgress?.({
+      phase: "downloading-model",
+      bytesWritten: p.bytesWritten,
+      contentLength: p.contentLength,
+    })
+  );
+  if (!modelReady) return "";
+  onProgress?.({ phase: "loading-model" });
+
+  onProgress?.({ phase: "decoding" });
+  const wavPath = await prepareWavForTranscription(inputPath);
+  if (!wavPath) return "";
+
+  try {
+    onProgress?.({ phase: "transcribing" });
+    return await transcribeLocally(wavPath, 0);
+  } finally {
+    await discardWav(wavPath);
+  }
 }

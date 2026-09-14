@@ -12,13 +12,22 @@ import {
   UsageEvent, StylePreference, UserFolder, UserFile, UsageLimit, UsageReservation, UserSkill,
   UserKnowledgebase, UserLearning, UserAiModelPreference, BucketFile, KbPrompt, KbPromptSkill,
   Passkey, UserModule, Coupon, DeveloperApiKey, ThoughtThread, ThoughtThreadItem, ThoughtThreadContext,
+  DiscordCaptureSession, DiscordGuildSettings, DiscordJob, DiscordLinkState,
   ThoughtThreadConversionRun, ThoughtThreadRunChunk, RecordingContextSource
 } from "@shared/schema";
 import { IStorage } from "./storage";
 import type {
   RevenueCatWebhookApplyResult,
   RevenueCatWebhookEventRecord,
+  TokenBalanceMutation,
+  TokenBalanceMutationResult,
 } from "./storage";
+import {
+  applyPurchasedTokenCredit,
+  applyTokenDebit,
+  resolveTokenBuckets,
+  tokenBucketUpdates,
+} from "@shared/token-balances";
 
 let serviceAccount: any = null;
 const credPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || process.env.GOOGLE_APPLICATION_CREDENTIALS;
@@ -423,6 +432,8 @@ export class FirestoreStorage implements IStorage {
         proAccessEnabled: user.proAccessEnabled ?? 0,
         hasSeenPlanSelection: user.hasSeenPlanSelection ?? 0,
         tokenBalance: user.tokenBalance ?? 0,
+        monthlyTokenBalance: user.monthlyTokenBalance ?? 0,
+        purchasedTokenBalance: user.purchasedTokenBalance ?? 0,
         tokenAllowanceMonth: user.tokenAllowanceMonth ?? null,
         storageAddonGb: user.storageAddonGb ?? 0,
         role: user.role || "user",
@@ -483,6 +494,7 @@ export class FirestoreStorage implements IStorage {
     apply: async (
       event: RevenueCatWebhookEventRecord,
       updates: Partial<User>,
+      purchasedTokenCredit = 0,
     ): Promise<RevenueCatWebhookApplyResult> => {
       const eventDocumentId = crypto.createHash("sha256").update(event.id).digest("hex");
       const eventCol = this.getCol<any>("revenuecat_webhook_events");
@@ -511,6 +523,7 @@ export class FirestoreStorage implements IStorage {
             return "user_not_found";
           }
           if (
+            event.type !== "NON_RENEWING_PURCHASE" &&
             isRevenueCatEventStale(
               userDocument.data()?.revenueCatLastEventAt,
               event.eventTimestampMs,
@@ -523,8 +536,12 @@ export class FirestoreStorage implements IStorage {
             return "stale";
           }
 
+          const creditUpdates = purchasedTokenCredit > 0
+            ? tokenBucketUpdates(applyPurchasedTokenCredit(userDocument.data() || {}, purchasedTokenCredit, new Date().toISOString().slice(0, 7)))
+            : {};
           transaction.update(userRef, sanitizeForFirestore({
             ...updates,
+            ...creditUpdates,
             updatedAt: now,
           }));
           transaction.create(eventRef, sanitizeForFirestore({
@@ -535,7 +552,7 @@ export class FirestoreStorage implements IStorage {
         });
       }
 
-      return withLocalMutationLock(`revenuecat:${eventDocumentId}`, async () => {
+      return withLocalMutationLock(`revenuecat:${event.userId}`, async () => {
         const existingEvent = await eventCol.get(eventDocumentId);
         if (existingEvent) return "duplicate";
         const user = await userCol.get(event.userId);
@@ -546,15 +563,22 @@ export class FirestoreStorage implements IStorage {
           });
           return "user_not_found";
         }
-        if (isRevenueCatEventStale(user.revenueCatLastEventAt, event.eventTimestampMs)) {
+        if (
+          event.type !== "NON_RENEWING_PURCHASE"
+          && isRevenueCatEventStale(user.revenueCatLastEventAt, event.eventTimestampMs)
+        ) {
           await eventCol.set(eventDocumentId, {
             ...eventRecord,
             outcome: "stale",
           });
           return "stale";
         }
+        const creditUpdates = purchasedTokenCredit > 0
+          ? tokenBucketUpdates(applyPurchasedTokenCredit(user, purchasedTokenCredit, new Date().toISOString().slice(0, 7)))
+          : {};
         await userCol.set(event.userId, {
           ...updates,
+          ...creditUpdates,
           updatedAt: now,
         });
         await eventCol.set(eventDocumentId, {
@@ -570,6 +594,7 @@ export class FirestoreStorage implements IStorage {
     apply: async (
       redemption: { id: string; userId: string; kind: "token_pack" | "storage_addon"; productId: string | null },
       updates: Partial<User>,
+      purchasedTokenCredit = 0,
     ): Promise<"applied" | "duplicate" | "user_not_found"> => {
       const documentId = crypto.createHash("sha256").update(redemption.id).digest("hex");
       const redemptionCol = this.getCol<any>("billing_redemptions");
@@ -590,13 +615,16 @@ export class FirestoreStorage implements IStorage {
             transaction.create(redemptionRef, sanitizeForFirestore({ ...record, outcome: "user_not_found" }));
             return "user_not_found";
           }
-          transaction.update(userRef, sanitizeForFirestore({ ...updates, updatedAt: now }));
+          const creditUpdates = purchasedTokenCredit > 0
+            ? tokenBucketUpdates(applyPurchasedTokenCredit(userDocument.data() || {}, purchasedTokenCredit, new Date().toISOString().slice(0, 7)))
+            : {};
+          transaction.update(userRef, sanitizeForFirestore({ ...updates, ...creditUpdates, updatedAt: now }));
           transaction.create(redemptionRef, sanitizeForFirestore({ ...record, outcome: "applied" }));
           return "applied";
         });
       }
 
-      return withLocalMutationLock(`billingRedemption:${documentId}`, async () => {
+      return withLocalMutationLock(`billingRedemption:${redemption.userId}`, async () => {
         const existing = await redemptionCol.get(documentId);
         if (existing) return "duplicate";
         const user = await userCol.get(redemption.userId);
@@ -604,9 +632,61 @@ export class FirestoreStorage implements IStorage {
           await redemptionCol.set(documentId, { ...record, outcome: "user_not_found" });
           return "user_not_found";
         }
-        await userCol.set(redemption.userId, { ...updates, updatedAt: now });
+        const creditUpdates = purchasedTokenCredit > 0
+          ? tokenBucketUpdates(applyPurchasedTokenCredit(user, purchasedTokenCredit, new Date().toISOString().slice(0, 7)))
+          : {};
+        await userCol.set(redemption.userId, { ...updates, ...creditUpdates, updatedAt: now });
         await redemptionCol.set(documentId, { ...record, outcome: "applied" });
         return "applied";
+      });
+    },
+  };
+
+  tokenBalances = {
+    mutate: async (
+      userId: string,
+      mutation: TokenBalanceMutation,
+    ): Promise<TokenBalanceMutationResult | null> => {
+      const userCol = this.getCol<User>("users");
+      const now = new Date().toISOString();
+      const mutateFields = (user: User) => {
+        const resolved = resolveTokenBuckets(user, mutation.monthKey, mutation.monthlyAllowance);
+        const next = mutation.debit && mutation.debit > 0
+          ? applyTokenDebit(resolved, mutation.debit)
+          : resolved;
+        return {
+          next,
+          updates: tokenBucketUpdates(next),
+        };
+      };
+
+      if (dbClient) {
+        return dbClient.runTransaction(async (transaction: any) => {
+          const userRef = userCol.doc(userId);
+          const document = await transaction.get(userRef);
+          if (!document.exists) return null;
+          const { next, updates } = mutateFields(document.data() as User);
+          transaction.update(userRef, sanitizeForFirestore({ ...updates, updatedAt: now }));
+          return {
+            monthly: next.monthly,
+            purchased: next.purchased,
+            total: next.total,
+            credited: next.credited,
+          };
+        });
+      }
+
+      return withLocalMutationLock(`tokenBalance:${userId}`, async () => {
+        const user = await userCol.get(userId);
+        if (!user) return null;
+        const { next, updates } = mutateFields(user);
+        await userCol.set(userId, { ...updates, updatedAt: now });
+        return {
+          monthly: next.monthly,
+          purchased: next.purchased,
+          total: next.total,
+          credited: next.credited,
+        };
       });
     },
   };
@@ -1622,7 +1702,76 @@ export class FirestoreStorage implements IStorage {
       } else {
         return col.delete(id);
       }
-    }
+    },
+    linkDiscord: async (userId: string, discordUserId: string, now: Date) => {
+      const col = this.getCol<Account>("accounts");
+      const accountId = `discord_${crypto.createHash("sha256").update(discordUserId).digest("hex").slice(0, 40)}`;
+      const buildAccount = (): Account => ({
+        id: accountId,
+        accountId: discordUserId,
+        providerId: "discord",
+        userId,
+        accessToken: null,
+        refreshToken: null,
+        idToken: null,
+        accessTokenExpiresAt: null,
+        refreshTokenExpiresAt: null,
+        scope: "identify",
+        password: null,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+      });
+
+      if (dbClient) {
+        const accountRef = col.doc(accountId);
+        const userQuery = col
+          .where("userId", "==", userId)
+          .where("providerId", "==", "discord")
+          .limit(1);
+        return dbClient.runTransaction(async (transaction: any) => {
+          const [discordDoc, userSnapshot] = await Promise.all([
+            transaction.get(accountRef),
+            transaction.get(userQuery),
+          ]);
+          if (discordDoc.exists) {
+            const existing = normalizeDoc({ ...discordDoc.data(), id: discordDoc.id }) as Account;
+            return existing.userId === userId
+              ? { status: "already_linked" as const, account: existing }
+              : { status: "discord_in_use" as const };
+          }
+          if (!userSnapshot.empty) {
+            const doc = userSnapshot.docs[0];
+            const existing = normalizeDoc({ ...doc.data(), id: doc.id }) as Account;
+            if (existing.accountId === discordUserId) {
+              return { status: "already_linked" as const, account: existing };
+            }
+            return { status: "user_has_other" as const };
+          }
+          const account = buildAccount();
+          transaction.create(accountRef, sanitizeForFirestore(account));
+          return { status: "linked" as const, account };
+        });
+      }
+
+      return withLocalMutationLock("discord-account-link", async () => {
+        const byDiscord = await this.accounts.getByProviderIdAndAccountId("discord", discordUserId);
+        if (byDiscord) {
+          return byDiscord.userId === userId
+            ? { status: "already_linked" as const, account: byDiscord }
+            : { status: "discord_in_use" as const };
+        }
+        const byUser = await this.accounts.getByUserAndProvider(userId, "discord");
+        if (byUser) return { status: "user_has_other" as const };
+        const account = buildAccount();
+        await col.set(account.id, account);
+        return { status: "linked" as const, account };
+      });
+    },
+    unlinkDiscord: async (userId: string): Promise<boolean> => {
+      const existing = await this.accounts.getByUserAndProvider(userId, "discord");
+      if (!existing) return false;
+      return this.accounts.delete(existing.id);
+    },
   };
 
   // Verifications Repository
@@ -2008,6 +2157,7 @@ export class FirestoreStorage implements IStorage {
     }
   };
 
+
   // Trusted Devices Repository
   trustedDevices = {
     getByUser: async (userId: string): Promise<TrustedDevice[]> => {
@@ -2259,6 +2409,260 @@ export class FirestoreStorage implements IStorage {
       } else {
         return col.delete(id);
       }
+    },
+  };
+
+  discordCaptureSessions = {
+    get: async (id: string): Promise<DiscordCaptureSession | undefined> => {
+      const col = this.getCol<DiscordCaptureSession>("discordCaptureSessions");
+      if (dbClient) {
+        const doc = await col.doc(id).get();
+        return doc.exists
+          ? normalizeDoc({ ...doc.data(), id: doc.id }) as DiscordCaptureSession
+          : undefined;
+      }
+      return col.get(id);
+    },
+    arm: async (session: DiscordCaptureSession): Promise<DiscordCaptureSession> => {
+      const col = this.getCol<DiscordCaptureSession>("discordCaptureSessions");
+      if (dbClient) {
+        await col.doc(session.id).set(sanitizeForFirestore(session));
+        return session;
+      }
+      return col.set(session.id, session);
+    },
+    claim: async (
+      id: string,
+      discordUserId: string,
+      channelId: string,
+      voiceMessageId: string,
+      now: Date,
+    ): Promise<DiscordCaptureSession | undefined> => {
+      const col = this.getCol<DiscordCaptureSession>("discordCaptureSessions");
+      const claimUpdates = {
+        status: "claimed" as const,
+        voiceMessageId,
+        claimedAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+      };
+      const canClaim = (session: DiscordCaptureSession | undefined) => Boolean(
+        session
+        && session.status === "armed"
+        && session.discordUserId === discordUserId
+        && session.channelId === channelId
+        && new Date(session.expiresAt).getTime() > now.getTime(),
+      );
+      if (dbClient) {
+        const ref = col.doc(id);
+        return dbClient.runTransaction(async (transaction: any) => {
+          const doc = await transaction.get(ref);
+          const session = doc.exists
+            ? normalizeDoc({ ...doc.data(), id: doc.id }) as DiscordCaptureSession
+            : undefined;
+          if (!canClaim(session)) return undefined;
+          const claimedId = `${id}_${voiceMessageId}`;
+          const claimed = { ...session!, ...claimUpdates, id: claimedId };
+          transaction.create(col.doc(claimedId), sanitizeForFirestore(claimed));
+          transaction.update(ref, sanitizeForFirestore({
+            ...claimUpdates,
+            interactionToken: null,
+          }));
+          return claimed;
+        });
+      }
+      return withLocalMutationLock(`discord-capture:${id}`, async () => {
+        const session = await col.get(id);
+        if (!canClaim(session)) return undefined;
+        const claimedId = `${id}_${voiceMessageId}`;
+        const claimed = await col.set(claimedId, { ...session, ...claimUpdates, id: claimedId });
+        await col.set(id, { ...claimUpdates, interactionToken: null });
+        return claimed;
+      });
+    },
+    update: async (id: string, updates: Partial<DiscordCaptureSession>): Promise<DiscordCaptureSession | undefined> => {
+      const col = this.getCol<DiscordCaptureSession>("discordCaptureSessions");
+      const existing = await this.discordCaptureSessions.get(id);
+      if (!existing) return undefined;
+      const cleanUpdates = { ...updates, updatedAt: new Date().toISOString() };
+      if (dbClient) {
+        await col.doc(id).update(sanitizeForFirestore(cleanUpdates));
+        const doc = await col.doc(id).get();
+        return normalizeDoc({ ...doc.data(), id: doc.id }) as DiscordCaptureSession;
+      }
+      return col.set(id, cleanUpdates);
+    },
+  };
+
+  discordJobs = {
+    get: async (id: string): Promise<DiscordJob | undefined> => {
+      const col = this.getCol<DiscordJob>("discordJobs");
+      if (dbClient) {
+        const doc = await col.doc(id).get();
+        return doc.exists
+          ? normalizeDoc({ ...doc.data(), id: doc.id }) as DiscordJob
+          : undefined;
+      }
+      return col.get(id);
+    },
+    createIfAbsent: async (job: DiscordJob): Promise<{ created: boolean; job: DiscordJob }> => {
+      const col = this.getCol<DiscordJob>("discordJobs");
+      if (dbClient) {
+        const ref = col.doc(job.id);
+        return dbClient.runTransaction(async (transaction: any) => {
+          const doc = await transaction.get(ref);
+          if (doc.exists) {
+            return {
+              created: false,
+              job: normalizeDoc({ ...doc.data(), id: doc.id }) as DiscordJob,
+            };
+          }
+          transaction.create(ref, sanitizeForFirestore(job));
+          return { created: true, job };
+        });
+      }
+      return withLocalMutationLock(`discord-job:${job.id}`, async () => {
+        const existing = await col.get(job.id);
+        if (existing) return { created: false, job: existing };
+        await col.set(job.id, job);
+        return { created: true, job };
+      });
+    },
+    claim: async (id: string, now: Date): Promise<DiscordJob | undefined> => {
+      const col = this.getCol<DiscordJob>("discordJobs");
+      const applyClaim = (job: DiscordJob) => ({
+        ...job,
+        status: "running" as const,
+        attemptCount: (job.attemptCount || 0) + 1,
+        startedAt: job.startedAt || now.toISOString(),
+        updatedAt: now.toISOString(),
+      });
+      if (dbClient) {
+        const ref = col.doc(id);
+        return dbClient.runTransaction(async (transaction: any) => {
+          const doc = await transaction.get(ref);
+          if (!doc.exists) return undefined;
+          const job = normalizeDoc({ ...doc.data(), id: doc.id }) as DiscordJob;
+          if (job.status === "succeeded") return job;
+          if (job.status === "running") return undefined;
+          const claimed = applyClaim(job);
+          transaction.update(ref, sanitizeForFirestore(claimed));
+          return claimed;
+        });
+      }
+      return withLocalMutationLock(`discord-job:${id}`, async () => {
+        const job = await col.get(id);
+        if (!job || job.status === "running") return undefined;
+        if (job.status === "succeeded") return job;
+        return col.set(id, applyClaim(job));
+      });
+    },
+    claimPublication: async (id: string, discordUserId: string, now: Date): Promise<boolean> => {
+      const col = this.getCol<DiscordJob>("discordJobs");
+      const canClaim = (job: DiscordJob | undefined) => {
+        if (!job || job.status !== "succeeded" || job.discordUserId !== discordUserId) return false;
+        if (!job.publicMessageId) return true;
+        if (!job.publicMessageId.startsWith("publishing:")) return false;
+        const claimedAt = Number(job.publicMessageId.slice("publishing:".length));
+        return Number.isFinite(claimedAt) && now.getTime() - claimedAt > 2 * 60 * 1000;
+      };
+      const marker = `publishing:${now.getTime()}`;
+      if (dbClient) {
+        const ref = col.doc(id);
+        return dbClient.runTransaction(async (transaction: any) => {
+          const doc = await transaction.get(ref);
+          const job = doc.exists
+            ? normalizeDoc({ ...doc.data(), id: doc.id }) as DiscordJob
+            : undefined;
+          if (!canClaim(job)) return false;
+          transaction.update(ref, { publicMessageId: marker, updatedAt: now.toISOString() });
+          return true;
+        });
+      }
+      return withLocalMutationLock(`discord-publish:${id}`, async () => {
+        const job = await col.get(id);
+        if (!canClaim(job)) return false;
+        await col.set(id, { publicMessageId: marker, updatedAt: now.toISOString() });
+        return true;
+      });
+    },
+    update: async (id: string, updates: Partial<DiscordJob>): Promise<DiscordJob | undefined> => {
+      const col = this.getCol<DiscordJob>("discordJobs");
+      const existing = await this.discordJobs.get(id);
+      if (!existing) return undefined;
+      const cleanUpdates = { ...updates, updatedAt: new Date().toISOString() };
+      if (dbClient) {
+        await col.doc(id).update(sanitizeForFirestore(cleanUpdates));
+        const doc = await col.doc(id).get();
+        return normalizeDoc({ ...doc.data(), id: doc.id }) as DiscordJob;
+      }
+      return col.set(id, cleanUpdates);
+    },
+  };
+
+  discordGuildSettings = {
+    get: async (guildId: string): Promise<DiscordGuildSettings | undefined> => {
+      const col = this.getCol<DiscordGuildSettings>("discordGuildSettings");
+      const id = `discord_guild_${guildId}`;
+      if (dbClient) {
+        const doc = await col.doc(id).get();
+        return doc.exists
+          ? normalizeDoc({ ...doc.data(), id: doc.id }) as DiscordGuildSettings
+          : undefined;
+      }
+      return col.get(id);
+    },
+    upsert: async (settings: DiscordGuildSettings): Promise<DiscordGuildSettings> => {
+      const col = this.getCol<DiscordGuildSettings>("discordGuildSettings");
+      if (dbClient) {
+        await col.doc(settings.id).set(sanitizeForFirestore(settings), { merge: true });
+        const doc = await col.doc(settings.id).get();
+        return normalizeDoc({ ...doc.data(), id: doc.id }) as DiscordGuildSettings;
+      }
+      return col.set(settings.id, settings);
+    },
+  };
+
+  discordLinkStates = {
+    create: async (state: DiscordLinkState): Promise<DiscordLinkState> => {
+      const col = this.getCol<DiscordLinkState>("discordLinkStates");
+      if (dbClient) {
+        await col.doc(state.id).create(sanitizeForFirestore(state));
+        return state;
+      }
+      return col.set(state.id, state);
+    },
+    consume: async (
+      stateHash: string,
+      now: Date,
+      kind?: DiscordLinkState["kind"],
+    ): Promise<DiscordLinkState | undefined> => {
+      const col = this.getCol<DiscordLinkState>("discordLinkStates");
+      const id = `discord_link_${stateHash}`;
+      const canConsume = (state: DiscordLinkState | undefined) => Boolean(
+        state
+        && state.stateHash === stateHash
+        && (!kind || state.kind === kind)
+        && !state.consumedAt
+        && new Date(state.expiresAt).getTime() > now.getTime(),
+      );
+      if (dbClient) {
+        const ref = col.doc(id);
+        return dbClient.runTransaction(async (transaction: any) => {
+          const doc = await transaction.get(ref);
+          const state = doc.exists
+            ? normalizeDoc({ ...doc.data(), id: doc.id }) as DiscordLinkState
+            : undefined;
+          if (!canConsume(state)) return undefined;
+          const consumedAt = now.toISOString();
+          transaction.update(ref, { consumedAt });
+          return { ...state!, consumedAt };
+        });
+      }
+      return withLocalMutationLock(`discord-link-state:${id}`, async () => {
+        const state = await col.get(id);
+        if (!canConsume(state)) return undefined;
+        return col.set(id, { consumedAt: now.toISOString() });
+      });
     },
   };
 
@@ -3205,6 +3609,9 @@ export class FirestoreStorage implements IStorage {
     await deleteByQuery("accounts", "userId", userId);
     await deleteByQuery("bucketFiles", "userId", userId);
     await deleteByQuery("developerApiKeys", "userId", userId);
+    await deleteByQuery("discordCaptureSessions", "userId", userId);
+    await deleteByQuery("discordJobs", "userId", userId);
+    await deleteByQuery("discordLinkStates", "userId", userId);
 
     // 2. Dissociate assigned userModules (set assignedBy = null)
     const umCol = this.getCol("userModules");

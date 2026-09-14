@@ -321,7 +321,6 @@ developerApiRouter.post("/convert", apiKeyAuth, aiRateLimiter, async (req: Reque
       bibliographyType: req.body?.bibliographyType,
       outputFormat: req.body?.outputFormat === "plain" ? "plain" : "markdown",
       language: req.body?.language === "es" ? "es" : "en",
-      confirmExtendedAccess: req.body?.confirmExtendedAccess === true || req.body?.confirmExtendedAccess === "true",
     });
     res.json(result);
   } catch (error: any) {

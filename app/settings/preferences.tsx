@@ -16,42 +16,8 @@ import Colors from "@/constants/colors";
 import { useResponsiveLayout } from "@/lib/useResponsiveLayout";
 import { useLanguage, type Language } from "@/lib/i18n";
 import { useTextScale, useTextSizePref, sf, type TextScale, type TextSizePreference } from "@/lib/typography";
-import { useRecordings } from "@/lib/recordings-context";
 import { useClarifyMode, type ClarifyMode } from "@/lib/clarify-mode";
 
-
-function AutoTranscribeSetting() {
-  const { t, language } = useLanguage();
-  const { isAutoTranscribeEnabled, setAutoTranscribe } = useRecordings();
-  const ts = useTextScale();
-  const aStyles = useMemo(() => makeAStyles(ts), [ts]);
-
-  return (
-    <View style={aStyles.section}>
-      <View style={aStyles.menuRow}>
-        <Feather name="mic" size={18} color={Colors.textSecondary} />
-        <View style={{ flex: 1 }}>
-          <Text style={aStyles.menuLabel}>
-            {language === "es" ? "Auto-transcribir por defecto" : "Auto-transcribe by default"}
-          </Text>
-          <Text style={aStyles.menuSubLabel}>
-            {language === "es"
-              ? "Las grabaciones se transcribirán automáticamente. Desactívalo para elegir cuándo transcribir."
-              : "Recordings will be transcribed automatically. Disable to choose when to transcribe."}
-          </Text>
-        </View>
-        <Switch
-          value={isAutoTranscribeEnabled}
-          onValueChange={(val) => {
-            setAutoTranscribe(val);
-          }}
-          trackColor={{ false: Colors.border, true: Colors.primary }}
-          thumbColor="#fff"
-        />
-      </View>
-    </View>
-  );
-}
 
 function TextSizeSetting() {
   const { t } = useLanguage();
@@ -197,8 +163,6 @@ export default function PreferencesScreen() {
           </View>
         </View>
 
-        <AutoTranscribeSetting />
-
         <TextSizeSetting />
 
         <ClarifyModeSetting />
@@ -267,6 +231,22 @@ const makeAStyles = (ts: TextScale) => StyleSheet.create({
     fontSize: sf(12, ts),
     fontFamily: "Inter_400Regular",
     color: Colors.textMuted,
+    lineHeight: sf(17, ts),
+  },
+  advisoryCard: {
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    paddingTop: 4,
+  },
+  advisoryCardWarn: {
+    backgroundColor: "rgba(245, 158, 11, 0.08)",
+  },
+  advisoryText: {
+    fontSize: sf(12, ts),
+    fontFamily: "Inter_400Regular",
+    color: Colors.textSecondary,
     lineHeight: sf(17, ts),
   },
   langToggle: {

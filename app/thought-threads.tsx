@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -54,6 +56,7 @@ export default function ThoughtThreadsScreen() {
   }), [threads]);
 
   const createEmpty = async () => {
+    if (creating) return;
     setCreating(true);
     setError("");
     try {
@@ -63,7 +66,13 @@ export default function ThoughtThreadsScreen() {
         params: { id: detail.thread.id },
       });
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : "Could not create a Thought Thread.");
+      const message = createError instanceof Error ? createError.message : "Could not create a Thought Thread.";
+      setError(message);
+      // The inline banner can be missed since it renders above the fold of a
+      // scroll view the user may not be looking at; surface it unmistakably
+      // too, matching the create flow in app/recordings.tsx.
+      if (Platform.OS === "web") alert(message);
+      else Alert.alert(t("common.error"), message);
     } finally {
       setCreating(false);
     }
@@ -134,9 +143,11 @@ export default function ThoughtThreadsScreen() {
           <Pressable
             onPress={createEmpty}
             disabled={creating}
-            style={styles.iconButton}
+            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+            hitSlop={8}
             accessibilityRole="button"
             accessibilityLabel={t("thread.create" as any)}
+            testID="thread-create-button"
           >
             {creating
               ? <ActivityIndicator size="small" color={Colors.primary} />

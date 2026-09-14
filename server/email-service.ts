@@ -37,11 +37,11 @@ export async function sendFeedbackEmail(opts: {
   accountSurfaces?: string;
   /** True when the account uses more than one surface, so both need checking. */
   crossSurface?: boolean;
-  attachment?: {
+  attachments?: {
     filename: string;
     content: string;
     type: string;
-  };
+  }[];
 }): Promise<boolean> {
   if (!ensureInitialized()) return false;
 
@@ -87,12 +87,12 @@ export async function sendFeedbackEmail(opts: {
         <p style="color: #5A7399; font-size: 11px; margin: 0;">&copy; ${new Date().getFullYear()} <a href="https://schoedeldesign.ai" style="color: #00B4D8; text-decoration: none;">Schoedel Design AI</a></p>
       </div>
     </div>`,
-    attachments: opts.attachment ? [{
-      content: opts.attachment.content,
-      filename: opts.attachment.filename,
-      type: opts.attachment.type,
-      disposition: "attachment"
-    }] : undefined,
+    attachments: opts.attachments?.map((a) => ({
+      content: a.content,
+      filename: a.filename,
+      type: a.type,
+      disposition: "attachment",
+    })),
   });
 
   console.log(`SendGrid feedback email response: status=${response.statusCode}, to=${SUPPORT_EMAIL}, from=${FROM_EMAIL}, subject=${subject}`);

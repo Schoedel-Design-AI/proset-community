@@ -20,7 +20,7 @@ test("Android release is adaptive, edge-to-edge, and R8 optimized", () => {
   const rules = read("android/app/proguard-rules.pro");
   const packageJson = JSON.parse(read("package.json"));
 
-  assert.doesNotMatch(manifest, /screenOrientation=/);
+  assert.match(manifest, /android:screenOrientation="sensorPortrait"/);
   assert.doesNotMatch(manifest, /resizeableActivity=/);
   assert.doesNotMatch(manifest, /enableOnBackInvokedCallback="false"/);
   assert.match(

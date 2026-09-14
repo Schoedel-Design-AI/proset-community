@@ -8,11 +8,11 @@ const source = readFileSync(
 );
 
 test("feedback modal keeps the form flexible but collapses the sent confirmation card", () => {
-  assert.match(source, /modal:\s*\{[\s\S]*?flex:\s*1,[\s\S]*?\}/);
-  assert.match(source, /modalSent:\s*\{\s*flex:\s*0,\s*\}/);
+  assert.match(source, /modal:\s*\{[\s\S]*?flex:\s*1/);
+  assert.match(source, /modalSent:\s*\{[\s\S]*?flex:\s*0/);
   assert.match(
     source,
-    /<View style=\{\[styles\.modal, sent && styles\.modalSent, \{ maxHeight: modalMaxHeight \}\]\}>/,
+    /styles\.modal,\s*sent && styles\.modalSent,\s*!sent &&\s*\{\s*maxHeight:\s*modalMaxHeight\s*\}/,
   );
 });
 

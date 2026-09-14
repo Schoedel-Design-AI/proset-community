@@ -14,6 +14,8 @@ type FeedbackWorkItemOptions = {
   accountSurfaces?: string;
   /** True when the account uses more than one surface. */
   crossSurface?: boolean;
+  /** Public URLs of the attached screenshots, embedded in the issue body. */
+  imageUrls?: string[];
 };
 
 type GitHubIssueResponse = {
@@ -43,7 +45,7 @@ function buildIssueTitle(category: string, message: string): string {
   return `[Feedback] ${category}${summary ? `: ${summary}` : ""}`.slice(0, 255);
 }
 
-function buildIssueDescription(opts: FeedbackWorkItemOptions): string {
+export function buildIssueDescription(opts: FeedbackWorkItemOptions): string {
   const submittedBy = opts.userName || "Unknown user";
   const submittedAt = new Date().toISOString();
   const userLines = [
@@ -56,7 +58,7 @@ function buildIssueDescription(opts: FeedbackWorkItemOptions): string {
     opts.accountSurfaces ? `Account surfaces: ${opts.accountSurfaces}` : null,
   ].filter(Boolean);
 
-  return [
+  const parts = [
     "## Proset Feedback Submission",
     "",
     `Category: ${opts.category}`,
@@ -72,7 +74,17 @@ function buildIssueDescription(opts: FeedbackWorkItemOptions): string {
     "## Message",
     "",
     opts.message.trim(),
-  ].join("\n");
+  ];
+
+  // Screenshots render as hosted image URLs — GitHub does not render base64
+  // data URIs, so each is a public object-storage route (option A). Multiple
+  // screenshots are supported.
+  if (opts.imageUrls && opts.imageUrls.length > 0) {
+    const heading = opts.imageUrls.length === 1 ? "## Screenshot" : "## Screenshots";
+    parts.push("", heading, "", ...opts.imageUrls.map((url) => `![Screenshot](${url})`));
+  }
+
+  return parts.join("\n");
 }
 
 /**

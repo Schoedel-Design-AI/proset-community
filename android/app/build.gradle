@@ -93,8 +93,8 @@ android {
         applicationId 'ms.aifor.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 103
-        versionName "1.0.67"
+        versionCode 117
+        versionName "1.0.79"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         externalNativeBuild {
@@ -142,6 +142,15 @@ android {
     buildTypes {
         debug {
             signingConfig = signingConfigs.debug
+            // Opt-in dev package so a debug build can be installed ALONGSIDE the
+            // Play-signed production app on a physical device:
+            //   ./gradlew ... -Pproset.devApplicationIdSuffix=true
+            // Deliberately NOT unconditional - a blanket suffix would silently
+            // change every developer's debug package and break it against their
+            // own google-services.json (which only registers ms.aifor.app).
+            if (findProperty("proset.devApplicationIdSuffix") == "true") {
+                applicationIdSuffix ".devt"
+            }
         }
         release {
             signingConfig = signingConfigs.release

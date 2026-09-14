@@ -1,16 +1,14 @@
 import { storage } from "../../storage";
 import {
+  resolveConversionModelId,
   type UserConversionModelPreferences,
   type UserSelectableConversionModelId,
 } from "../../conversion-model-routing";
 
+/** Retired catalog ids stay selectable so a stored preference keeps working;
+ *  normalization maps them onto their current replacement. */
 export function isSelectableModelId(value: unknown): value is UserSelectableConversionModelId {
-  return value === "qwen_35_14b"
-    || value === "deepseek_v4_flash"
-    || value === "deepseek_v4_flash_fireworks"
-    || value === "deepseek_v4_pro"
-    || value === "groq_qwen_36_27b"
-    || value === "groq_gpt_oss_120b";
+  return resolveConversionModelId(value) !== null;
 }
 
 export function normalizeModelPreferenceInput(value: unknown): UserSelectableConversionModelId | null | undefined {
@@ -19,18 +17,18 @@ export function normalizeModelPreferenceInput(value: unknown): UserSelectableCon
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   if (!trimmed) return null;
-  return isSelectableModelId(trimmed) ? trimmed : undefined;
+  return resolveConversionModelId(trimmed) ?? undefined;
 }
 
 export async function getUserConversionModelPreferences(userId: string): Promise<UserConversionModelPreferences> {
   const preference = await storage.userAiModelPreferences.get(userId);
 
   return {
-    regularModelId: preference?.regularModelId && isSelectableModelId(preference.regularModelId)
-      ? preference.regularModelId
+    regularModelId: preference?.regularModelId
+      ? resolveConversionModelId(preference.regularModelId)
       : null,
-    advancedModelId: preference?.advancedModelId && isSelectableModelId(preference.advancedModelId)
-      ? preference.advancedModelId
+    advancedModelId: preference?.advancedModelId
+      ? resolveConversionModelId(preference.advancedModelId)
       : null,
   };
 }

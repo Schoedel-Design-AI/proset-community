@@ -1,4 +1,5 @@
 import { Platform } from "react-native";
+import { authFetch, getAuthHeaders } from "./query-client";
 
 export namespace Audio {
   export interface RecordingStatus {
@@ -281,8 +282,7 @@ export namespace Audio {
         let playUri = source.uri;
         if (source.uri && !source.uri.startsWith("blob:") && !source.uri.startsWith("data:")) {
           try {
-            const { authFetch } = require("./query-client");
-            const res = await authFetch(source.uri);
+            const res = await authFetch(source.uri, { credentials: "include" });
             if (res.ok) {
               const blob = await res.blob();
               playUri = URL.createObjectURL(blob);
@@ -439,7 +439,9 @@ export namespace Audio {
             await this.nativeSound.resumePlayer();
           } else {
             const cleanPath = this.uri.replace(/^file:\/\//, "");
-            await this.nativeSound.startPlayer(cleanPath);
+            const isRemote = cleanPath.startsWith("http://") || cleanPath.startsWith("https://");
+            const headers = isRemote ? getAuthHeaders() : undefined;
+            await this.nativeSound.startPlayer(cleanPath, headers);
             this.nativePlayerStarted = true;
             this.nativeSound.addPlayBackListener((e: any) => {
               this.position = e.currentPosition;
@@ -455,6 +457,15 @@ export namespace Audio {
             });
           }
         }
+      }
+    }
+
+    async setPositionAsync(positionMillis: number) {
+      if (Platform.OS === "web" && this.audio) {
+        this.audio.currentTime = positionMillis / 1000;
+        this.updateStatus();
+      } else if (Platform.OS !== "web" && this.nativeSound) {
+        await this.nativeSound.seekToPlayer(positionMillis);
       }
     }
 

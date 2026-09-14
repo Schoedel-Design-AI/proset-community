@@ -38,7 +38,6 @@ export interface CoreConversionInput {
   bibliographyType?: string;
   outputFormat?: "markdown" | "plain";
   language?: string;
-  confirmExtendedAccess?: boolean;
 }
 
 export interface CoreConversionResult {
@@ -82,9 +81,9 @@ export async function runCoreConversion(
     throw httpError(400, "custom_prompt_too_long", "Custom prompt is too long (max 5,000 characters).");
   }
 
-  // Token gate — soft: allowed while the running balance is positive. A single
-  // grace conversion may push the balance negative; the deduction happens after
-  // the model responds with its actual token usage.
+  // Token gate — allowed while prepaid credit remains. The actual model usage
+  // is deducted after completion and clamps at zero, so no automatic monetary
+  // overage or token debt is created.
   const limitCheck = await checkConversionLimit(userId, type);
   if (!limitCheck.allowed) {
     if (limitCheck.spendingCapReached) {
@@ -122,7 +121,7 @@ export async function runCoreConversion(
 
   const formatInstruction =
     outputFormat === "markdown" && !STRUCTURED_OUTPUT_TYPES.has(type)
-      ? `\n\nOUTPUT FORMAT — MARKDOWN: Format your entire response using standard Markdown. Use # for the document title, ## for major section headers, and ### for sub-section headers. Use **bold** for key terms and important points. Use unordered lists (- item) for bullet points and ordered lists (1. item) for sequential steps or ranked items. Use > for blockquotes when highlighting key information. Use \`code\` for inline technical terms or values. Use --- for horizontal rules between major sections when appropriate. Follow standard CommonMark Markdown conventions consistently throughout. Do not mix plain-text heading styles (e.g., UPPERCASE or underlines) with Markdown.`
+      ? `\n\nOUTPUT FORMAT — MARKDOWN: Format your entire response using standard Markdown. Use # for the document title, ## for major section headers, and ### for sub-section headers. Every section and sub-section MUST begin with a ## or ### heading — never render a heading as a standalone bold line (**text**). Use **bold** only for key terms and important points inline, never as a substitute for a heading. Use unordered lists (- item) for bullet points and ordered lists (1. item) for sequential steps or ranked items. Use > for blockquotes when highlighting key information. Use \`code\` for inline technical terms or values. Use --- for horizontal rules between major sections when appropriate. Follow standard CommonMark Markdown conventions consistently throughout. Do not mix plain-text heading styles (e.g., UPPERCASE or underlines) with Markdown.`
       : outputFormat !== "markdown"
         ? `\n\nOUTPUT FORMAT — THIS OVERRIDES ALL OTHER FORMATTING INSTRUCTIONS ABOVE: Return clean plain text only. Do not use Markdown headings, emphasis, links, checkboxes, code fences, blockquotes, or horizontal rules. Use UPPERCASE or Title Case headings, plain dashes or numbers for lists, blank lines for section separation, and indentation for hierarchy. The output must be readable without a Markdown renderer.`
         : "";
@@ -182,7 +181,7 @@ export async function runCoreConversion(
     throw httpError(502, "provider_unavailable", "All conversion providers are currently unavailable. Please try again later.");
   }
 
-  content = sanitizeConversionOutput(type, content);
+  content = sanitizeConversionOutput(type, content, outputFormat);
   if (!limitCheck.friendsAdvancedConversion) {
     await deductConversionTokens(userId, computeConversionTokenCost({
       usage: conversionUsage,

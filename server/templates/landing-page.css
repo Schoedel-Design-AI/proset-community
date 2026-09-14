@@ -789,6 +789,61 @@ img,svg{display:block;max-width:100%;height:auto}
   background-color: #23c3df;
 }
 
+/* Pitch deck download section */
+.deck-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  max-width: 46rem;
+  margin: 0 auto;
+}
+@media (min-width: 768px) {
+  .deck-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.deck-card {
+  background-color: var(--brand-surface);
+  border: 1px solid var(--brand-border);
+  border-radius: 1rem;
+  padding: 1.75rem 1.5rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.deck-card-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--brand-text);
+}
+.deck-card-desc {
+  font-size: 0.9rem;
+  color: var(--brand-textSecondary);
+}
+.deck-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: auto;
+}
+.deck-btn-secondary {
+  display: inline-flex;
+  justify-content: center;
+  min-width: 9rem;
+  padding: 0.85rem 1.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--brand-border);
+  background-color: var(--brand-surfaceLight);
+  color: var(--brand-text);
+  font-weight: 600;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+.deck-btn-secondary:hover {
+  border-color: var(--brand-primary);
+  background-color: var(--brand-surfaceHighlight);
+}
+
 .final-cta-section {
   display: flex;
   flex-direction: column;

@@ -3,11 +3,20 @@ import { type AIClientProvider, getAIModel, hasDedicatedAIProviderConfig } from 
 export type ConversionModelBucket = "regular" | "advanced";
 export type UserSelectableConversionModelId =
   | "qwen_35_14b"
-  | "deepseek_v4_flash"
-  | "deepseek_v4_flash_fireworks"
-  | "deepseek_v4_pro"
+  | "deepseek_flash"
+  | "deepseek_flash_fireworks"
+  | "deepseek_advanced"
   | "groq_qwen_36_27b"
   | "groq_gpt_oss_120b";
+
+/** Catalog ids retired by the 2026-09 DeepSeek rename. Stored user preferences
+ *  and older client payloads can still carry these, so they resolve to their
+ *  replacement instead of silently resetting a user's choice to the default. */
+const LEGACY_CONVERSION_MODEL_ID_ALIASES: Record<string, UserSelectableConversionModelId> = {
+  deepseek_v4_flash: "deepseek_flash",
+  deepseek_v4_flash_fireworks: "deepseek_flash_fireworks",
+  deepseek_v4_pro: "deepseek_advanced",
+};
 
 export interface UserConversionModelPreferences {
   regularModelId: UserSelectableConversionModelId | null;
@@ -33,9 +42,9 @@ export interface ConversionModelRoute {
 
 const DEFAULT_CONTEXT_WINDOWS: Partial<Record<UserSelectableConversionModelId, number>> = {
   qwen_35_14b: 64_000,
-  deepseek_v4_flash: 1_000_000,
-  deepseek_v4_flash_fireworks: 1_000_000,
-  deepseek_v4_pro: 256_000,
+  deepseek_flash: 1_000_000,
+  deepseek_flash_fireworks: 1_000_000,
+  deepseek_advanced: 256_000,
   groq_qwen_36_27b: 131_072,
   groq_gpt_oss_120b: 131_072,
 };
@@ -89,17 +98,17 @@ const MODEL_DEFINITIONS: Record<UserSelectableConversionModelId, Omit<UserSelect
     provider: "qwen",
     bucket: "regular",
   },
-  deepseek_v4_flash: {
-    id: "deepseek_v4_flash",
-    label: "DeepSeek V4 Flash",
-    description: "Primary model. 1M context at $0.14/M input.",
+  deepseek_flash: {
+    id: "deepseek_flash",
+    label: "DeepSeek Flash",
+    description: "Primary model for regular conversions. 1M-token context with adjustable reasoning effort.",
     provider: "deepseek",
     bucket: "regular",
   },
-  deepseek_v4_flash_fireworks: {
-    id: "deepseek_v4_flash_fireworks",
-    label: "DeepSeek V4 Flash (Fireworks)",
-    description: "DeepSeek V4 Flash served by Fireworks — same model, ~176 t/s output, lower first-token latency. Primary.",
+  deepseek_flash_fireworks: {
+    id: "deepseek_flash_fireworks",
+    label: "DeepSeek Flash (Fireworks)",
+    description: "DeepSeek Flash served by Fireworks for lower first-token latency. Primary for regular conversions.",
     provider: "fireworks",
     bucket: "regular",
   },
@@ -110,10 +119,10 @@ const MODEL_DEFINITIONS: Record<UserSelectableConversionModelId, Omit<UserSelect
     provider: "groq",
     bucket: "regular",
   },
-  deepseek_v4_pro: {
-    id: "deepseek_v4_pro",
-    label: "DeepSeek V4 Pro",
-    description: "Flagship model for advanced reasoning and research. $0.44/M input after permanent 75% price cut.",
+  deepseek_advanced: {
+    id: "deepseek_advanced",
+    label: "DeepSeek (advanced)",
+    description: "DeepSeek lane for advanced conversions — research, bibliography, course syllabus, and prompts.",
     provider: "deepseek",
     bucket: "advanced",
   },
@@ -126,15 +135,24 @@ const MODEL_DEFINITIONS: Record<UserSelectableConversionModelId, Omit<UserSelect
   },
 };
 
+/** Resolves a stored, configured, or client-supplied id to a current catalog id. */
+export function resolveConversionModelId(value: unknown): UserSelectableConversionModelId | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const current = LEGACY_CONVERSION_MODEL_ID_ALIASES[trimmed] ?? trimmed;
+  return current in MODEL_DEFINITIONS ? (current as UserSelectableConversionModelId) : null;
+}
+
 const DEFAULT_MODEL_ORDER: Record<ConversionModelBucket, UserSelectableConversionModelId[]> = {
-  // Fireworks-hosted DeepSeek V4 Flash is primary (same model, ~176 t/s,
-  // lower TTFT). When Fireworks is not configured, official DeepSeek V4
-  // Flash takes its place as primary (same quality). Groq Qwen 3.6 27B is
-  // the fast cross-provider backup. Groq-first for mechanical types was
-  // evaluated and rejected: DeepSeek V4 Flash beats Qwen3.6 27B on quality
-  // (AA Intelligence Index 50 vs 37) and price ($0.06 vs $0.90/M blended).
-  regular: ["deepseek_v4_flash_fireworks", "deepseek_v4_flash", "groq_qwen_36_27b"],
-  advanced: ["deepseek_v4_pro", "groq_gpt_oss_120b"],
+  // Fireworks-hosted DeepSeek Flash is primary (same model, ~176 t/s,
+  // lower TTFT). When Fireworks is not configured, official DeepSeek Flash
+  // takes its place as primary (same quality). Groq Qwen 3.6 27B is the fast
+  // cross-provider backup. Groq-first for mechanical types was evaluated and
+  // rejected: DeepSeek Flash beats Qwen3.6 27B on quality (AA Intelligence
+  // Index 50 vs 37) and price ($0.06 vs $0.90/M blended).
+  regular: ["deepseek_flash_fireworks", "deepseek_flash", "groq_qwen_36_27b"],
+  advanced: ["deepseek_advanced", "groq_gpt_oss_120b"],
 };
 
 function parseModelListEnv(name: string): UserSelectableConversionModelId[] | null {
@@ -143,8 +161,8 @@ function parseModelListEnv(name: string): UserSelectableConversionModelId[] | nu
 
   const ids = raw
     .split(",")
-    .map((value) => value.trim())
-    .filter((value): value is UserSelectableConversionModelId => value in MODEL_DEFINITIONS);
+    .map((value) => resolveConversionModelId(value))
+    .filter((value): value is UserSelectableConversionModelId => value !== null);
 
   return ids.length > 0 ? ids : [];
 }
@@ -156,12 +174,12 @@ function getBucketModelOrder(bucket: ConversionModelBucket): UserSelectableConve
 
 function getConfiguredModelName(id: UserSelectableConversionModelId): string {
   switch (id) {
-    case "deepseek_v4_flash":
-      return process.env.AI_DEEPSEEK_FLASH_MODEL?.trim() || "deepseek-v4-flash";
-    case "deepseek_v4_flash_fireworks":
-      return process.env.AI_FIREWORKS_MODEL?.trim() || "accounts/fireworks/models/deepseek-v4-flash";
-    case "deepseek_v4_pro":
-      return process.env.AI_DEEPSEEK_PRO_MODEL?.trim() || "deepseek-v4-pro";
+    case "deepseek_flash":
+      return process.env.AI_DEEPSEEK_FLASH_MODEL?.trim() || "deepseek-flash";
+    case "deepseek_flash_fireworks":
+      return process.env.AI_FIREWORKS_MODEL?.trim() || "accounts/fireworks/models/deepseek-v4p1-flash";
+    case "deepseek_advanced":
+      return process.env.AI_DEEPSEEK_PRO_MODEL?.trim() || "deepseek-flash";
     case "groq_gpt_oss_120b":
       return process.env.GROQ_ADVANCED_MODEL?.trim() || "openai/gpt-oss-120b";
     default:
@@ -301,13 +319,14 @@ export function resolveConversionModelRouteChain(
   }));
   const openAIFallback = resolveLegacyOpenAIConversionModel(normalizedType, bucket);
 
-  // Advanced policy is DeepSeek V4 Pro → OpenAI GPT-5.4 → Groq GPT-OSS 120B.
-  // Missing providers are skipped without changing the relative slot order.
+  // Advanced policy is the DeepSeek advanced lane → OpenAI GPT-5.4 → Groq
+  // GPT-OSS 120B. Missing providers are skipped without changing the relative
+  // slot order.
   const routes = bucket === "advanced"
     ? [
-        ...configuredRoutes.filter((route) => route.selectedModelId === "deepseek_v4_pro"),
+        ...configuredRoutes.filter((route) => route.selectedModelId === "deepseek_advanced"),
         openAIFallback,
-        ...configuredRoutes.filter((route) => route.selectedModelId !== "deepseek_v4_pro"),
+        ...configuredRoutes.filter((route) => route.selectedModelId !== "deepseek_advanced"),
       ]
     : [...configuredRoutes, openAIFallback];
 

@@ -45,6 +45,7 @@ export function animatedLayerStyle(
   size: number,
   originX?: number,
   originY?: number,
+  viewBoxSize = 128,
 ): { opacity?: Animated.AnimatedInterpolation<number>; transform?: { [k: string]: Animated.AnimatedInterpolation<number> }[] } {
   const { input, output } = spec.keyframes;
   const interp = (out: number[]) =>
@@ -53,16 +54,17 @@ export function animatedLayerStyle(
     case "opacity":
       return { opacity: interp(output) };
     case "translateY":
-      // Spec values are PHYSICAL-PIXEL targets; convert to viewBox units
-      // (the SVG is a 128-unit viewBox rendered at `size` px).
-      return { transform: [{ translateY: interp(output.map((v) => v * (128 / size))) }] };
+      // Spec values are physical-pixel targets applied to the outer
+      // Animated.View (layout px, not the child SVG's viewBox), so they are
+      // used directly — no viewBox scaling (Codex review).
+      return { transform: [{ translateY: interp(output) }] };
     case "rotate": {
       const rotate = progress.interpolate({ inputRange: input, outputRange: output.map((d) => `${d}deg`) }) as unknown as Animated.AnimatedInterpolation<number>;
       // Rotate around the ELEMENT's center (matches CSS fill-box origin),
       // not the view center: translate to origin -> rotate -> translate back.
       if (originX !== undefined && originY !== undefined) {
-        const sx = originX * (size / 128);
-        const sy = originY * (size / 128);
+        const sx = originX * (size / viewBoxSize);
+        const sy = originY * (size / viewBoxSize);
         return {
           transform: [
             { translateX: sx },

@@ -11,6 +11,12 @@ import { Document, Packer, Paragraph, TextRun, HeadingLevel } from "docx";
 import { generateMarkdownPdf } from "./pdf-generator";
 import { generateSpreadsheetXlsx } from "./spreadsheet-service";
 import {
+  convertAudioBuffer,
+  isSupportedAudioFormat,
+  AUDIO_FORMAT_CONFIG,
+  type SupportedAudioFormat,
+} from "./audio-converter";
+import {
   RESEARCH_FORMS_TYPES,
   researchFormWebDefault,
   searchAcademicSourcesMulti,
@@ -81,7 +87,11 @@ import { registerBucketRoutes } from "./bucket-routes";
 import { registerKbRoutes } from "./kb-routes";
 import { deleteAllUserBucketFiles, deleteFile as deleteBucketObject } from "./object-storage";
 import { deleteAuthUserIfPresent } from "./account-deletion-service";
-import { sanitizeConversionOutput, sanitizePromptContextForTarget } from "./conversion-post-processor";
+import {
+  createThinkingStreamFilter,
+  sanitizeConversionOutput,
+  sanitizePromptContextForTarget,
+} from "./conversion-post-processor";
 import { createOpenAIClient, getAIModel, getChatCompletionTokenOptions, hasDedicatedAIProviderConfig } from "./openai-client";
 import {
   getConfiguredConversionModelCatalog,
@@ -1045,6 +1055,7 @@ ${transcript}`,
       let usedRoute: ConversionModelRoute | null = null;
       let fullResponse = "";
       let streamUsage: any = null;
+      let thinkingFilter = createThinkingStreamFilter();
 
       for (const route of conversionRoutes) {
         let receivedFirstChunk = false;
@@ -1097,7 +1108,10 @@ ${transcript}`,
               fullResponse += content;
 
               if (!clientDisconnected) {
-                res.write(`data: ${JSON.stringify({ content })}\n\n`);
+                const clean = thinkingFilter.push(content);
+                if (clean !== null) {
+                  res.write(`data: ${JSON.stringify({ content: clean })}\n\n`);
+                }
               }
             }
           } finally {
@@ -1118,6 +1132,7 @@ ${transcript}`,
           // Discard any partial response from the failed attempt (on a
           // first-token stall nothing was sent yet, so this is a no-op there).
           fullResponse = "";
+          thinkingFilter = createThinkingStreamFilter();
           console.warn(`[convert] Provider ${route.provider}/${route.model} failed, trying next:`, err?.message || err);
         }
       }
@@ -1375,6 +1390,66 @@ ${transcript}`,
       const status = Number.isInteger(error?.status) ? error.status : 500;
       console.error("XLSX generation error:", error);
       res.status(status).json({ error: message });
+    }
+  });
+
+  const audioConvertUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 500 * 1024 * 1024 },
+  });
+
+  app.post("/api/convert-audio", audioConvertUpload.single("audio"), async (req: Request, res: Response) => {
+    try {
+      const rawFormat = (req.body.format || req.query.format || "").toString().trim().toLowerCase().replace(/^\./, "");
+      if (!rawFormat || !isSupportedAudioFormat(rawFormat)) {
+        return res.status(400).json({
+          error: "Invalid audio format. Supported formats: mp3, wav, m4a, flac, ogg.",
+        });
+      }
+      const format: SupportedAudioFormat = rawFormat;
+
+      let inputBuffer: Buffer | null = null;
+      if (req.file?.buffer) {
+        inputBuffer = req.file.buffer;
+      } else if (req.body.audioUri) {
+        const audioUri = String(req.body.audioUri);
+        if (audioUri.startsWith("bucket://")) {
+          const bucketKey = audioUri.replace(/^bucket:\/\//, "");
+          const { downloadFile } = await import("./object-storage");
+          inputBuffer = await downloadFile(bucketKey);
+        } else if (audioUri.startsWith("http://") || audioUri.startsWith("https://")) {
+          const response = await fetch(audioUri);
+          if (!response.ok) throw new Error("Failed to fetch audio from URL.");
+          inputBuffer = Buffer.from(await response.arrayBuffer());
+        }
+      } else if (req.body.recordingId && req.user?.id) {
+        const recording = await storage.getRecording(String(req.body.recordingId), req.user.id);
+        if (recording?.audioUri?.startsWith("bucket://")) {
+          const bucketKey = recording.audioUri.replace(/^bucket:\/\//, "");
+          const { downloadFile } = await import("./object-storage");
+          inputBuffer = await downloadFile(bucketKey);
+        }
+      }
+
+      if (!inputBuffer || inputBuffer.length === 0) {
+        return res.status(400).json({ error: "No audio provided for conversion." });
+      }
+
+      const config = AUDIO_FORMAT_CONFIG[format];
+      const converted = await convertAudioBuffer(inputBuffer, format);
+
+      const safeTitle = String(req.body.title || "recording")
+        .replace(/[^\p{L}\p{N}._-]+/gu, "_")
+        .replace(/^_+|_+$/g, "")
+        .slice(0, 120) || "recording";
+
+      res.setHeader("Content-Type", config.mimeType);
+      res.setHeader("Content-Disposition", `attachment; filename="${safeTitle}.${config.ext}"`);
+      res.setHeader("Content-Length", converted.length.toString());
+      res.send(converted);
+    } catch (error: any) {
+      console.error("Audio conversion error:", error);
+      res.status(500).json({ error: error?.message || "Failed to convert audio." });
     }
   });
 

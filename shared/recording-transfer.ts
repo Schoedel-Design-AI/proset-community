@@ -151,7 +151,6 @@ export type RecordingTransferReconciliation = {
 export function reconcileRecordingTransfer(
   remote: RecordingTransferSnapshot | null,
   work: BackgroundUploadWorkStatus | null,
-  autoTranscribe: boolean,
 ): RecordingTransferReconciliation {
   // Durable server storage wins over a stale terminal WorkInfo. WorkManager can
   // fail after the upload completed (for example while requesting
@@ -166,11 +165,13 @@ export function reconcileRecordingTransfer(
     const transcriptionSucceeded =
       remote.transcriptionStatus === "succeeded"
       || Boolean(remote.transcript?.trim());
+    // Poll only while a transcription is genuinely in flight and unresolved.
+    // Transcription is always user-initiated now, so there is no "waiting for an
+    // automatic transcription to appear" state to keep polling for.
     const continuePolling =
-      autoTranscribe
+      transcriptionInProgress
       && !transcriptionFailed
-      && !transcriptionSucceeded
-      && (transcriptionInProgress || remote.transcriptionStatus === undefined);
+      && !transcriptionSucceeded;
 
     return {
       updates: {

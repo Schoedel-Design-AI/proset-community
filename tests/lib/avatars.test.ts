@@ -55,7 +55,7 @@ test("only Pro packs contain DiceBear animation markup", () => {
     assert.doesNotMatch(getPackPreviewSvg(pack.key), /@keyframes/, `${pack.label} tab preview`);
   }
 
-  assert.match(getAvatarDataUri("sprouts:1") || "", /^data:image\/svg\+xml;utf8,/);
+  assert.match(getAvatarDataUri("sprouts:1") || "", /^data:image\/svg\+xml;charset=utf-8,/);
   assert.doesNotMatch(getAvatarSvg("sprouts:1", { animate: false }) || "", /@keyframes/);
 });
 

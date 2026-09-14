@@ -29,6 +29,7 @@ import AvatarView from "@/components/AvatarView";
 import { useLanguage } from "@/lib/i18n";
 import { formatDate } from "@/lib/utils";
 import { useTextScale, sf, type TextScale } from "@/lib/typography";
+import ConversionContent from "@/components/ConversionContent";
 
 type Folder = {
   id: string;
@@ -101,7 +102,16 @@ export default function FilesScreen() {
   // Shared download interaction: busy state, duplicate-tap guard, real outcome
   // ("Saved to Downloads" vs "File saved"), and recovery actions on failure.
   const { save: saveFile, busyId: savingFileId } = useFileDownload((fileName, messageKey) => {
-    if (Platform.OS !== "web") Alert.alert(t(messageKey as any), fileName);
+    // A confirmation must show on every platform (issue #214 / #327 follow-up):
+    // this callback used to skip web entirely, and `Alert.alert` has no visible
+    // implementation on web (react-native-web ships no dialog for it), so a
+    // web download completed with no visible outcome at all either way.
+    const title = t(messageKey as any);
+    if (Platform.OS === "web") {
+      alert(`${title}\n${fileName}`);
+    } else {
+      Alert.alert(title, fileName);
+    }
   });
   const ts = useTextScale();
   const styles = useMemo(() => makeStyles(ts), [ts]);
@@ -117,6 +127,7 @@ export default function FilesScreen() {
   const [viewMode, setViewMode] = useState<"folders" | "files">("folders");
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   const [showFileDetail, setShowFileDetail] = useState(false);
+  const [codeViewActive, setCodeViewActive] = useState(false);
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [showMoveModal, setShowMoveModal] = useState(false);
@@ -704,17 +715,29 @@ export default function FilesScreen() {
         </ScrollView>
       )}
 
-      <Modal visible={showFileDetail} animationType="slide" transparent onRequestClose={() => { setShowFileDetail(false); setSelectedFile(null); }}>
+      <Modal visible={showFileDetail} animationType="slide" transparent onRequestClose={() => { setShowFileDetail(false); setSelectedFile(null); setCodeViewActive(false); }}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { paddingTop: topPadding + 8 }]}>
             <View style={styles.modalHeader}>
-              <Pressable onPress={() => { setShowFileDetail(false); setSelectedFile(null); }} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]} accessibilityRole="button" accessibilityLabel={t("common.close")}>
+              <Pressable onPress={() => { setShowFileDetail(false); setSelectedFile(null); setCodeViewActive(false); }} style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]} accessibilityRole="button" accessibilityLabel={t("common.close")}>
                 <Feather name="x" size={22} color={Colors.text} />
               </Pressable>
               <Text style={[styles.modalTitle, { fontSize: ts.subtitle2 }]} numberOfLines={1}>{selectedFile?.name}</Text>
               <View style={styles.modalActions}>
                 {selectedFile && (
                   <>
+                    <Pressable
+                      onPress={() => setCodeViewActive((prev) => !prev)}
+                      style={({ pressed }) => [
+                        styles.actionBtn,
+                        codeViewActive && { backgroundColor: Colors.surfaceHighlight },
+                        pressed && { opacity: 0.7 },
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityLabel={codeViewActive ? "Formatted view" : "Raw markdown view"}
+                    >
+                      <Feather name={codeViewActive ? "eye" : "code"} size={20} color={codeViewActive ? Colors.primary : Colors.textSecondary} />
+                    </Pressable>
                     <Pressable onPress={() => handleCopyContent(selectedFile)} style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.7 }]} accessibilityRole="button" accessibilityLabel={t("common.copy")}>
                       <Feather name="copy" size={20} color={Colors.textSecondary} />
                     </Pressable>
@@ -743,7 +766,11 @@ export default function FilesScreen() {
               </View>
             )}
             <ScrollView style={styles.fileContentScroll} contentContainerStyle={{ paddingBottom: 40 }}>
-              <Text style={styles.fileContentText} selectable>{selectedFile?.content}</Text>
+              <ConversionContent
+                content={selectedFile?.content || ""}
+                conversionType={selectedFile?.conversionType || undefined}
+                codeView={codeViewActive}
+              />
             </ScrollView>
           </View>
         </View>
@@ -1199,8 +1226,10 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
     padding: 16,
   },
   fileContentText: {
-    fontSize: sf(14, ts),
-    lineHeight: 22,
+    // Keep actual text files comfortable to read on both Android and web.
+    // This is intentionally larger than the surrounding file metadata.
+    fontSize: sf(18, ts),
+    lineHeight: sf(28, ts),
     color: Colors.text,
     fontFamily: Platform.OS === "web" ? "monospace" : undefined,
   },

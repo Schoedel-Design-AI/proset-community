@@ -43,9 +43,9 @@ const HARD_ABSOLUTE_LIMITS = {
 
 
 export const TIER_CONVERSION_TYPES: Record<SubscriptionTier, string[]> = {
-  free: ["summary", "bullet_points", "notes", "email", "todo_list", "outline", "quick_research", "text_message", "adhd_plan", "scaffolded_project_plan", "scaffolded_action_items", "freelancer_time_log", "general_request"],
-  base: ["summary", "bullet_points", "notes", "email", "todo_list", "outline", "quick_research", "text_message", "adhd_plan", "scaffolded_project_plan", "scaffolded_action_items", "freelancer_time_log", "action_items", "questions", "prompt", "blog_post", "linkedin_post", "podcast_script", "project_plan", "calendar_event", "requirements", "bibliography", "spreadsheet", "video_script", "office_memo", "white_paper", "slide_deck", "general_request"],
-  pro: ["summary", "bullet_points", "notes", "email", "todo_list", "outline", "quick_research", "text_message", "adhd_plan", "scaffolded_project_plan", "scaffolded_action_items", "freelancer_time_log", "action_items", "questions", "prompt", "blog_post", "linkedin_post", "podcast_script", "project_plan", "calendar_event", "requirements", "bibliography", "spreadsheet", "video_script", "office_memo", "white_paper", "slide_deck", "general_request"],
+  free: ["summary", "bullet_points", "notes", "email", "todo_list", "outline", "quick_research", "text_message", "adhd_plan", "scaffolded_project_plan", "scaffolded_action_items", "freelancer_time_log", "general_request", "github_issue"],
+  base: ["summary", "bullet_points", "notes", "email", "todo_list", "outline", "quick_research", "text_message", "adhd_plan", "scaffolded_project_plan", "scaffolded_action_items", "freelancer_time_log", "action_items", "questions", "prompt", "blog_post", "linkedin_post", "podcast_script", "project_plan", "calendar_event", "requirements", "bibliography", "spreadsheet", "video_script", "office_memo", "white_paper", "slide_deck", "general_request", "github_issue"],
+  pro: ["summary", "bullet_points", "notes", "email", "todo_list", "outline", "quick_research", "text_message", "adhd_plan", "scaffolded_project_plan", "scaffolded_action_items", "freelancer_time_log", "action_items", "questions", "prompt", "blog_post", "linkedin_post", "podcast_script", "project_plan", "calendar_event", "requirements", "bibliography", "spreadsheet", "video_script", "office_memo", "white_paper", "slide_deck", "general_request", "github_issue"],
 };
 
 export const FREE_CONVERSION_TYPES = TIER_CONVERSION_TYPES.free;
@@ -282,12 +282,15 @@ export interface UserUsageSummary {
   tier: SubscriptionTier;
   displayTier: DisplayTier;
   tokenBalance: number;
+  monthlyTokenBalance: number;
+  purchasedTokenBalance: number;
   monthlyTokenAllowance: number;
   tokensUsedThisMonth: number;
   maxRecordingSeconds: number;
   storageMb: number;
   maxFileImportMB: number;
   allowedFileTypes: string[];
+  isSuperAdmin: boolean;
   proAccessEnabled: boolean;
   spendingCap: number | null;
 }
@@ -304,12 +307,17 @@ export async function getUserUsageSummary(userId: string): Promise<UserUsageSumm
     tier,
     displayTier: tier,
     tokenBalance: tokenBalance === Number.MAX_SAFE_INTEGER ? 0 : tokenBalance,
+    // CE is self-hosted: one undifferentiated balance, nothing is purchased.
+    monthlyTokenBalance: tokenBalance,
+    purchasedTokenBalance: 0,
     monthlyTokenAllowance,
     tokensUsedThisMonth,
     maxRecordingSeconds: HARD_ABSOLUTE_LIMITS.maxRecordingSeconds,
     storageMb: HARD_ABSOLUTE_LIMITS.maxStorageMb,
     maxFileImportMB: HARD_ABSOLUTE_LIMITS.maxFileUploadMB,
     allowedFileTypes: await getAllowedFileTypes(userId),
+    // CE has no super-admin tier; it is deliberately absent from the CE tree.
+    isSuperAdmin: false,
     proAccessEnabled: tier === "pro",
     spendingCap: null,
   };

@@ -70,6 +70,20 @@ test("paid tiers retain every free conversion type", () => {
   }
 });
 
+test("GitHub Issue conversion is available to every subscription tier", () => {
+  for (const tier of ["free", "base", "pro"] as const) {
+    assert.ok(
+      TIER_CONVERSION_TYPES[tier].includes("github_issue"),
+      `${tier} should include the GitHub Issue conversion`,
+    );
+  }
+  assert.equal(
+    CONVERSION_TYPES.find((type) => type.value === "github_issue")?.label,
+    "GitHub Issue",
+  );
+  assert.equal(typeof CONVERSION_PROMPTS.github_issue, "string");
+});
+
 test("research conversions prohibit fabricated source metadata", () => {
   const guidance = [
     ...Object.values(ACADEMIC_CITATION_PROMPTS),

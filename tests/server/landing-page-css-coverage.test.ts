@@ -27,15 +27,11 @@ import test from "node:test";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-
-const STYLESHEET = "server/templates/landing-page.css";
-
-// Templates that load STYLESHEET. Keep in sync when a new template links it.
-const TEMPLATES = [
-  "server/templates/landing-page.html",
-  "server/templates/support-form.html",
-  "server/templates/support-thanks.html",
-];
+import {
+  STYLESHEET,
+  STYLESHEET_RELEASES,
+  TEMPLATES,
+} from "../support/stylesheet-releases";
 
 // Classes present in markup but intentionally NOT defined by our stylesheet.
 const THIRD_PARTY_CLASSES = new Set([
@@ -162,21 +158,11 @@ test("every template linking the stylesheet shares one cache-buster version", ()
   );
 });
 
-// Append-only ledger pinning each published ?v= to the exact stylesheet body it
-// shipped. This exists because of a real incident: `?v=10` was published twice
-// with two different stylesheets, so Cloudflare kept serving the first body
-// (`cf-cache-status: HIT`, max-age=86400) and the second deploy's new utilities
-// never reached browsers even though the Cloud Run revision was correct.
-//
-// EDITING THE STYLESHEET? Append a NEW entry with the new hash and bump the ?v=
-// in every template. Never edit the last entry's hash in place — that is exactly
-// the mistake this ledger prevents.
-const STYLESHEET_RELEASES: ReadonlyArray<{ version: number; sha256: string }> = [
-  // v10 shipped twice (commits 9b29278 then a768b1d) — the incident above.
-  { version: 10, sha256: "de30e68ad27a94df858084b0ee685774bbc2fbc248aeed5e1df7fc360d48d6ad" },
-  { version: 11, sha256: "15509b3858996c18cf69e6b1bedaaee6ebcd74f15219238760e91d1d77dc211c" },
-  { version: 12, sha256: "e1411acbea0955ad18445799e923f07c531e208bc19ca3e543140bcb750c54e8" },
-];
+// The ?v= cache-buster ledger (STYLESHEET_RELEASES) and the template list live
+// in ../support/stylesheet-releases.ts so the routing test can assert the same
+// version instead of hardcoding one. See that module for the ?v=10 incident and
+// the rule: editing the stylesheet means appending a new entry AND bumping every
+// template.
 
 test("stylesheet content matches the current published cache-buster version", () => {
   const seenVersions = new Set<number>();

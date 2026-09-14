@@ -23,20 +23,24 @@ const NativeUploadWorker: UploadWorkerNative | undefined =
  * Schedule a background upload via Android WorkManager.
  * The upload survives app backgrounding and process death.
  * Requires network connectivity — WorkManager waits until connected.
+ *
+ * Transcription is NEVER triggered from here: it is always user-initiated from
+ * the transcribe screen. The native worker's own default for this flag is true,
+ * so it must always be passed explicitly — omitting it would silently restore
+ * automatic transcription.
  */
 export function enqueueBackgroundUpload(
   fileUri: string,
   uploadUrl: string,
   authToken: string,
   recordingId: string,
-  autoTranscribe: boolean,
   language: string
 ): void {
   if (!NativeUploadWorker) {
     console.warn("[UploadWorker] Not available on this platform");
     return;
   }
-  NativeUploadWorker.enqueue(fileUri, uploadUrl, authToken, recordingId, autoTranscribe, language).catch(
+  NativeUploadWorker.enqueue(fileUri, uploadUrl, authToken, recordingId, false, language).catch(
     (err) => console.error("[UploadWorker] Failed to enqueue:", err)
   );
 }

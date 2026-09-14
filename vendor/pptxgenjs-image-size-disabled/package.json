@@ -1,0 +1,7 @@
+{
+  "name": "@proset/pptxgenjs-image-size-disabled",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Code-free replacement for PptxGenJS's unused and vulnerable image-size dependency",
+  "license": "UNLICENSED"
+}

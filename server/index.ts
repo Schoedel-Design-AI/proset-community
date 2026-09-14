@@ -953,7 +953,7 @@ function validateEnvironment(): void {
 
   if (hasDedicatedAIProviderConfig("deepseek")) {
     console.log(
-      `[startup] OK: DeepSeek conversion tiering (regular: ${process.env.AI_DEEPSEEK_FLASH_MODEL || "deepseek-v4-flash"}; advanced: ${process.env.AI_DEEPSEEK_PRO_MODEL || "deepseek-v4-pro"})`,
+      `[startup] OK: DeepSeek conversion tiering (regular: ${process.env.AI_DEEPSEEK_FLASH_MODEL || "deepseek-flash"}; advanced: ${process.env.AI_DEEPSEEK_PRO_MODEL || "deepseek-flash"})`,
     );
   } else {
     console.warn("[startup] WARN: DeepSeek conversion primary is not configured — conversions will use configured fallbacks");

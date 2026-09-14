@@ -109,9 +109,9 @@ export type SubscriptionTier = "free" | "base" | "pro";
 export type DisplayTier = SubscriptionTier;
 
 export const TIER_CONVERSION_TYPES: Record<SubscriptionTier, string[]> = {
-  free: ["summary", "bullet_points", "notes", "email", "todo_list", "outline", "quick_research", "text_message", "adhd_plan", "scaffolded_project_plan", "scaffolded_action_items", "freelancer_time_log", "general_request"],
-  base: ["summary", "bullet_points", "notes", "email", "todo_list", "outline", "quick_research", "text_message", "adhd_plan", "scaffolded_project_plan", "scaffolded_action_items", "freelancer_time_log", "action_items", "questions", "prompt", "blog_post", "linkedin_post", "podcast_script", "project_plan", "calendar_event", "requirements", "bibliography", "spreadsheet", "video_script", "office_memo", "white_paper", "slide_deck", "general_request"],
-  pro: ["summary", "bullet_points", "notes", "email", "todo_list", "outline", "quick_research", "text_message", "adhd_plan", "scaffolded_project_plan", "scaffolded_action_items", "freelancer_time_log", "action_items", "questions", "prompt", "blog_post", "linkedin_post", "podcast_script", "project_plan", "calendar_event", "requirements", "bibliography", "spreadsheet", "video_script", "office_memo", "white_paper", "slide_deck", "general_request"],
+  free: ["summary", "bullet_points", "notes", "email", "todo_list", "outline", "quick_research", "text_message", "adhd_plan", "scaffolded_project_plan", "scaffolded_action_items", "freelancer_time_log", "general_request", "github_issue"],
+  base: ["summary", "bullet_points", "notes", "email", "todo_list", "outline", "quick_research", "text_message", "adhd_plan", "scaffolded_project_plan", "scaffolded_action_items", "freelancer_time_log", "action_items", "questions", "prompt", "blog_post", "linkedin_post", "podcast_script", "project_plan", "calendar_event", "requirements", "bibliography", "spreadsheet", "video_script", "office_memo", "white_paper", "slide_deck", "general_request", "github_issue"],
+  pro: ["summary", "bullet_points", "notes", "email", "todo_list", "outline", "quick_research", "text_message", "adhd_plan", "scaffolded_project_plan", "scaffolded_action_items", "freelancer_time_log", "action_items", "questions", "prompt", "blog_post", "linkedin_post", "podcast_script", "project_plan", "calendar_event", "requirements", "bibliography", "spreadsheet", "video_script", "office_memo", "white_paper", "slide_deck", "general_request", "github_issue"],
 };
 
 export const FREE_CONVERSION_TYPES = TIER_CONVERSION_TYPES.free;
@@ -194,7 +194,7 @@ export const CONVERSION_TYPES: { value: string; label: string; icon: string; cat
   { value: "project_plan", label: "Project Plan", icon: "map", category: "productivity" },
   { value: "requirements", label: "Requirements", icon: "clipboard", category: "productivity" },
   { value: "spreadsheet", label: "Spreadsheet", icon: "grid", category: "productivity" },
-  { value: "github_issue", label: "Github Issue (Admin)", icon: "github", category: "productivity" },
+  { value: "github_issue", label: "GitHub Issue", icon: "github", category: "productivity" },
   { value: "freelancer_time_log", label: "Work Time Log", icon: "clock", category: "productivity" },
   // Research
   { value: "quick_research", label: "Quick Research", icon: "search", category: "research" },
@@ -233,3 +233,13 @@ export const EXPORT_FORMATS = [
   { value: "csv", label: "CSV (.csv)", mimeType: "text/csv", ext: "csv" },
   { value: "xlsx", label: "Excel Workbook (.xlsx)", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ext: "xlsx" },
 ];
+
+export const AUDIO_EXPORT_FORMATS = [
+  { value: "mp3", label: "MP3 (.mp3)", mimeType: "audio/mpeg", ext: "mp3" },
+  { value: "wav", label: "WAV (.wav)", mimeType: "audio/wav", ext: "wav" },
+  { value: "m4a", label: "M4A (.m4a)", mimeType: "audio/mp4", ext: "m4a" },
+  { value: "flac", label: "FLAC (.flac)", mimeType: "audio/flac", ext: "flac" },
+  { value: "ogg", label: "OGG (.ogg)", mimeType: "audio/ogg", ext: "ogg" },
+] as const;
+
+export type AudioExportFormat = (typeof AUDIO_EXPORT_FORMATS)[number]["value"];
