@@ -100,7 +100,7 @@
     "image-size": "file:vendor/pptxgenjs-image-size-disabled",
     "kysely": "^0.28.17",
     "mammoth": "^1.12.1",
-    "multer": "^2.1.1",
+    "multer": "^2.3.0",
     "nodemailer": "^9.0.0",
     "openai": "^6.22.0",
     "otpauth": "^9.5.0",
