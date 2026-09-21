@@ -180,8 +180,11 @@ export default function DeveloperSettings() {
         <Pressable
           style={styles.backBtn}
           onPress={() => {
-            if (router.canGoBack()) router.back();
-            else router.replace("/");
+            // UP to the settings hub, deterministically — never a history pop.
+            // A history pop answers "where was I?", which for a settings
+            // sub-screen can be a completed Stripe checkout; the arrow means
+            // "one level up".
+            router.replace("/settings" as any);
           }}
           hitSlop={12}
           accessibilityRole="button"

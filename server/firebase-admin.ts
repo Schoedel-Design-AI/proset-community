@@ -25,7 +25,15 @@ const isGcpEnvironment = !!(
   process.env.NODE_ENV === "production"
 );
 
-export const useFirebase = (hasFirebaseCreds || isGcpEnvironment) && 
+// See the note in the primary server/firebase-admin.ts: the repo `.env` sets
+// USE_FIREBASE_IN_DEV=true, which otherwise routes every test at the live
+// production database. Node's test runner sets NODE_TEST_CONTEXT in each test
+// child, so this holds even for suites that never set NODE_ENV.
+export const isNodeTestRunner = !!process.env.NODE_TEST_CONTEXT;
+
+export const useFirebase = !isNodeTestRunner &&
+  process.env.NODE_ENV !== "test" &&
+  (hasFirebaseCreds || isGcpEnvironment) &&
   (process.env.NODE_ENV === "production" || process.env.USE_FIREBASE_IN_DEV === "true");
 
 export type FirebaseAuthMode = "legacy" | "dual" | "firebase";

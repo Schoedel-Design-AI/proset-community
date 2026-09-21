@@ -3481,7 +3481,10 @@ export class FirestoreStorage implements IStorage {
         moduleName,
         stripeSubscriptionId: stripeSubscriptionId || null,
         assignedBy: assignedBy || null,
-        assignedAt: new Date().toISOString()
+        assignedAt: new Date().toISOString(),
+        // Assigning a module implicitly re-enables it — the caller wants it on.
+        // Legacy pre-2026-09-17 rows omit this field; treated as `false` (enabled).
+        disabled: false,
       };
       if (dbClient) {
         await col.doc(id).set(sanitizeForFirestore(cleanMod));
@@ -3498,6 +3501,34 @@ export class FirestoreStorage implements IStorage {
         return true;
       } else {
         return col.delete(id);
+      }
+    },
+    /**
+     * Persist an explicit ON/OFF preference for a `tier`-access module WITHOUT
+     * treating the row's presence as an entitlement (see UserModule.disabled).
+     * Under the 2026-09-17 semantic, `tier` modules default to ON for any
+     * eligible subscriber, so a user who wants the pack off writes `disabled:
+     * true` — the row is a preference, not an entitlement. Use this instead of
+     * `assign`/`remove` when the user is flipping a preference on an
+     * already-eligible module.
+     */
+    setDisabled: async (userId: string, moduleName: string, disabled: boolean, assignedBy?: string | null): Promise<UserModule> => {
+      const col = this.getCol("userModules");
+      const id = `um_${userId}_${moduleName}`;
+      const cleanMod = {
+        id,
+        userId,
+        moduleName,
+        stripeSubscriptionId: null,
+        assignedBy: assignedBy || null,
+        assignedAt: new Date().toISOString(),
+        disabled,
+      };
+      if (dbClient) {
+        await col.doc(id).set(sanitizeForFirestore(cleanMod));
+        return cleanMod;
+      } else {
+        return col.set(id, cleanMod);
       }
     }
   };

@@ -261,15 +261,18 @@ export default function NavigationDrawer({
         <View style={styles.drawerItems}>
           {isLoggedIn && (
             <>
-              {!isPro && (
-                <DrawerItem
-                  icon="credit-card"
-                  label={t("drawer.subscribe")}
-                  onPress={() => handleNav(() => router.push("/choose-plan" as any))}
-                  ts={ts}
-                  testID="drawer-subscribe"
-                />
-              )}
+              {/* Always present for a signed-in account. This row used to render
+                  only when !isPro, which hid the subscription route from exactly
+                  the accounts already on a paid plan — the ones most likely to
+                  need to find it. The label adapts instead: free accounts are
+                  invited to subscribe, paid accounts see it as their plan entry. */}
+              <DrawerItem
+                icon="credit-card"
+                label={isPro ? t("subscription.title") : t("drawer.subscribe")}
+                onPress={() => handleNav(() => router.push("/choose-plan" as any))}
+                ts={ts}
+                testID="drawer-subscribe"
+              />
               <DrawerItem
                 icon="user"
                 label={t("settings.account")}

@@ -93,8 +93,8 @@ android {
         applicationId 'ms.aifor.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 117
-        versionName "1.0.79"
+        versionCode 127
+        versionName "1.0.89"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         externalNativeBuild {

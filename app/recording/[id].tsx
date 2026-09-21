@@ -5239,7 +5239,7 @@ export default function RecordingDetailScreen() {
               <View style={{ backgroundColor: "rgba(99, 102, 241, 0.06)", borderRadius: 12, padding: 14, width: "100%" as any, marginBottom: 4 }}>
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                   <Text style={{ fontSize: ts.body, fontFamily: "Inter_600SemiBold", color: Colors.text }}>Pro plan</Text>
-                  <Text style={{ fontSize: ts.body, fontFamily: "Inter_700Bold", color: "#6366f1" }}>$9.99/mo</Text>
+                  <Text style={{ fontSize: ts.body, fontFamily: "Inter_700Bold", color: "#6366f1" }}>$5.99/mo</Text>
                 </View>
                 <View style={{ height: 1, backgroundColor: Colors.border, marginBottom: 10 }} />
                 <Text style={{ fontSize: ts.caption, fontFamily: "Inter_500Medium", color: Colors.textSecondary, marginBottom: 6 }}>Usage billed beyond included amounts:</Text>
@@ -5263,7 +5263,7 @@ export default function RecordingDetailScreen() {
               accessibilityLabel="Upgrade to Pro"
             >
               <Text style={{ fontSize: ts.bodyLarge, fontFamily: "Inter_600SemiBold", color: "#fff" }}>
-                Upgrade — $9.99/mo
+                Upgrade — $5.99/mo
               </Text>
             </Pressable>
             <Pressable

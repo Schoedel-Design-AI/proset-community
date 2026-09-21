@@ -35,17 +35,25 @@ export type ConversionTypeAccessResult = {
 
 const HARD_ABSOLUTE_LIMITS = {
   // CE: safety rails against runaway usage, not plan limits — no real
-  // self-hosted usage profile reaches these.
-  maxRecordingSeconds: 1800,
+  // self-hosted usage profile reaches these. maxRecordingSeconds tracks the
+  // longest LIVE-take promise in the shared ladder (Pro, 30 min) and
+  // maxMediaImportSeconds the longest import promise (Pro, 60 min), so these
+  // rails never clamp a tier below what the documentation advertises.
+  maxRecordingSeconds: 3600,
+  maxMediaImportSeconds: 3600,
   maxFileUploadMB: 500,
+  // Ceiling for an uploaded audio/video file handed to the pipeline. The
+  // imported original is discarded after its audio is extracted, so this
+  // guards bandwidth rather than storage.
+  maxMediaUploadMB: 2048,
   maxStorageMb: 102400,
 };
 
 
 export const TIER_CONVERSION_TYPES: Record<SubscriptionTier, string[]> = {
   free: ["summary", "bullet_points", "notes", "email", "todo_list", "outline", "quick_research", "text_message", "adhd_plan", "scaffolded_project_plan", "scaffolded_action_items", "freelancer_time_log", "general_request", "github_issue"],
-  base: ["summary", "bullet_points", "notes", "email", "todo_list", "outline", "quick_research", "text_message", "adhd_plan", "scaffolded_project_plan", "scaffolded_action_items", "freelancer_time_log", "action_items", "questions", "prompt", "blog_post", "linkedin_post", "podcast_script", "project_plan", "calendar_event", "requirements", "bibliography", "spreadsheet", "video_script", "office_memo", "white_paper", "slide_deck", "general_request", "github_issue"],
-  pro: ["summary", "bullet_points", "notes", "email", "todo_list", "outline", "quick_research", "text_message", "adhd_plan", "scaffolded_project_plan", "scaffolded_action_items", "freelancer_time_log", "action_items", "questions", "prompt", "blog_post", "linkedin_post", "podcast_script", "project_plan", "calendar_event", "requirements", "bibliography", "spreadsheet", "video_script", "office_memo", "white_paper", "slide_deck", "general_request", "github_issue"],
+  base: ["summary", "bullet_points", "notes", "email", "todo_list", "outline", "quick_research", "text_message", "adhd_plan", "scaffolded_project_plan", "scaffolded_action_items", "freelancer_time_log", "action_items", "research_questions", "prompt", "blog_post", "linkedin_post", "podcast_script", "project_plan", "calendar_event", "requirements", "bibliography", "spreadsheet", "video_script", "office_memo", "white_paper", "slide_deck", "general_request", "github_issue"],
+  pro: ["summary", "bullet_points", "notes", "email", "todo_list", "outline", "quick_research", "text_message", "adhd_plan", "scaffolded_project_plan", "scaffolded_action_items", "freelancer_time_log", "action_items", "research_questions", "prompt", "blog_post", "linkedin_post", "podcast_script", "project_plan", "calendar_event", "requirements", "bibliography", "spreadsheet", "video_script", "office_memo", "white_paper", "slide_deck", "general_request", "github_issue"],
 };
 
 export const FREE_CONVERSION_TYPES = TIER_CONVERSION_TYPES.free;
@@ -289,6 +297,7 @@ export interface UserUsageSummary {
   maxRecordingSeconds: number;
   storageMb: number;
   maxFileImportMB: number;
+  maxMediaUploadMB: number;
   allowedFileTypes: string[];
   isSuperAdmin: boolean;
   proAccessEnabled: boolean;
@@ -315,6 +324,7 @@ export async function getUserUsageSummary(userId: string): Promise<UserUsageSumm
     maxRecordingSeconds: HARD_ABSOLUTE_LIMITS.maxRecordingSeconds,
     storageMb: HARD_ABSOLUTE_LIMITS.maxStorageMb,
     maxFileImportMB: HARD_ABSOLUTE_LIMITS.maxFileUploadMB,
+    maxMediaUploadMB: HARD_ABSOLUTE_LIMITS.maxMediaUploadMB,
     allowedFileTypes: await getAllowedFileTypes(userId),
     // CE has no super-admin tier; it is deliberately absent from the CE tree.
     isSuperAdmin: false,
@@ -328,6 +338,24 @@ export async function getMaxFileImportSize(userId: string): Promise<number> {
   return HARD_ABSOLUTE_LIMITS.maxFileUploadMB * 1024 * 1024;
 }
 
+/**
+ * Byte ceiling for an uploaded audio/video file. CE applies its own safety
+ * rail rather than a plan value, so self-hosted installs can import large
+ * lecture recordings without a paid tier.
+ */
+export async function getMaxMediaUploadSize(userId: string): Promise<number> {
+  return HARD_ABSOLUTE_LIMITS.maxMediaUploadMB * 1024 * 1024;
+}
+
+/**
+ * Duration ceiling for an imported audio/video file. CE applies its own safety
+ * rail rather than a plan value, and its import ladder is deliberately longer
+ * than its recording ladder — an upload is a background job, not a live take.
+ */
+export async function getMaxMediaImportSeconds(userId: string): Promise<number> {
+  return HARD_ABSOLUTE_LIMITS.maxMediaImportSeconds;
+}
+
 export async function getUserModules(userId: string): Promise<string[]> {
   try {
     const rows = await storage.userModules.getByUser(userId);
@@ -338,14 +366,23 @@ export async function getUserModules(userId: string): Promise<string[]> {
 }
 
 export async function getUserModuleConversionTypes(userId: string): Promise<string[]> {
-  const modules = await getUserModules(userId);
+  // Default-ON semantic (2026-09-17): a `tier` module is enabled for any
+  // eligible subscriber unless they wrote a row with `disabled: true`. Mirror
+  // of server/usage-service.ts.
   const tier = await getUserTier(userId);
+  let rows: Array<{ moduleName: string; disabled?: boolean }> = [];
+  try {
+    rows = (await storage.userModules.getByUser(userId)).map((r) => ({
+      moduleName: r.moduleName,
+      disabled: r.disabled === true,
+    }));
+  } catch {}
+  const disabledSet = new Set(rows.filter((r) => r.disabled).map((r) => r.moduleName));
   const types: string[] = [];
-  for (const mod of modules) {
-    const effectiveEnabled = isTierEligibleForModule(tier, mod);
-    if (effectiveEnabled && MODULE_CONVERSION_TYPES[mod]) {
-      types.push(...MODULE_CONVERSION_TYPES[mod]);
-    }
+  for (const mod of Object.keys(MODULE_CONVERSION_TYPES)) {
+    if (!isTierEligibleForModule(tier, mod)) continue;
+    if (disabledSet.has(mod)) continue;
+    types.push(...MODULE_CONVERSION_TYPES[mod]);
   }
   return types;
 }
@@ -372,17 +409,30 @@ export async function getSelfServiceModuleState(userId: string, moduleName: stri
   const requiredTier = catalogEntry.requiredTier;
 
   const tier = await getUserTier(userId);
-  const modules = await getUserModules(userId);
-  const enabled = modules.includes(moduleName);
+  let rows: Array<{ moduleName: string; disabled?: boolean }> = [];
+  try {
+    rows = (await storage.userModules.getByUser(userId)).map((r) => ({
+      moduleName: r.moduleName,
+      disabled: r.disabled === true,
+    }));
+  } catch {}
+  const rowForModule = rows.find((r) => r.moduleName === moduleName);
+  const isExplicitlyDisabled = rowForModule?.disabled === true;
+
+  // Default-ON semantic (2026-09-17): eligible subscribers get `tier` modules
+  // enabled by default; a row with `disabled: true` is the ONLY way to turn
+  // one off. See server/usage-service.ts for the full rationale.
+  const isTierEligible = isTierEligibleForModule(tier, moduleName);
+  const effectiveEnabled = isTierEligible && !isExplicitlyDisabled;
 
   return {
     moduleName: moduleName as SelfServiceModuleState["moduleName"],
     accessModel: catalogEntry.accessModel,
     requiredTier,
-    eligible: isTierEligibleForModule(tier, moduleName),
-    enabled,
-    effectiveEnabled: enabled && isTierEligibleForModule(tier, moduleName),
-    userCanToggle: isTierEligibleForModule(tier, moduleName),
+    eligible: isTierEligible,
+    enabled: effectiveEnabled,
+    effectiveEnabled,
+    userCanToggle: isTierEligible,
   };
 }
 

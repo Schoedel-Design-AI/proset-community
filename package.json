@@ -1,6 +1,6 @@
 {
   "name": "proset-community",
-  "version": "1.0.79",
+  "version": "1.0.89",
   "scripts": {
     "postinstall": "patch-package",
     "lint": "eslint .",
@@ -24,7 +24,7 @@
     "firebase:auth:smoke": "node scripts/smoke-firebase-auth.mjs",
     "security:prod:audit": "node scripts/audit-production-dependencies.mjs",
     "stripe:catalog": "node scripts/configure-stripe-billing.mjs",
-    "billing:audit": "npx tsx --test tests/server/billing-readiness.test.ts tests/server/billing-lifecycle-simulation.test.ts tests/server/token-balance-buckets.test.ts tests/server/token-usage.test.ts tests/server/stripe-billing.test.ts tests/server/revenuecat-billing.test.ts",
+    "billing:audit": "npx tsx --test tests/server/billing-readiness.test.ts tests/server/billing-lifecycle-simulation.test.ts tests/server/token-balance-buckets.test.ts tests/server/token-usage.test.ts tests/server/stripe-billing.test.ts tests/server/revenuecat-billing.test.ts tests/server/webhook-policy-guards.test.ts",
     "discord:register": "npx tsx scripts/register-discord-commands.ts",
     "discord:audit": "npx tsx --test tests/server/discord-app.test.ts",
     "revenuecat:catalog": "node scripts/configure-revenuecat-android.mjs",
@@ -42,6 +42,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1069.0",
+    "@aws-sdk/s3-request-presigner": "^3.1134.0",
     "@dicebear/core": "^10.4.0",
     "@dicebear/styles": "^10.4.0",
     "@google-cloud/tasks": "^6.2.3",
@@ -115,6 +116,7 @@
     "react-dom": "19.2.7",
     "react-native": "0.86.3",
     "react-native-file-access": "4.0.3",
+    "react-native-get-random-values": "^2.0.0",
     "react-native-haptic-feedback": "*",
     "react-native-keyboard-controller": "1.22.2",
     "react-native-keychain": "*",

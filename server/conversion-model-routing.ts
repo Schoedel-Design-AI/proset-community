@@ -237,7 +237,7 @@ function resolveLegacyOpenAIConversionModel(type: string, bucket: ConversionMode
     "bullet_points",
     "notes",
     "outline",
-    "questions",
+    "research_questions",
     "summary",
     "todo_list",
     "text_message",

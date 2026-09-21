@@ -14,6 +14,7 @@ import {
   Image,
   AccessibilityInfo,
   AppState,
+  useWindowDimensions,
   type AppStateStatus,
 } from "react-native";
 import * as Haptics from "@/lib/haptics";
@@ -70,6 +71,13 @@ export default function LoginScreen() {
   const layout = useResponsiveLayout();
   const ts = useTextScale();
   const styles = useMemo(() => makeStyles(ts), [ts]);
+  // The reset sheet previously asked for a 90% width, which resolved against a
+  // shrink-to-fit parent (the overlay is `alignItems: "center"` + `flex: 1`), so
+  // the card came out at 334px of a 411px phone viewport on web and ~58% on
+  // Android. Size it from the WINDOW so no ancestor can constrain it, keeping the
+  // same 400px ceiling on wide screens.
+  const { width: windowWidth } = useWindowDimensions();
+  const resetSheetWidth = Math.min(windowWidth - 32, 400);
   const params = useLocalSearchParams<{ tab?: string; magic_token?: string; verified?: string; from?: string; returnTo?: string; plan?: string }>();
   const fromLanding = params.from === "landing";
   const [mode, setMode] = useState<"login" | "register">(params.tab === "signup" ? "register" : "login");
@@ -483,7 +491,7 @@ export default function LoginScreen() {
         await logout();
         if (result && "status" in result) {
           if (result.status === "verification_required") {
-            setSuccessMessage("Your account was created successfully. To finish verification, go to your email and click the verification link.");
+            setSuccessMessage("Your account was created. Click the activation link we emailed you, then sign in here.");
           } else if (result.status === "verification_email_failed") {
             setWarningMessage("Your account was created successfully. We couldn't send the verification email yet. Use Resend Verification Email in a few minutes, or contact support if it still does not arrive.");
           }
@@ -1272,7 +1280,7 @@ export default function LoginScreen() {
         >
           <Pressable style={styles.resetOverlay} onPress={handleBackToLogin}>
             <Pressable
-              style={[styles.resetSheet, !layout.isMobile && styles.resetSheetCentered]}
+              style={[styles.resetSheet, !layout.isMobile && styles.resetSheetCentered, { width: resetSheetWidth }]}
               onPress={(e) => e.stopPropagation?.()}
             >
               {resetMode === "email" && (
@@ -1854,6 +1862,11 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
   },
   resetOverlay: {
     flex: 1,
+    // Fill the parent's cross axis. `flex: 1` only sizes the main axis, and the
+    // parent's `alignItems: "center"` made this overlay shrink-to-fit: the dimming
+    // backdrop stopped 20px short of each screen edge, and the sheet's percentage
+    // width resolved against that shrunken box.
+    alignSelf: "stretch",
     backgroundColor: "rgba(0, 0, 0, 0.6)",
     justifyContent: "center",
     alignItems: "center",
@@ -1863,7 +1876,9 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 24,
     paddingVertical: 28,
-    width: "90%",
+    // Width is set at the call site from the WINDOW width. A percentage here
+    // resolved against the shrink-to-fit parent above and collapsed the card
+    // (334px of a 411px viewport on web, ~58% on Android).
     maxWidth: 400,
     borderWidth: 1,
     borderColor: Colors.border,

@@ -25,7 +25,7 @@ import {
   autoSaveRecordingFiles,
   COMBINED_FOLDER_NAME
 } from "./utils";
-import { uploadFile as bucketUploadFile, downloadFile as bucketDownloadFile, deleteFile as deleteBucketObject, fromBucketUri, generateBucketKey, detectMimeType, toBucketUri, createBucketFileRecord, categoryFromMime, deleteBucketFileRecord, getBucketFileByKey } from "../../object-storage";
+import { uploadFile as bucketUploadFile, downloadFile as bucketDownloadFile, downloadFileAsStream as bucketDownloadFileAsStream, deleteFile as deleteBucketObject, fromBucketUri, generateBucketKey, detectMimeType, toBucketUri, createBucketFileRecord, categoryFromMime, deleteBucketFileRecord, getBucketFileByKey } from "../../object-storage";
 import { getBucketStorageUsed } from "../../bucket-routes";
 import { createOpenAIClient, getChatCompletionTokenOptions } from "../../openai-client";
 import { DOCUMENT_PARSER_VERSION, extractDocumentText } from "../../document-parser";
@@ -37,8 +37,22 @@ import {
 } from "../../transcription-routing";
 import { detectSilence, estimateAudioDurationSeconds } from "../../audio-silence";
 import { paragraphizeTranscript } from "@shared/transcript-format";
+import mediaImportRouter from "./media-router";
+import { createWriteStream } from "node:fs";
+import * as path from "node:path";
+import { pipeline } from "node:stream/promises";
+import {
+  DEFAULT_TARGET_SEGMENT_SECONDS,
+  createWorkDir,
+  removeWorkDir,
+  transcribeMediaFile,
+} from "./media-ingest";
 
 const router = express.Router();
+
+// Importing an uploaded audio/video file: mint an upload target, then turn the
+// stored object into a normal recording.
+router.use(mediaImportRouter);
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 500 * 1024 * 1024 } });
 // The route performs the user's tier-aware 25 MB/50 MB check after Multer.
 const docUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -1035,11 +1049,40 @@ router.post("/recordings/:id/transcribe", requireAuth, async (req: Request, res:
     });
 
     const bucketKey = fromBucketUri(recording.audioUri);
-    const fileBuffer = await bucketDownloadFile(bucketKey);
     const fileName = bucketKey.split("/").pop() || "recording.m4a";
     const language = typeof req.body?.language === "string" ? req.body.language : undefined;
     const prompt = language === "es" ? "Español latinoamericano, acento mexicano." : undefined;
-    const transcriptionText = await transcribeWithFallback(fileBuffer, fileName, language, prompt);
+
+    // Long audio cannot travel in a single provider request: every provider
+    // caps one upload at 25 MB and the hedged chain has a 60-second budget, so
+    // a long recording or imported file would fail however healthy the
+    // providers are. Past one segment, the audio is cut at detected silence
+    // and stitched back together. Short recordings take the path below.
+    let fileBuffer: Buffer | null = null;
+    let transcriptionText: string;
+
+    if (durationSeconds > DEFAULT_TARGET_SEGMENT_SECONDS) {
+      const workDir = await createWorkDir();
+      try {
+        const sourcePath = path.join(workDir, `recording${path.extname(bucketKey) || ".m4a"}`);
+        const source = await bucketDownloadFileAsStream(bucketKey);
+        await pipeline(source, createWriteStream(sourcePath));
+        const result = await transcribeMediaFile({
+          sourcePath,
+          fileName: path.basename(sourcePath),
+          durationSeconds,
+          language,
+          prompt,
+          workDir,
+        });
+        transcriptionText = result.text;
+      } finally {
+        await removeWorkDir(workDir);
+      }
+    } else {
+      fileBuffer = await bucketDownloadFile(bucketKey);
+      transcriptionText = await transcribeWithFallback(fileBuffer, fileName, language, prompt);
+    }
 
     // Reject near-empty garbage (punctuation-only, trivially short).
     // Distinguish true silence from provider garbage: a silent recording gets
@@ -1051,7 +1094,9 @@ router.post("/recordings/:id/transcribe", requireAuth, async (req: Request, res:
     // they know has speech (#196).
     const meaningful = transcriptionText.replace(/[\s\p{P}\p{S}]+/gu, "");
     if (meaningful.length < 3) {
-      const silence = await detectSilence(fileBuffer);
+      const silence = fileBuffer
+        ? await detectSilence(fileBuffer)
+        : { silent: false, rms: null, checked: false };
       const noSpeech = silence.silent;
       await storage.updateRecording(recordingId, userId, {
         isTranscribing: false,
@@ -1075,7 +1120,9 @@ router.post("/recordings/:id/transcribe", requireAuth, async (req: Request, res:
     // a silent recording is rejected as no-speech; a short result on audible
     // audio is kept (real one- or two-word recordings must not be discarded).
     if (meaningful.length < 40) {
-      const silence = await detectSilence(fileBuffer);
+      const silence = fileBuffer
+        ? await detectSilence(fileBuffer)
+        : { silent: false, rms: null, checked: false };
       if (silence.silent) {
         await storage.updateRecording(recordingId, userId, {
           isTranscribing: false,

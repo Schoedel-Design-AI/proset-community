@@ -1,10 +1,12 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { promises as fsp } from "node:fs";
@@ -292,6 +294,75 @@ export async function uploadFile(
 
   await ensureLocalDirectory(normalizedKey);
   await fsp.writeFile(resolveLocalPath(normalizedKey), Buffer.from(data));
+}
+
+/**
+ * Mint a short-lived URL the CLIENT can upload to directly.
+ *
+ * This exists because Cloud Run refuses HTTP/1 request bodies over 32 MiB
+ * before the application code runs — which caps a single upload at roughly 16
+ * minutes of 16 kHz mono WAV and makes a large video impossible. Sending the
+ * bytes straight to object storage removes that ceiling. Returns null for the
+ * local filesystem provider, where the caller falls back to a server-side
+ * upload route (development only — it has the same request-size ceiling).
+ */
+export async function createPresignedUploadUrl(
+  bucketKey: string,
+  contentType: string,
+  expiresInSeconds = 1800,
+): Promise<string | null> {
+  if (!s3Client || !s3BucketName) return null;
+  const normalizedKey = normalizeBucketKey(bucketKey);
+  return getSignedUrl(
+    s3Client,
+    new PutObjectCommand({
+      Bucket: s3BucketName,
+      Key: normalizedKey,
+      ContentType: contentType,
+    }),
+    { expiresIn: expiresInSeconds },
+  );
+}
+
+/**
+ * Size of a stored object in bytes, or null when it is missing/unreadable.
+ * Used to enforce the tier's byte ceiling on what the client actually
+ * uploaded, rather than on what it said it would upload.
+ */
+export async function getObjectSize(bucketKey: string): Promise<number | null> {
+  const normalizedKey = normalizeBucketKey(bucketKey);
+
+  if (s3Client && s3BucketName) {
+    try {
+      const head = await s3Client.send(new HeadObjectCommand({
+        Bucket: s3BucketName,
+        Key: normalizedKey,
+      }));
+      return typeof head.ContentLength === "number" ? head.ContentLength : null;
+    } catch {
+      return null;
+    }
+  }
+
+  try {
+    const stat = await fsp.stat(resolveLocalPath(normalizedKey));
+    return stat.size;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Ownership check for a client-supplied bucket key. Keys are always minted
+ * under `users/<userId>/...`, so this is what stops a user from asking the
+ * server to ingest — or delete — somebody else's object. Path segments that
+ * could climb out of that prefix are rejected outright.
+ */
+export function isBucketKeyOwnedByUser(bucketKey: string, userId: string): boolean {
+  const normalized = normalizeBucketKey(bucketKey);
+  if (!userId || userId.includes("/")) return false;
+  if (normalized.includes("..") || normalized.includes("//")) return false;
+  return normalized.startsWith(`users/${userId}/`);
 }
 
 export async function downloadFile(bucketKey: string): Promise<Buffer> {

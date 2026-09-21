@@ -25,6 +25,7 @@ function summaryFor(tokenBalance: number): UserUsageSummary {
     maxRecordingSeconds: 900,
     storageMb: 1024,
     maxFileImportMB: 25,
+    maxMediaUploadMB: 0,
     allowedFileTypes: [],
     isSuperAdmin: false,
     proAccessEnabled: false,

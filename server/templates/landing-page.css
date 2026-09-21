@@ -789,60 +789,7 @@ img,svg{display:block;max-width:100%;height:auto}
   background-color: #23c3df;
 }
 
-/* Pitch deck download section */
-.deck-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.5rem;
-  max-width: 46rem;
-  margin: 0 auto;
-}
-@media (min-width: 768px) {
-  .deck-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-.deck-card {
-  background-color: var(--brand-surface);
-  border: 1px solid var(--brand-border);
-  border-radius: 1rem;
-  padding: 1.75rem 1.5rem;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-.deck-card-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--brand-text);
-}
-.deck-card-desc {
-  font-size: 0.9rem;
-  color: var(--brand-textSecondary);
-}
-.deck-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-top: auto;
-}
-.deck-btn-secondary {
-  display: inline-flex;
-  justify-content: center;
-  min-width: 9rem;
-  padding: 0.85rem 1.5rem;
-  border-radius: 0.75rem;
-  border: 1px solid var(--brand-border);
-  background-color: var(--brand-surfaceLight);
-  color: var(--brand-text);
-  font-weight: 600;
-  transition: background-color 0.2s, border-color 0.2s;
-}
-.deck-btn-secondary:hover {
-  border-color: var(--brand-primary);
-  background-color: var(--brand-surfaceHighlight);
-}
+/* Pitch deck download section removed 2026-09-17 */
 
 .final-cta-section {
   display: flex;
@@ -1092,3 +1039,97 @@ section[aria-labelledby="compare-title"] ul li::before {
   color: var(--brand-background);
 }
 .pricing-card-cta-primary:hover { background-color: var(--brand-primaryDark); }
+
+/* Academic Pack Panel */
+.academic-pack-section {
+  padding: 5rem 1.5rem;
+  background-color: var(--brand-surface);
+  border-top: 1px solid var(--brand-border);
+  border-bottom: 1px solid var(--brand-border);
+}
+.academic-pack-container {
+  max-width: 72rem;
+  margin: 0 auto;
+}
+.academic-pack-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+.academic-pack-kicker {
+  color: var(--brand-primary);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+}
+.academic-pack-header h2 {
+  color: var(--brand-text);
+  font-size: 2rem;
+  line-height: 1.2;
+  font-weight: 700;
+}
+.academic-pack-subtitle {
+  margin-top: 0.75rem;
+  color: var(--brand-textMuted);
+  font-size: 1rem;
+  max-width: 44rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+.academic-pack-grid {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 640px) {
+  .academic-pack-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1024px) {
+  .academic-pack-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.academic-pack-column {
+  padding: 1.5rem;
+  border: 1px solid var(--brand-border);
+  border-radius: 1rem;
+  background-color: var(--brand-background);
+  display: flex;
+  flex-direction: column;
+}
+.academic-pack-column h3 {
+  color: var(--brand-text);
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+.academic-pack-column-lead {
+  color: var(--brand-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  line-height: 1.35;
+}
+.academic-pack-types {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.academic-pack-types li {
+  color: var(--brand-textMuted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+.academic-pack-types li strong {
+  display: block;
+  color: var(--brand-text);
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 0.1rem;
+}

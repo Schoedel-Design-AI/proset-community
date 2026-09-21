@@ -24,6 +24,12 @@ export interface TranscriptionInput {
   fileName: string;
   language?: string;
   prompt?: string;
+  /**
+   * Optional audio duration in seconds. Passed to the log emitter so aggregate
+   * long-audio vs short-audio hedge analysis is possible without re-decoding.
+   * Omit when the caller does not know it — the byte size is still logged.
+   */
+  durationSec?: number;
 }
 
 export interface TranscriptionResult {
@@ -330,8 +336,17 @@ export async function transcribeAudioLatencyFirst(
     routes,
     async (route, signal) => {
       const providerStartedAt = Date.now();
+      // Size + duration-hint is what makes the aggregate provider-mix analysis
+      // possible after the fact (long-audio hedge vs short-audio wins). Duration
+      // has to come from the caller because we do not decode audio here; the
+      // buffer size is a coarse fallback that at least sorts calls by scale.
+      const bytesKB = Math.round(input.fileBuffer.byteLength / 1024);
+      const durationHint =
+        typeof input.durationSec === "number" && Number.isFinite(input.durationSec)
+          ? ` durationSec=${input.durationSec.toFixed(1)}`
+          : "";
       console.log(
-        `[transcribe] Starting ${route.provider} (model: ${route.model}, deadline: ${route.timeoutMs}ms)`,
+        `[transcribe] Starting ${route.provider} (model: ${route.model}, deadline: ${route.timeoutMs}ms) bytesKB=${bytesKB}${durationHint}`,
       );
       try {
         const text =
@@ -339,12 +354,12 @@ export async function transcribeAudioLatencyFirst(
             ? await transcribeMistral(route, input, signal)
             : await transcribeOpenAICompatible(route, input, signal);
         console.log(
-          `[transcribe] ${route.provider} completed in ${Date.now() - providerStartedAt}ms`,
+          `[transcribe] ${route.provider} completed in ${Date.now() - providerStartedAt}ms bytesKB=${bytesKB}${durationHint}`,
         );
         return text;
       } catch (error) {
         console.warn(
-          `[transcribe] ${route.provider} stopped after ${Date.now() - providerStartedAt}ms: ${errorMessage(error)}`,
+          `[transcribe] ${route.provider} stopped after ${Date.now() - providerStartedAt}ms bytesKB=${bytesKB}${durationHint}: ${errorMessage(error)}`,
         );
         throw error;
       }

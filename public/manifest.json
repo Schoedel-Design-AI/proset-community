@@ -4,7 +4,7 @@
   "description": "Record, transcribe, and transform your voice notes with AI",
   "start_url": "/app",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "background_color": "#0A1628",
   "theme_color": "#0A1628",
   "lang": "en",

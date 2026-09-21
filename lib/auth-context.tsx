@@ -57,6 +57,10 @@ export type AuthContextType = {
   register: (firstName: string, email: string, password: string, turnstileToken?: string) => Promise<RegisterResult>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<any>;
+  // Community Edition has no hosted Firebase identity provider: activation
+  // links verify the address locally (see app/verify-email.tsx), and this always
+  // reports "no session to mint" so the screen takes that path.
+  completeVerificationSignIn: (oobCode: string) => Promise<any | null>;
   changeEmail: (newEmail: string, password: string) => Promise<void>;
   changeName: (firstName: string) => Promise<void>;
   changeCountry: (country: string) => Promise<void>;
@@ -469,7 +473,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         return data;
       } else if (res.status === 401) {
-        setSessionExpiredMsg("Your session has expired, please sign in again.");
+        // Only a session that EXISTED can expire. A 401 with no active session
+        // is not an expiry — e.g. the verify-email screen probing /api/auth/me
+        // after a mailbox action link opened in a window that was never signed
+        // in — and announcing it there told users "your session has expired"
+        // immediately after a verification click that had succeeded.
+        if (userRef.current) {
+          setSessionExpiredMsg("Your session has expired, please sign in again.");
+        }
         await clearSession();
       }
     } catch (err) {
@@ -726,6 +737,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     throw new Error("Magic links are not supported in this client.");
   };
 
+  const completeVerificationSignIn = async (_oobCode: string) => {
+    // No hosted Firebase identity provider in CE: the activation screen verifies
+    // the address locally and lands on the sign-in screen.
+    return null;
+  };
+
   const completeMagicLink = async (token: string) => {
     throw new Error("Magic links are not supported in this client.");
   };
@@ -885,7 +902,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, skipAuthRedirect, setSkipAuthRedirect, sessionExpiredMessage: sessionExpiredMsg, clearSessionExpiredMessage, login, requestMagicLink, completeMagicLink, register, logout, refreshUser, changeEmail, changeName, changeCountry, changeJobType, changeAvatar, changePassword, signInSocial, signInPasskey, mfaChallengePending: Boolean(mfaChallengeId), completeMfaSignIn, cancelMfaSignIn, deleteAccount }}>
+    <AuthContext.Provider value={{ user, isLoading, skipAuthRedirect, setSkipAuthRedirect, sessionExpiredMessage: sessionExpiredMsg, clearSessionExpiredMessage, login, requestMagicLink, completeMagicLink, register, logout, refreshUser, completeVerificationSignIn, changeEmail, changeName, changeCountry, changeJobType, changeAvatar, changePassword, signInSocial, signInPasskey, mfaChallengePending: Boolean(mfaChallengeId), completeMfaSignIn, cancelMfaSignIn, deleteAccount }}>
       {children}
     </AuthContext.Provider>
   );

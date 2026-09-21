@@ -711,6 +711,17 @@ export interface UserModule {
   stripeSubscriptionId?: string | null;
   assignedBy?: string | null;
   assignedAt: Date | string;
+  /**
+   * Explicit off-switch for `tier` access-model modules. Semantics (2026-09-17):
+   * `tier` modules default to ENABLED for any subscriber whose tier meets
+   * `requiredTier`. A user who does not want the pack (e.g. a business Pro
+   * subscriber who never uses Academic Pack conversions) writes a row with
+   * `disabled: true`; the module still appears in Settings, but its conversion
+   * types are hidden from the picker. Absent row OR `disabled: false` = ON by
+   * default. `monthly_addon` modules ignore this field — presence of the row
+   * IS the entitlement there.
+   */
+  disabled?: boolean;
 }
 
 export const COUNTRIES = [

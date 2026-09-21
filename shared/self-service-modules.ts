@@ -20,7 +20,7 @@ export const SELF_SERVICE_MODULE_CATALOG = {
       "lesson_plan",
       "essay_explainer",
       "bibliography",
-      "questions",
+      "research_questions",
     ],
   },
 } as const;

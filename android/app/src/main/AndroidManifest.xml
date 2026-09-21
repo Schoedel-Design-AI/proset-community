@@ -43,6 +43,41 @@
         <data android:scheme="proset"/>
         <data android:scheme="ms.aifor.app"/>
       </intent-filter>
+      <!-- Android App Links. Lets https://proset.ai app routes open Proset
+           instead of the browser, so a completed web checkout (or an email
+           action link) hands the customer back into the app holding their
+           entitlement. Verified against
+           https://proset.ai/.well-known/assetlinks.json, which is served by the
+           Cloud Run app and lists both the Play App Signing certificate and the
+           upload key. If verification fails, Android silently falls back to the
+           browser - the pre-existing behaviour, so this degrades safely.
+
+           Paths are scoped to the app's own routes on purpose: the landing page,
+           /documentation, /privacy, /refund and /terms should stay on the web. -->
+      <intent-filter android:autoVerify="true">
+        <action android:name="android.intent.action.VIEW"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <data android:scheme="https"/>
+        <data android:host="proset.ai"/>
+        <data android:host="www.proset.ai"/>
+        <data android:path="/choose-plan"/>
+        <data android:path="/login"/>
+        <data android:path="/welcome"/>
+        <data android:path="/record"/>
+        <data android:path="/recordings"/>
+        <data android:path="/combine"/>
+        <data android:path="/files"/>
+        <data android:path="/music"/>
+        <data android:path="/settings"/>
+        <data android:path="/admin"/>
+        <data android:path="/mfa-setup"/>
+        <data android:path="/force-change-password"/>
+        <data android:path="/verify-email"/>
+        <data android:path="/reset-password"/>
+        <data android:path="/thought-threads"/>
+        <data android:pathPrefix="/recording/"/>
+      </intent-filter>
     </activity>
     <provider
         android:name="androidx.core.content.FileProvider"

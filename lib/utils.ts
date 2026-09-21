@@ -47,7 +47,7 @@ export const MODULE_NAMES = {
 export type ModuleName = typeof MODULE_NAMES[keyof typeof MODULE_NAMES];
 
 export const MODULE_CONVERSION_TYPES: Record<ModuleName, string[]> = {
-  academic: ["academic_research", "statistics", "argumentative_essay", "nonfiction_draft", "course_syllabus", "lesson_plan", "essay_explainer"],
+  academic: ["academic_research", "statistics", "argumentative_essay", "nonfiction_draft", "course_syllabus", "lesson_plan", "essay_explainer", "quiz", "study_guide", "rubric", "flashcards", "discussion_questions"],
 };
 
 export type ConversionComplexity = "simple" | "intermediate" | "advanced";
@@ -67,7 +67,7 @@ export const CONVERSION_COMPLEXITY_MAP: Record<string, ConversionComplexity> = {
   bullet_points: "simple",
   notes: "simple",
   outline: "simple",
-  questions: "simple",
+  research_questions: "simple",
   summary: "simple",
   todo_list: "simple",
   text_message: "simple",
@@ -110,8 +110,8 @@ export type DisplayTier = SubscriptionTier;
 
 export const TIER_CONVERSION_TYPES: Record<SubscriptionTier, string[]> = {
   free: ["summary", "bullet_points", "notes", "email", "todo_list", "outline", "quick_research", "text_message", "adhd_plan", "scaffolded_project_plan", "scaffolded_action_items", "freelancer_time_log", "general_request", "github_issue"],
-  base: ["summary", "bullet_points", "notes", "email", "todo_list", "outline", "quick_research", "text_message", "adhd_plan", "scaffolded_project_plan", "scaffolded_action_items", "freelancer_time_log", "action_items", "questions", "prompt", "blog_post", "linkedin_post", "podcast_script", "project_plan", "calendar_event", "requirements", "bibliography", "spreadsheet", "video_script", "office_memo", "white_paper", "slide_deck", "general_request", "github_issue"],
-  pro: ["summary", "bullet_points", "notes", "email", "todo_list", "outline", "quick_research", "text_message", "adhd_plan", "scaffolded_project_plan", "scaffolded_action_items", "freelancer_time_log", "action_items", "questions", "prompt", "blog_post", "linkedin_post", "podcast_script", "project_plan", "calendar_event", "requirements", "bibliography", "spreadsheet", "video_script", "office_memo", "white_paper", "slide_deck", "general_request", "github_issue"],
+  base: ["summary", "bullet_points", "notes", "email", "todo_list", "outline", "quick_research", "text_message", "adhd_plan", "scaffolded_project_plan", "scaffolded_action_items", "freelancer_time_log", "action_items", "research_questions", "prompt", "blog_post", "linkedin_post", "podcast_script", "project_plan", "calendar_event", "requirements", "bibliography", "spreadsheet", "video_script", "office_memo", "white_paper", "slide_deck", "general_request", "github_issue"],
+  pro: ["summary", "bullet_points", "notes", "email", "todo_list", "outline", "quick_research", "text_message", "adhd_plan", "scaffolded_project_plan", "scaffolded_action_items", "freelancer_time_log", "action_items", "research_questions", "prompt", "blog_post", "linkedin_post", "podcast_script", "project_plan", "calendar_event", "requirements", "bibliography", "spreadsheet", "video_script", "office_memo", "white_paper", "slide_deck", "general_request", "github_issue"],
 };
 
 export const FREE_CONVERSION_TYPES = TIER_CONVERSION_TYPES.free;
@@ -127,7 +127,7 @@ export const RESEARCH_FORMS_TYPES: ReadonlySet<string> = new Set([
   "nonfiction_draft",
   "quick_research",
   "argumentative_essay",
-  "questions",
+  "research_questions",
 ]);
 
 /** Web-channel toggle default per type: OFF for pure-literature types. */
@@ -199,7 +199,7 @@ export const CONVERSION_TYPES: { value: string; label: string; icon: string; cat
   // Research
   { value: "quick_research", label: "Quick Research", icon: "search", category: "research" },
   { value: "bibliography", label: "Bibliography", icon: "bookmark", category: "research" },
-  { value: "questions", label: "Questions", icon: "help-circle", category: "research" },
+  { value: "research_questions", label: "Questions", icon: "help-circle", category: "research" },
   { value: "prompt", label: "AI Prompt", icon: "zap", category: "research" },
   { value: "white_paper", label: "White Paper", icon: "award", category: "research" },
   { value: "slide_deck", label: "Slide Deck", icon: "monitor", category: "productivity" },

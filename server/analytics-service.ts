@@ -19,7 +19,13 @@ export type EventType =
   | 'thought_thread_context_added'
   | 'thought_thread_conversion_prepared'
   | 'thought_thread_conversion_completed'
-  | 'thought_thread_conversion_failed';
+  | 'thought_thread_conversion_failed'
+  // Media import ships in the CE (server/modules/recordings/media-router.ts).
+  // Keep these in sync with main: a main-side event added without updating this
+  // override breaks the CE tsc and aborts every export.
+  | 'media_import_started'
+  | 'media_import_succeeded'
+  | 'media_import_failed';
 
 export async function trackEvent(eventType: EventType, userId?: string, metadata?: Record<string, any>) {
   try {

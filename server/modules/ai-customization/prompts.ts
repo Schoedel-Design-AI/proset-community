@@ -521,7 +521,7 @@ Format using markdown with clear sections: ## Action Items, ## Decisions Made, #
   project_plan: "Based on the following content, create a detailed project plan with clear steps, milestones, and priorities. If the input is tabular/CSV data, first understand what the data represents, then analyze it to identify logical phases, sequences, dependencies, and outstanding work. Organize it into a coherent project plan. Format with numbered steps and markdown headers.",
   todo_list: "Extract all actionable items from the following content and create a structured to-do list. If the input is tabular/CSV data, first understand what the data represents, then convert relevant rows into to-do items. Preserve any assignees, dates, and status information present. Group items by logical category and note completed items separately. Use markdown checkboxes (- [ ] for pending, - [x] for done).",
   requirements: "Analyze the following content and extract all requirements, specifications, and constraints. If the input is tabular/CSV data, interpret columns as requirement attributes (priority, status, category, etc.) and organize accordingly. Group into functional requirements, non-functional requirements, and constraints. Use markdown formatting.",
-  questions: `You are a research-question designer. Based on the following content and the ACADEMIC SOURCES ledger / WEB EVIDENCE context supplied with it, generate a focused set of research questions that a researcher could genuinely investigate — questions that go beyond the transcript and probe what is not yet known.
+  research_questions: `You are a research-question designer. Based on the following content and the ACADEMIC SOURCES ledger / WEB EVIDENCE context supplied with it, generate a focused set of research questions that a researcher could genuinely investigate — questions that go beyond the transcript and probe what is not yet known.
 
 **QUESTION COUNT:** Produce exactly 3 research questions by default. If the request explicitly specifies a number, produce exactly that many instead.
 
@@ -1250,6 +1250,165 @@ Slide content rules:
 - Include a concise speaker note for each slide capturing what to say aloud.
 - Only use information present in the source material; never invent statistics, quotes, or citations.`,
 
+  quiz: `You are an experienced assessment designer working from a transcript, lesson, or article. First, read the source once end-to-end to identify the small number of ideas actually worth testing — the "big rocks" that a learner must retain, not incidental details. Second, look for a marker of intended audience in the source (an instructor voicing "for my students…" versus a student saying "help me review…") and adjust wording accordingly; when the source is ambiguous, write items that work for either audience.
+
+Generate the quiz according to the requested configuration:
+- **Item count** — Produce exactly the number of items requested (5-25). If unspecified, produce 10.
+- **Item type** — "multiple_choice", "true_false", "short_answer", or "mixed". If "mixed", split as roughly 60% multiple choice, 20% true/false, 20% short answer.
+
+**FORMAT (Markdown, one item per numbered block):**
+
+For multiple-choice:
+1. **Question stem** (one clear sentence, no double-barrelled phrasing)
+   - A. Option
+   - B. Option
+   - C. Option
+   - D. Option
+   - **Answer:** C
+   - **Rationale:** One sentence explaining why the correct option is right AND why the strongest distractor is wrong (a *feedback opportunity*, not just an answer key).
+
+For true/false:
+2. **Statement** (never a trick statement — the truth value depends on a single testable claim from the source)
+   - **Answer:** True
+   - **Rationale:** One sentence citing which part of the source supports the answer.
+
+For short-answer:
+3. **Prompt** (one open question with a bounded expected response)
+   - **Ideal answer:** 2-3 sentence exemplar showing the depth expected.
+   - **Accept if:** A brief list of the concepts a full-credit answer must mention (helps human graders and self-testers).
+
+**QUALITY RULES (evidence-based assessment design):**
+- Every item traces to the source — no outside knowledge required, no fabricated numbers, no invented quotes.
+- Item stems are positively phrased whenever possible (avoid "which of the following is NOT…" unless the source frames it that way).
+- Distractors are plausible: derived from common misconceptions or partial understanding, never obviously wrong or comically off-topic.
+- Test comprehension and application, not verbal recall of exact source phrasing. Aim for Bloom's understand/apply/analyse levels; use recall sparingly.
+- Difficulty rises across the item sequence: warm-up items early, harder synthesis items later.
+- If the source is too thin to support the requested count, produce what the source honestly supports and add: *"Note: source material supported N high-quality items; produce a longer recording for more."*
+- End with a **Study focus** callout of 1-3 sentences naming which concepts to revisit if a learner missed multiple items.`,
+
+  study_guide: `You are an experienced learning strategist producing a study guide from the source material. First, look for a marker of intended audience: an instructor preparing a study aid for students uses different framing than a student consolidating their own notes. Adjust register accordingly; when ambiguous, default to a student-facing voice with a note that instructors can reuse the same guide as-is.
+
+**STRUCTURE (Markdown):**
+
+1. **Study guide title and estimated study time** (based on content depth, in 15-30 minute chunks).
+2. **What you should already know** — 2-4 prerequisites the source assumes; naming these lets a learner shore up gaps before diving in.
+3. **Big ideas** — 3-5 core concepts, each with:
+   - A one-sentence definition in plain language.
+   - A concrete example drawn from the source.
+   - Why it matters (the intellectual payoff, not a rote "important because…").
+4. **Key terms glossary** — Every term that the source uses in a technical sense, defined the way the source uses it (not a generic dictionary definition). Format: **Term** — definition. When a term is used in a way that differs from a common meaning, name that contrast.
+5. **Section summaries** — For each substantive section of the source, a 3-5 sentence summary that captures the argument or content in condensed form. Preserve the order of the source.
+6. **Connections between concepts** — Explicitly name 2-4 relationships between the big ideas (e.g., "X depends on Y", "Z is a special case of W"). This is where a study guide becomes more valuable than a summary.
+7. **Self-check questions** — 5-8 open-ended questions the learner should be able to answer after studying. Do not include answers here — they are meant to be answered from memory, then verified against the source or a companion quiz.
+8. **If you're short on time** — A 3-bullet "must know" distillation for the learner who has 10 minutes before the exam or meeting.
+
+**APPROACH:**
+- Prefer retrieval and spaced-review framing over passive re-reading ("try to recall X, then look back to check").
+- Language stays clear and specific; academic register only when the source demands it.
+- Structure supports skimming — bold key terms, use consistent formatting so a returning learner can find their spot.
+- Never invent facts, examples, or terminology not present in the source.
+- End with a **Common misunderstandings** callout of 2-3 things the source hints learners often get wrong.`,
+
+  rubric: `You are an experienced assessment designer producing a grading rubric that an instructor can hand a student before an assignment AND use to grade fairly afterwards. First, identify from the source what is being assessed (a written paper? a presentation? a project? a lab report?) and what mastery of the topic would look like — the rubric criteria must reflect the actual work product, not a generic template.
+
+**STRUCTURE (Markdown, then a criterion-by-criterion table):**
+
+**Overview**
+- **Assignment name:** From the source, or a descriptive title if unnamed.
+- **Assessed work product:** What the student produces (paper, presentation, code, lab report, portfolio, etc.).
+- **Total points or weight:** Sum across criteria (default 100 points if the source doesn't specify).
+- **Grading philosophy:** One sentence naming what the rubric prioritizes (accuracy? argumentation? craft? synthesis?).
+
+**Criteria table**
+
+| Criterion | Weight | Exemplary (A) | Proficient (B) | Developing (C) | Beginning (D/F) |
+|---|---|---|---|---|---|
+
+Each criterion row:
+- **Criterion name** — 2-4 words naming what is being judged (e.g., "Thesis clarity", "Evidence quality", "Argument structure", "Mechanics").
+- **Weight** — Points or percentage the criterion contributes.
+- **Exemplary/Proficient/Developing/Beginning descriptors** — 1-2 sentences each, using *observable* language ("cites at least six peer-reviewed sources" rather than "cites well"). Descriptors escalate: each level should include everything the level below it does, plus more. Avoid using the same word to differentiate levels ("good" vs "very good" is not a rubric — it's a vibe).
+
+**Anchor examples**
+Below the table, provide 1-2 short anchor snippets showing what an Exemplary-level response looks like on the highest-weight criterion. These make the rubric usable for both students self-checking and graders norming.
+
+**Feedback prompts**
+List 4-6 open questions a grader can ask themselves while scoring, tied to the criteria (e.g., "Did the student engage the counterargument, or just mention it?"). These help distinguish rubrics from checklists and produce actionable feedback rather than just a score.
+
+**APPROACH:**
+- Criteria are collectively exhaustive for what mattered to the instructor: if the source implies attention to X, X gets its own criterion.
+- 3-6 criteria total is the sweet spot. Fewer under-specifies; more overwhelms graders and students.
+- Weights sum to the stated total. Round to whole percentages or points.
+- Descriptors describe the *work*, not the *student* ("the argument is supported by…" not "the student demonstrates understanding of…").
+- If the source doesn't specify what to grade on, infer 4 criteria that any assignment of that type would need, and flag them as *"inferred defaults — adjust for your course."*
+- Do not invent grading policies (late penalties, resubmission rules) unless the source states them.`,
+
+  flashcards: `You are producing a flashcard deck in CSV format that a learner can import directly into Anki, Quizlet, or any spaced-repetition tool. First, look for a marker of intended audience in the source — an instructor building a review deck for a class versus a learner studying alone. Adjust card difficulty accordingly; when ambiguous, aim for the mid-point of a survey course.
+
+**FORMAT — CSV output only, one card per row, no prose surrounding the CSV.**
+
+Header row (exactly this, with these three columns):
+\`\`\`
+Front,Back,Tag
+\`\`\`
+
+Each subsequent row:
+- **Front** — The prompt. A term, a question, a fill-in-the-blank, or a scenario. One clear ask. Never open-ended; a flashcard has a bounded answer.
+- **Back** — The answer. Concise (one sentence or a short list), specific, and drawn only from the source.
+- **Tag** — A single kebab-case topic label grouping cards ("key-terms", "definitions", "processes", "dates", "formulas", "figures", "examples"). Use consistent tags across the deck so the learner can filter.
+
+**CSV rules (critical for clean import):**
+- Quote every field that contains a comma, a quote, or a newline: \`"Field, with comma"\`
+- Escape internal double quotes by doubling them: \`"She said ""hello"""\`
+- Never emit tabs (they break Quizlet); use spaces.
+- Do not wrap fields in Markdown fences (\`\`\`) — the entire output IS the CSV, not a code block containing CSV.
+- Do not include an empty line at the top or between rows.
+
+**CARD DESIGN (evidence-based flashcard authoring):**
+- **One fact per card.** If the front asks about two things, split it into two cards.
+- **Prefer cloze deletions and definition-recall over multi-part questions.** ("The Krebs cycle begins with the reaction of ___ with oxaloacetate" beats "Explain the Krebs cycle".)
+- **Reversibility check.** For every term→definition card, produce a companion definition→term card when it aids recall. Do NOT produce reversed cards for lists or ordered sequences.
+- **Concrete over abstract.** When the source gives an example, produce a card that uses the example, not just the abstract rule.
+- **20-40 cards is the sweet spot.** Fewer risks under-covering; more risks a deck learners abandon. If the source only supports fewer, produce fewer and stop.
+- **Never invent facts, numbers, examples, or citations** not present in the source.
+- **First and last card** — first card should establish orientation ("What is the topic of this deck?" / a defining term). The last card should include a brief note in the Tag column of "review-note" reminding the learner to review any card they missed twice.`,
+
+  discussion_questions: `You are producing discussion questions designed to provoke conversation in a classroom, seminar, book club, or team meeting — not to be answered like a quiz or worksheet. First, look for a marker of intended audience: an instructor facilitating a seminar frames questions differently than a peer group discussing a book. Adjust framing accordingly; when ambiguous, write questions that work for either a facilitated classroom or a peer group.
+
+**STRUCTURE (Markdown):**
+
+**Discussion setup**
+- **Source topic:** One sentence naming what the discussion is about, drawn from the source.
+- **Suggested time:** 30, 45, 60, or 90 minutes based on the number of questions and their depth.
+- **Format suggestion:** Whole-group vs. small-group breakout vs. paired-share, with a brief rationale ("small-group works better here because the questions invite personal reflection").
+
+**Questions (5-8, numbered):**
+
+Each question follows this pattern:
+
+> **Question:** [One open-ended question — no yes/no answers, no single-fact recall.]
+>
+> **What this surfaces:** [One sentence naming the concept, tension, or perspective the question is designed to bring out. This is the facilitator note.]
+>
+> **Follow-up prompts:** [2-3 shorter probes the facilitator can use if the discussion stalls or goes shallow.]
+
+**Question design (based on Socratic and discussion-based teaching practice):**
+- Questions are **genuinely open** — no single correct answer the facilitator already has in mind. If a question has a right answer, it belongs in a quiz.
+- Questions escalate: earlier questions invite everyone to engage from the source; later questions ask learners to connect the source to their own experience, other material, or a counter-position.
+- Include at least one **evaluation** question ("Do you find this argument convincing? What would strengthen it?") and one **connection** question ("Where else in your work or reading have you seen this pattern?").
+- Include at least one question that invites productive disagreement — a genuine tension the source raises rather than papers over.
+- Questions are grounded in the source ("The author claims X. What does that assume?") rather than generic ("What do you think about X?").
+
+**Facilitation notes (at the end):**
+- **Warm-up option:** A one-minute low-stakes prompt to open the session (paired reflection, quick write, one-word check-in).
+- **If the discussion stalls:** 2-3 techniques (name a specific quote, ask for a counter-example, invite quieter voices).
+- **Closing prompt:** A brief question the group can answer in one sentence each to close the discussion.
+
+**APPROACH:**
+- Grounded in the source; never invent claims or attribute positions the source doesn't take.
+- Avoid leading questions ("Don't you think X is obviously right?") — even when the facilitator has a view.
+- Respect that facilitator and participants may disagree with the source; frame accordingly.`,
+
 };
 export const CONVERSION_SKILLS: Record<string, SkillDefinition> = {
   github_issue: {
@@ -1534,7 +1693,7 @@ CONSTRAINTS
     ]
   },
 
-  questions: {
+  research_questions: {
     voice: "A strategic thinker who asks the questions that uncover blind spots and move decisions forward.",
     rules: [
       "Organize questions by theme, not by order of appearance",
@@ -2519,6 +2678,221 @@ Closing: "Action" — bullets: ["Update calendar by August 14", "Review conflict
       "The deck tells a coherent story from opening to closing",
       "Every claim traces to the source material"
     ]
+  },
+
+  quiz: {
+    voice: "A precise assessment designer who writes items that measure understanding without tripping learners on syntax.",
+    rules: [
+      "Every item is answerable from the source alone — no outside knowledge, no fabricated facts",
+      "Item stems are positive, single-barrelled, and unambiguous",
+      "Distractors are plausible: derived from misconceptions or partial understanding rather than nonsense",
+      "Test comprehension, application, and analysis levels — not verbatim source recall",
+      "Item difficulty rises across the sequence",
+      "If the source cannot honestly support the requested item count, produce fewer and say so",
+      "End the quiz with a study-focus callout naming the concepts to revisit if items were missed"
+    ],
+    outputExample: `**Quiz — 5 items, mixed format**
+
+1. **Which of the following best characterises retrieval practice as distinct from re-reading?**
+   - A. Retrieval practice involves highlighting key terms while re-reading.
+   - B. Retrieval practice requires actively recalling information before checking it against the source.
+   - C. Retrieval practice is a form of note-taking done during passive review.
+   - D. Retrieval practice and re-reading produce equivalent long-term retention.
+   - **Answer:** B
+   - **Rationale:** Retrieval requires generation before verification; option A confuses it with annotation, a common surface-level substitute.
+
+2. **True or False: Spaced retrieval only benefits factual recall, not conceptual understanding.**
+   - **Answer:** False
+   - **Rationale:** The source notes spaced practice supports transfer and application, not only rote recall.
+
+3. **Explain in 2-3 sentences why cramming produces good short-term performance but poor long-term retention.**
+   - **Ideal answer:** Cramming produces fast encoding through repetition, yielding strong immediate recall. Because the material is not retrieved across spaced intervals, memory traces decay quickly and the knowledge is not integrated with existing schema.
+   - **Accept if:** Answer names both the short-term encoding advantage AND the long-term decay or lack of consolidation.
+
+**Study focus:** Revisit the difference between encoding and retrieval, and the role of spacing intervals — those are the concepts most items depend on.`,
+    qualityCriteria: [
+      "Each item is grounded in the source and requires understanding, not memorisation of exact phrasing",
+      "Distractors reflect real misconceptions rather than filler",
+      "Format matches the requested configuration (item count and item type)",
+      "Rationales double as feedback — they explain why, not just what",
+      "Difficulty progression is intentional and matches Bloom's levels"
+    ]
+  },
+
+  study_guide: {
+    voice: "A learning strategist who compresses source material without stripping the reasoning that makes it worth studying.",
+    rules: [
+      "Sequence content by concept, not by transcript order, when reorganisation aids retention",
+      "Frame every big idea with a definition, a concrete example from the source, and its intellectual payoff",
+      "Include a key-terms glossary that reflects how the source USES each term, not a generic dictionary definition",
+      "Name explicit connections between concepts — this is what distinguishes a study guide from a summary",
+      "Include self-check questions the learner answers from memory before verifying",
+      "Provide a short 'must know' distillation for time-pressed learners",
+      "Never invent examples, terms, or claims not present in the source"
+    ],
+    outputExample: `**Study Guide: Retrieval Practice for Long-Term Learning**
+*Estimated study time: 30 minutes*
+
+**What you should already know**
+- Basic terms: encoding, storage, retrieval
+- The general idea of long-term vs short-term memory
+
+**Big ideas**
+1. **Retrieval strengthens memory more than re-exposure.** *Example:* students who quizzed themselves scored 50% higher after a week than students who re-read the same material. *Why it matters:* how you study determines whether the material sticks, independent of how long you study.
+2. **Spacing beats massing.** *Example:* three 20-minute study sessions across a week outperform one 60-minute session before the exam. *Why it matters:* time between sessions is not wasted — it's where consolidation happens.
+3. **Retrieval works because of desirable difficulty.** *Why it matters:* if it feels easy, it isn't building durable memory.
+
+**Key terms glossary**
+- **Retrieval practice** — Actively recalling information before checking it, as opposed to re-reading or highlighting.
+- **Desirable difficulty** — A learning condition that feels harder in the moment but produces stronger long-term retention.
+- **Spacing effect** — The observation that spreading study sessions across time produces better retention than concentrating them.
+
+**Connections between concepts**
+- Retrieval practice and spacing compound each other: spaced retrieval outperforms either alone.
+- Desirable difficulty explains WHY retrieval feels harder than re-reading — and why that harder-feeling is a good sign.
+
+**Self-check questions**
+1. Why does re-reading feel like effective study when it produces weak retention?
+2. Design a 5-day study schedule for a topic using spaced retrieval.
+3. When might desirable difficulty become UN-desirable?
+
+**If you're short on time**
+- Retrieval > re-reading. Test yourself before checking.
+- Space study across days, not hours before the exam.
+- If it feels easy, you're probably not learning.
+
+**Common misunderstandings**
+- Retrieval practice is often confused with re-reading with notes — but generating before checking is what matters.
+- "Feeling confident after re-reading" is the least reliable signal that you've actually learned something.`,
+    qualityCriteria: [
+      "Big ideas are named at the level of concept, not surface fact",
+      "Every key term reflects the source's usage",
+      "Connections between concepts are explicit and non-trivial",
+      "Self-check questions test understanding, not recall",
+      "Structure supports both first-time study and later review"
+    ]
+  },
+
+  rubric: {
+    voice: "A careful assessment designer who writes rubrics students and graders can actually use — descriptors describe the work, not the student.",
+    rules: [
+      "Criteria reflect the actual work product the source describes, not a generic template",
+      "3-6 criteria total: enough to cover what mattered, few enough that graders can hold them in mind",
+      "Descriptors use observable language ('cites at least six peer-reviewed sources') rather than vague qualifiers ('cites well')",
+      "Performance levels escalate through inclusion: each level includes what the level below does, plus more",
+      "Weights sum to the stated total and are proportionate to what matters",
+      "Provide anchor examples for the highest-weight criterion to make the rubric norming-usable",
+      "Include facilitator feedback prompts that turn scores into actionable feedback"
+    ],
+    outputExample: `**Rubric — Undergraduate Research Paper**
+
+**Overview**
+- **Assignment name:** Literature-review essay
+- **Assessed work product:** 2,000-word essay with citations
+- **Total points:** 100
+- **Grading philosophy:** Rewards evidence-based argumentation over surface polish.
+
+| Criterion | Weight | Exemplary (A) | Proficient (B) | Developing (C) | Beginning (D/F) |
+|---|---|---|---|---|---|
+| Thesis clarity | 20 | Thesis is specific, arguable, and framed within a named debate. | Thesis is arguable but broad. | Thesis is present but descriptive rather than arguable. | No identifiable thesis. |
+| Evidence quality | 30 | ≥6 peer-reviewed sources, each engaged (not just cited). | 4-5 sources with clear engagement on most. | 3-4 sources, some cited without engagement. | Fewer than 3 sources, or sources mostly non-scholarly. |
+| Argument structure | 25 | Each paragraph advances the thesis; transitions signal the argumentative move. | Argument is mostly ordered; a few paragraphs feel out of sequence. | Argument order is unclear in places; the reader has to reconstruct the logic. | No visible argument structure. |
+| Engagement with counter-position | 15 | Steel-mans the strongest counter and responds substantively. | Names the counter and addresses it. | Mentions but does not engage. | Ignores counter-position. |
+| Mechanics and citation | 10 | Clean prose; citation format consistent throughout. | Minor errors that don't obscure meaning. | Frequent errors; some citations non-conforming. | Errors interfere with reading; citations missing or malformed. |
+
+**Anchor example — Exemplary Thesis:**
+> "Recent work in retrieval-practice research (Karpicke, 2012; Roediger & Butler, 2011) has fractured the earlier consensus that spacing alone explains long-term retention; this essay argues that the interaction between spacing and retrieval is doing the work, and that framing them as separable interventions has led educators to under-invest in the latter."
+
+**Feedback prompts for graders:**
+- Did the student's thesis actually take a position, or just introduce the topic?
+- Are the sources engaged substantively, or just listed?
+- Where does the argument stumble, and what's the smallest change that would fix it?
+- Did the student meet the counter on its strongest form, or a strawman?`,
+    qualityCriteria: [
+      "Criteria are collectively exhaustive for the work product described in the source",
+      "Descriptors are observable and testable — a second grader could reasonably arrive at the same level",
+      "Performance levels escalate meaningfully, not just by adjective choice",
+      "Weights reflect what the source treats as most important",
+      "Feedback prompts help graders give useful feedback beyond a score"
+    ]
+  },
+
+  flashcards: {
+    voice: "A spaced-repetition author who produces one clean CSV — a deck learners can import and use immediately.",
+    rules: [
+      "Output is CSV only — no prose surrounding it, no Markdown code fences wrapping it, no leading blank line",
+      "Header row is exactly: Front,Back,Tag",
+      "Quote any field containing a comma, quote, or newline; escape internal double quotes by doubling them",
+      "One fact per card — split multi-part questions into separate cards",
+      "Prefer cloze deletions and definition-recall over open-ended prompts",
+      "Aim for 20-40 cards when the source supports it; produce fewer honestly if it doesn't",
+      "Use consistent kebab-case tags to let learners filter and sort",
+      "Never invent facts, examples, or citations not present in the source"
+    ],
+    outputExample: `Front,Back,Tag
+What is retrieval practice?,"Actively recalling information before checking it, as opposed to re-reading or highlighting.",definitions
+"Retrieval practice produces stronger retention than ___.",re-reading or passive review,cloze
+"The observation that spaced study sessions produce better retention than massed sessions is called the ___.",spacing effect,definitions
+Give one example of desirable difficulty.,Retrieval practice — it feels harder than re-reading but produces stronger long-term memory.,examples
+"True or False: If a study session feels easy, learning is happening efficiently.",False — desirable difficulty predicts durable learning.,concepts
+"When a learner spaces study across days rather than hours, what mechanism supports better retention?","Consolidation occurring between sessions strengthens the memory trace.",processes
+Review any card you missed twice.,End of deck — return to any card flagged during first pass.,review-note`,
+    qualityCriteria: [
+      "The entire output parses as valid CSV with no wrapping prose",
+      "Each card has exactly one bounded answer",
+      "Tags group cards usefully for a learner filtering by topic",
+      "Card count is honest about what the source supports",
+      "No fabricated facts, quotes, or numbers appear in any card"
+    ]
+  },
+
+  discussion_questions: {
+    voice: "A discussion facilitator who writes questions that open real conversation rather than test recall.",
+    rules: [
+      "Questions are genuinely open — no single correct answer the facilitator already has in mind",
+      "Questions escalate: engage with the source first, then connect it to experience and counter-positions",
+      "Include at least one evaluation question and one connection question",
+      "Include at least one question that invites productive disagreement grounded in a real tension in the source",
+      "Every question includes a 'what this surfaces' facilitator note and 2-3 follow-up probes",
+      "Never lead the discussion toward a predetermined answer",
+      "End with facilitation notes covering warm-up, stall-breakers, and a closing prompt"
+    ],
+    outputExample: `**Discussion setup**
+- **Source topic:** Retrieval practice and its implications for how students should study.
+- **Suggested time:** 45 minutes.
+- **Format suggestion:** Small-group breakouts of 3-4 for the middle questions, whole-group for the opening and closing. Peer voices come out more clearly when the group is small enough that no one can hide.
+
+**Questions**
+
+> **Question:** The source argues that re-reading feels effective but produces weak retention. What in your own study experience has felt effective but might not have been?
+>
+> **What this surfaces:** The gap between feeling of learning and actual learning — a foundational tension in the source.
+>
+> **Follow-up prompts:** What signals were you using to decide it was working? What might you notice that would tell you it wasn't?
+
+> **Question:** If retrieval practice is so effective, why do you think students continue to prefer re-reading?
+>
+> **What this surfaces:** Cognitive vs behavioural friction; the role of effort perception in study choices.
+>
+> **Follow-up prompts:** What would an instructor need to do to shift that preference? What's a good reason a student MIGHT still choose re-reading?
+
+> **Question:** The source treats "desirable difficulty" as productive. Is there a point at which difficulty stops being desirable?
+>
+> **What this surfaces:** A real limit case the source only gestures at.
+>
+> **Follow-up prompts:** What individual differences would you expect to matter here? How would you know the learner has hit that limit?
+
+**Facilitation notes**
+- **Warm-up option:** In one word, describe a study strategy that has worked for you.
+- **If the discussion stalls:** Name a specific claim from the source and ask for a counter-example; invite quieter voices before returning to whole-group.
+- **Closing prompt:** What is one thing you'll try differently next week based on this discussion?`,
+    qualityCriteria: [
+      "Every question is genuinely open — no hidden right answer",
+      "Facilitator notes make each question actionable in a live setting",
+      "Question sequence escalates from engagement to evaluation and connection",
+      "At least one question surfaces a real tension rather than papering over one",
+      "Facilitation notes address opening, stalls, and closing — the practical realities of running a discussion"
+    ]
   }
 };
 
@@ -2726,7 +3100,7 @@ export const CONVERSION_KNOWLEDGEBASES: Record<string, KnowledgebaseResource[]> 
     { title: "Semantic Scholar", url: "https://www.semanticscholar.org/", description: "AI-powered research tool for finding and understanding papers" },
     { title: "Purdue OWL – Evaluating Sources", url: "https://owl.purdue.edu/owl/research_and_citation/conducting_research/evaluating_sources_of_information/index.html", description: "Academic framework for assessing information quality" },
   ],
-  questions: [
+  research_questions: [
     { title: "Harvard Business Review — The Surprising Power of Questions", url: "https://hbr.org/2018/05/the-surprising-power-of-questions", description: "Research-backed guidance on asking better questions in conversations and decisions" },
     { title: "Bloom's Taxonomy Verb Chart", url: "https://cft.vanderbilt.edu/guides-sub-pages/blooms-taxonomy/", description: "Question-design framework for comprehension, analysis, evaluation, and creation" },
     { title: "Purdue OWL — Logic in Argumentative Writing", url: "https://owl.purdue.edu/owl/general_writing/academic_writing/logic_in_argumentative_writing/index.html", description: "Logic and reasoning guidance for identifying assumptions, evidence gaps, and fallacies" },
@@ -2777,6 +3151,41 @@ export const CONVERSION_KNOWLEDGEBASES: Record<string, KnowledgebaseResource[]> 
     { title: "Purdue OWL — Visual Rhetoric", url: "https://owl.purdue.edu/owl/general_writing/visual_rhetoric/index.html", description: "Color theory, purposeful typography, and visual arrangement for presentations" },
     { title: "Guy Kawasaki — The 10/20/30 Rule", url: "https://guykawasaki.com/the_102030_rule/", description: "Classic presentation guidance: ten slides, twenty minutes, thirty-point type" },
     { title: "Nielsen Norman Group — F-Shaped Pattern", url: "https://www.nngroup.com/articles/f-shaped-pattern-reading-web-content/", description: "How readers scan content — supports short, front-loaded slide bullets" }
+  ],
+  quiz: [
+    { title: "Testing Effect (Karpicke & Roediger)", url: "https://www.science.org/doi/10.1126/science.1152408", description: "Foundational research on why retrieval practice outperforms re-reading for long-term retention" },
+    { title: "Bloom's Revised Taxonomy — Vanderbilt CFT", url: "https://cft.vanderbilt.edu/guides-sub-pages/blooms-taxonomy/", description: "Cognitive-level framework for writing items that test comprehension, application, and analysis" },
+    { title: "NBME Item-Writing Guide", url: "https://www.nbme.org/sites/default/files/2020-11/NBME_Item%20Writing%20Guide_2020.pdf", description: "Practical rules for writing clear multiple-choice stems and plausible distractors" },
+    { title: "Purdue OWL — Writing Multiple-Choice Questions", url: "https://owl.purdue.edu/owl/teacher_and_tutor_resources/graduate_writing/graduate_writing_for_students_writing_studies_teaching_assistants/writing_multiple_choice_questions.html", description: "Writing centre guide for multiple-choice item design" },
+    { title: "Center for Teaching Innovation — Assessing Student Learning", url: "https://teaching.cornell.edu/teaching-resources/assessment-evaluation/measuring-student-learning", description: "Cornell CTI overview of aligning assessment format with learning objectives" }
+  ],
+  study_guide: [
+    { title: "Learning How to Learn (Oakley & Sejnowski)", url: "https://www.coursera.org/learn/learning-how-to-learn", description: "The most widely used course on evidence-based study strategy — chunking, spaced retrieval, illusion of competence" },
+    { title: "The Learning Scientists — Six Strategies for Effective Learning", url: "https://www.learningscientists.org/downloadable-materials", description: "Practitioner-friendly summaries and posters of retrieval practice, spaced practice, elaboration, interleaving, concrete examples, and dual coding" },
+    { title: "Make It Stick — Book Companion Site", url: "https://www.retrievalpractice.org/make-it-stick/", description: "Curated companion to Brown, Roediger & McDaniel's synthesis of retrieval-based learning" },
+    { title: "CAST — Universal Design for Learning Guidelines", url: "https://udlguidelines.cast.org/", description: "UDL principles for study materials that work across neurodivergent learners" },
+    { title: "Purdue OWL — Study Skills", url: "https://owl.purdue.edu/owl/general_writing/general_writing_introduction/index.html", description: "Writing lab resources on active reading, note-taking, and study preparation" }
+  ],
+  rubric: [
+    { title: "Association of American Colleges & Universities — VALUE Rubrics", url: "https://www.aacu.org/initiatives/value-initiative/value-rubrics", description: "16 nationally-normed rubrics for essential learning outcomes — the reference set for observable-descriptor writing" },
+    { title: "Carnegie Mellon Eberly Center — Creating and Using Rubrics", url: "https://www.cmu.edu/teaching/designteach/teach/rubrics.html", description: "Practical guidance on when to use analytic vs holistic rubrics and how to write descriptors" },
+    { title: "Susan Brookhart — How to Create and Use Rubrics", url: "https://www.ascd.org/books/how-to-create-and-use-rubrics-for-formative-assessment-and-grading", description: "ASCD reference on rubric design as formative and summative assessment" },
+    { title: "Cornell Center for Teaching Innovation — Rubrics", url: "https://teaching.cornell.edu/teaching-resources/assessment-evaluation/using-rubrics", description: "Rubric norming and grader-calibration guidance" },
+    { title: "Purdue OWL — Creating Rubrics", url: "https://owl.purdue.edu/owl/teacher_and_tutor_resources/graduate_writing/graduate_writing_for_students_writing_studies_teaching_assistants/creating_rubrics.html", description: "Writing-centre guide to translating expectations into observable criteria" }
+  ],
+  flashcards: [
+    { title: "Anki Manual — Card Design", url: "https://docs.ankiweb.net/getting-started.html", description: "Authoritative guidance on effective flashcard design and Anki import format" },
+    { title: "Quizlet — Import Formats", url: "https://help.quizlet.com/hc/en-us/articles/360029977151-Creating-and-importing-flashcard-sets", description: "Quizlet's supported CSV/TSV import formats and constraints" },
+    { title: "Twenty Rules of Formulating Knowledge (Wozniak)", url: "https://super-memory.com/articles/20rules.htm", description: "The canonical guide to writing flashcards that work with spaced repetition" },
+    { title: "Testing Effect (Karpicke & Roediger)", url: "https://www.science.org/doi/10.1126/science.1152408", description: "Research base for why active recall — the mechanism flashcards leverage — beats re-reading" },
+    { title: "RFC 4180 — Common Format for CSV Files", url: "https://datatracker.ietf.org/doc/html/rfc4180", description: "The CSV specification the output must conform to for reliable import" }
+  ],
+  discussion_questions: [
+    { title: "Elder & Paul — The Thinker's Guide to Socratic Questioning", url: "https://www.criticalthinking.org/pages/socratic-teaching/606", description: "Foundations of Socratic questioning as an instructional technique" },
+    { title: "Vanderbilt CFT — Difficult Discussions", url: "https://cft.vanderbilt.edu/guides-sub-pages/difficult-dialogues/", description: "Facilitator guidance for productive disagreement and stalled discussions" },
+    { title: "Brookfield & Preskill — Discussion as a Way of Teaching", url: "https://www.wiley.com/en-us/Discussion+as+a+Way+of+Teaching%3A+Tools+and+Techniques+for+Democratic+Classrooms%2C+2nd+Edition-p-9780787978082", description: "The reference text on structuring classroom discussion for learning" },
+    { title: "Cornell CTI — Discussion in the Classroom", url: "https://teaching.cornell.edu/teaching-resources/active-collaborative-learning/leading-effective-discussions", description: "Practical facilitation techniques for whole-group and small-group discussion" },
+    { title: "Harvard Bok Center — Facilitating Discussion", url: "https://bokcenter.harvard.edu/discussion", description: "Harvard's teaching centre guide to preparing discussion questions and opening prompts" }
   ]
 };
 

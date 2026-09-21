@@ -10,14 +10,21 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 type Props = {
   visible: boolean;
   onClose: () => void;
+  // Tri-state on purpose: `false` means we know the account is on a free plan
+  // (label reads "Subscribe"), `true` means paid, and `undefined` means the
+  // caller has no tier data — a neutral "Subscription" label is then correct,
+  // whereas guessing "free" would tell a paying customer to subscribe.
+  isPaidPlan?: boolean;
 };
 
-export default function ProfileDropdown({ visible, onClose }: Props) {
+export default function ProfileDropdown({ visible, onClose, isPaidPlan }: Props) {
   const { logout } = useAuth();
   const { t } = useLanguage();
   const insets = useSafeAreaInsets();
 
   if (!visible) return null;
+
+  const subscriptionLabel = isPaidPlan === false ? t("drawer.subscribe") : t("subscription.title");
 
   const navigate = (route: string) => {
     onClose();
@@ -26,6 +33,19 @@ export default function ProfileDropdown({ visible, onClose }: Props) {
 
   return (
     <View style={[styles.menu, { top: insets.top + 92 }]}>
+      {/* Top-level route to plans. Subscription discovery previously lived only
+          in a drawer row that was hidden for anyone already on a paid plan, so
+          the people most likely to need it could not find it. */}
+      <Pressable
+        style={styles.item}
+        onPress={() => navigate("/choose-plan")}
+        accessibilityLabel={subscriptionLabel}
+        accessibilityRole="button"
+        testID="dropdown-subscription"
+      >
+        <Feather name="credit-card" size={16} color={Colors.textSecondary} />
+        <Text style={styles.itemText}>{subscriptionLabel}</Text>
+      </Pressable>
       <Pressable
         style={styles.item}
         onPress={() => navigate("/settings")}

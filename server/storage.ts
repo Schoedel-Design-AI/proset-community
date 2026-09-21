@@ -375,6 +375,7 @@ export interface IStorage {
     getByUser(userId: string): Promise<UserModule[]>;
     assign(userId: string, moduleName: string, stripeSubscriptionId?: string | null, assignedBy?: string | null): Promise<UserModule>;
     remove(userId: string, moduleName: string): Promise<boolean>;
+    setDisabled(userId: string, moduleName: string, disabled: boolean, assignedBy?: string | null): Promise<UserModule>;
   };
   
   coupons: {

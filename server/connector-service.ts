@@ -90,7 +90,7 @@ export const CONNECTOR_CONVERSION_MAP: Partial<Record<ConnectorType, string[]>> 
     "summary", "blog_post", "email", "linkedin_post", "podcast_script",
     "text_message", "parish_bulletin", "quick_research", "spiritual_reflection",
     "prayer", "catechesis_lesson", "pastoral_plan", "notes", "outline",
-    "bullet_points", "action_items", "todo_list", "questions", "requirements",
+    "bullet_points", "action_items", "todo_list", "research_questions", "requirements",
     "prompt", "project_plan", "lesson_plan", "nonfiction_draft", "argumentative_essay",
   ],
 };
@@ -367,7 +367,7 @@ async function exportToGitHubGist(
       plan: "md",
       todo_list: "md",
       requirements: "md",
-      questions: "md",
+      research_questions: "md",
       linkedin_post: "md",
       prompt: "md",
       quick_research: "md",

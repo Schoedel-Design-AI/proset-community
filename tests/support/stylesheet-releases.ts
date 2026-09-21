@@ -47,6 +47,12 @@ export const STYLESHEET_RELEASES: ReadonlyArray<{
   { version: 12, sha256: "e1411acbea0955ad18445799e923f07c531e208bc19ca3e543140bcb750c54e8" },
   // v13: pitch-deck download styles added to the landing page (3f9baad).
   { version: 13, sha256: "f564205d28e1d548f75890af9cc34e528b322bbcf439f0283796e0b4bf1f0efa" },
+  // v14: Academic Pack landing panel — 4-column audience grid above pricing.
+  { version: 14, sha256: "83cbb3d4dc706599175aa306cff9b3b43ce1a029f775be3f1b8e4abc41bb3113" },
+  // v15: Academic Pack panel rebalanced from 4 columns to 3 (Facilitator merged into Instructor).
+  { version: 15, sha256: "0152b6120a456ba363ee424b36f65620ffd0f0e00f9b824915e8fc5f5ae69c26" },
+  // v16: Pitch-deck download section removed from landing (dead CSS pruned).
+  { version: 16, sha256: "09100d21d9ffa9198499656154c086cab8063180174cb6d0f5e27685f006e179" },
 ];
 
 /** The release every template must currently link and the stylesheet must match. */

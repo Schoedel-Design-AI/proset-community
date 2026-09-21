@@ -5,6 +5,8 @@ import { unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { TRANSCRIPTION_TOKENS_PER_SECOND } from "../../shared/plan-limits";
+
 test("token-based usage: transcription hard gate and conversion soft gate without overage debt", async (t) => {
   const mockPath = join(tmpdir(), `proset-token-usage-${randomUUID()}.json`);
   process.env.MOCK_DB_PATH = mockPath;
@@ -33,8 +35,11 @@ test("token-based usage: transcription hard gate and conversion soft gate withou
     tokenBalance: 0,
   });
 
-  // Pure pricing helpers.
-  assert.equal(usageService.transcriptionTokenCost(30), 30);
+  // Pure pricing helpers. Rate comes from the shared constant so a policy
+  // change (e.g. 1 → 2 tokens/sec, 2026-09-17) does not silently break this
+  // test — it either updates or fails loudly at the constant's site.
+  const rate = TRANSCRIPTION_TOKENS_PER_SECOND;
+  assert.equal(usageService.transcriptionTokenCost(30), 30 * rate);
   assert.equal(usageService.transcriptionTokenCost(0), 0);
   assert.equal(usageService.computeConversionTokenCost({ usage: { prompt_tokens: 100, completion_tokens: 50 } }), 150);
   assert.equal(usageService.computeConversionTokenCost({ usage: { input_tokens: 10, output_tokens: 5 } }), 15);
@@ -56,13 +61,14 @@ test("token-based usage: transcription hard gate and conversion soft gate withou
   assert.equal(second.balance, 10000);
   assert.equal(second.credited, false);
 
-  // Transcription hard gate: 30s costs 30 tokens, allowed when balance covers it.
+  // Transcription hard gate: at rate=r, 30s costs 30 × r tokens.
+  const gateCost = 30 * rate;
   const gate = await usageService.checkTranscriptionLimit(userId, 30);
   assert.equal(gate.allowed, true);
-  assert.equal(gate.cost, 30);
+  assert.equal(gate.cost, gateCost);
 
   await usageService.deductTranscriptionTokens(userId, 30);
-  assert.equal((await usageService.getUserTokenBalance(userId)).balance, 9970);
+  assert.equal((await usageService.getUserTokenBalance(userId)).balance, 10000 - gateCost);
 
   // Hard gate blocks when the cost exceeds the running balance.
   assert.equal((await usageService.checkTranscriptionLimit(userId, 20000)).allowed, false);

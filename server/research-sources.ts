@@ -30,7 +30,7 @@ export const RESEARCH_FORMS_TYPES: ReadonlySet<string> = new Set([
   "nonfiction_draft",
   "quick_research",
   "argumentative_essay",
-  "questions",
+  "research_questions",
 ]);
 
 /**

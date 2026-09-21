@@ -24,6 +24,7 @@ import AvatarView from "@/components/AvatarView";
 import { getFloatingRecordOverlaySpec } from "@/lib/recordings-overlay";
 import { getRecordingsCountKey } from "@/lib/recordings-count-label";
 import { useRecordings } from "@/lib/recordings-context";
+import { MediaImportError, importMediaFromFile, type MediaImportProgress } from "@/lib/media-import";
 import { formatDuration, formatDate } from "@/lib/utils";
 import { useResponsiveLayout } from "@/lib/useResponsiveLayout";
 import { useReducedMotion } from "@/lib/useReducedMotion";
@@ -208,8 +209,8 @@ function RecordingCard({ item, onDelete, cardWidth, reduceMotion, selectMode, is
 
 export default function RecordingsScreen() {
   const insets = useSafeAreaInsets();
-  const { t } = useLanguage();
-  const { recordings, isLoading, deleteRecording, lastRecordingLimitEvent, isCloudSyncEnabled } = useRecordings();
+  const { t, language } = useLanguage();
+  const { recordings, isLoading, deleteRecording, lastRecordingLimitEvent, isCloudSyncEnabled, fetchRecording } = useRecordings();
   const { user } = useAuth();
   const layout = useResponsiveLayout();
   const reduceMotion = useReducedMotion();
@@ -227,6 +228,50 @@ export default function RecordingsScreen() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [subscriptionBanner, setSubscriptionBanner] = useState<"success" | "cancelled" | null>(null);
   const [recordingLimitToast, setRecordingLimitToast] = useState(false);
+  const [mediaImport, setMediaImport] = useState<MediaImportProgress | null>(null);
+  const [mediaImportError, setMediaImportError] = useState<string | null>(null);
+
+  /**
+   * Import an uploaded audio or video file as a new recording: pick the file,
+   * send the bytes straight to storage, then let the server strip the audio
+   * (for video), transcribe it, and hand back a normal recording.
+   */
+  const startMediaImport = useCallback(async () => {
+    if (mediaImport) return;
+    setMediaImportError(null);
+    setMediaImport({ phase: "picking" });
+    try {
+      const result = await importMediaFromFile({
+        language: language === "es" ? "es" : undefined,
+        onProgress: (progress) => setMediaImport(progress),
+      });
+      await fetchRecording(result.recordingId);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    } catch (error) {
+      if (error instanceof MediaImportError && error.code === "cancelled") return;
+      const code = error instanceof MediaImportError ? error.code : "processing_failed";
+      const detail = error instanceof MediaImportError ? error.detail : {};
+      const errorKeys: Record<string, any> = {
+        unsupported_type: "mediaImport.error.unsupported_type",
+        storage_not_included: "mediaImport.error.storage_not_included",
+        file_too_large: "mediaImport.error.file_too_large",
+        media_too_long: "mediaImport.error.media_too_long",
+        insufficient_tokens: "mediaImport.error.insufficient_tokens",
+        unreadable_media: "mediaImport.error.unreadable_media",
+        upload_failed: "mediaImport.error.upload_failed",
+        network: "mediaImport.error.network",
+      };
+      const minutes = Math.max(1, Math.round(Number(detail.durationSeconds ?? 0) / 60));
+      const limit = Math.max(1, Math.round(Number(detail.maxSeconds ?? 0) / 60));
+      setMediaImportError(
+        String(t(errorKeys[code] ?? "mediaImport.error.processing_failed"))
+          .replace("{minutes}", String(minutes))
+          .replace("{limit}", String(limit)),
+      );
+    } finally {
+      setMediaImport(null);
+    }
+  }, [mediaImport, language, fetchRecording, t]);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [displayName, setDisplayName] = useState(false);
@@ -427,6 +472,23 @@ export default function RecordingsScreen() {
         </View>
         <View style={styles.headerRight}>
           <Pressable
+            style={({ pressed }) => [
+              { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 22 },
+              pressed && { opacity: 0.7 },
+            ]}
+            onPress={startMediaImport}
+            disabled={!!mediaImport}
+            accessibilityLabel={t("mediaImport.action")}
+            accessibilityRole="button"
+            testID="media-import-button"
+          >
+            {mediaImport ? (
+              <ActivityIndicator size="small" color={Colors.primary} />
+            ) : (
+              <Feather name="upload-cloud" size={22} color={Colors.text} />
+            )}
+          </Pressable>
+          <Pressable
             style={({ pressed }) => [styles.headerAvatar, pressed && { opacity: 0.7 }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -448,6 +510,65 @@ export default function RecordingsScreen() {
       {activeNotification === "subscription" && subscriptionBanner && (
         <View style={{ maxWidth: layout.contentMaxWidth, alignSelf: "center" }}>
           <SubscriptionBanner type={subscriptionBanner} onDismiss={() => setSubscriptionBanner(null)} />
+        </View>
+      )}
+
+      {(mediaImport || mediaImportError) && (
+        <View
+          style={{
+            maxWidth: layout.contentMaxWidth,
+            alignSelf: "center",
+            width: "100%",
+            paddingHorizontal: layout.contentPadding,
+            marginBottom: 8,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "rgba(127,127,127,0.12)",
+              borderRadius: 12,
+              paddingVertical: 10,
+              paddingHorizontal: 12,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            {mediaImportError ? (
+              <>
+                <Feather name="alert-circle" size={18} color="#f59e0b" />
+                <Text style={{ flex: 1, color: Colors.text, fontSize: 13 }}>{mediaImportError}</Text>
+                <Pressable
+                  onPress={() => setMediaImportError(null)}
+                  hitSlop={8}
+                  accessibilityLabel="Dismiss"
+                  accessibilityRole="button"
+                >
+                  <Feather name="x" size={18} color={Colors.textSecondary} />
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <ActivityIndicator size="small" color={Colors.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: Colors.text, fontSize: 13 }}>
+                    {mediaImport?.phase === "uploading"
+                      ? String(t("mediaImport.uploading"))
+                          .replace("{name}", mediaImport.fileName ?? "")
+                          .replace("{percent}", String(mediaImport.percent ?? 0))
+                      : mediaImport?.phase === "picking"
+                        ? t("mediaImport.picking")
+                        : String(t("mediaImport.processing")).replace("{name}", mediaImport?.fileName ?? "")}
+                  </Text>
+                  {mediaImport?.phase === "processing" && (
+                    <Text style={{ color: Colors.textSecondary, fontSize: 12, marginTop: 2 }}>
+                      {t("mediaImport.processingHint")}
+                    </Text>
+                  )}
+                </View>
+              </>
+            )}
+          </View>
         </View>
       )}
 

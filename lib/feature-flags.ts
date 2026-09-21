@@ -32,6 +32,28 @@ export const featureFlags = {
    */
   persistentRecording:
     Platform.OS === "web" || Platform.OS === "android" || Platform.OS === "ios",
+
+  /**
+   * Conversion destinations — the outbound destination tab in
+   * Settings → Integrations (CalDAV / Nextcloud collections, generic webhook
+   * endpoints).
+   *
+   * OFF: no create or edit affordance is offered. `POST /api/calendar/export`
+   * is the only route that reads a stored destination, and it has no client
+   * caller — `handleExportToCalendarProvider` in `app/recording/[id].tsx` is
+   * never rendered — so a saved destination could never receive an event.
+   * Accounts that already stored a destination keep a management view of those
+   * rows (list, enable/disable, delete) so their stored credentials stay
+   * revocable.
+   *
+   * ON: the tab renders, offering only the destination services whose server
+   * path is complete (`ready: true` in `CALENDAR_PROVIDER_INFO`).
+   *
+   * Turn it on once a conversion can actually route to a stored destination:
+   * see `docs/architecture/google-workspace-integration-plan.md` §14 (P4) and
+   * `TODO-unready-features.md` §3.
+   */
+  conversionDestinations: false,
 } as const;
 
 export type FeatureFlagName = keyof typeof featureFlags;
