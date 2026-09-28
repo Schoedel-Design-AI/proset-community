@@ -5,7 +5,13 @@ import Feather from "@react-native-vector-icons/feather/static";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/i18n";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+/**
+ * Distance between the measured bottom edge of the host's header row and the
+ * top of this menu. Exported once so every host anchors identically instead of
+ * each screen inventing its own number.
+ */
+export const AVATAR_MENU_ANCHOR_GAP = 8;
 
 type Props = {
   visible: boolean;
@@ -15,12 +21,20 @@ type Props = {
   // caller has no tier data — a neutral "Subscription" label is then correct,
   // whereas guessing "free" would tell a paying customer to subscribe.
   isPaidPlan?: boolean;
+  // Both offsets are REQUIRED and deliberately have no default. This component
+  // does not know where its anchor sits: the host measures its own header row
+  // (onLayout -> `headerBottom`) and passes `headerBottom + AVATAR_MENU_ANCHOR_GAP`
+  // plus the right inset its positioning parent requires. An optional prop with
+  // a fallback would let a host compile while opening an unpositioned menu, and
+  // any fallback number fits no screen — required props make the type checker
+  // the guard instead.
+  topOffset: number;
+  rightOffset: number;
 };
 
-export default function ProfileDropdown({ visible, onClose, isPaidPlan }: Props) {
+export default function ProfileDropdown({ visible, onClose, isPaidPlan, topOffset, rightOffset }: Props) {
   const { logout } = useAuth();
   const { t } = useLanguage();
-  const insets = useSafeAreaInsets();
 
   if (!visible) return null;
 
@@ -32,7 +46,7 @@ export default function ProfileDropdown({ visible, onClose, isPaidPlan }: Props)
   };
 
   return (
-    <View style={[styles.menu, { top: insets.top + 92 }]}>
+    <View style={[styles.menu, { top: topOffset, right: rightOffset }]}>
       {/* Top-level route to plans. Subscription discovery previously lived only
           in a drawer row that was hidden for anyone already on a paid plan, so
           the people most likely to need it could not find it. */}
@@ -85,7 +99,6 @@ export default function ProfileDropdown({ visible, onClose, isPaidPlan }: Props)
 const styles = StyleSheet.create({
   menu: {
     position: "absolute",
-    right: 14,
     backgroundColor: Colors.surface,
     borderRadius: 12,
     paddingVertical: 6,

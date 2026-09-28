@@ -1,5 +1,6 @@
 import { type ConnectorProvider } from "@shared/schema";
 import { storage } from "./storage";
+import { cmsService } from "./modules/ai-customization/cms-service";
 
 export type PublicConnectorProvider = Pick<ConnectorProvider, "id" | "provider" | "label" | "enabled" | "createdAt">;
 
@@ -109,7 +110,7 @@ function getAvailableConnectors(): { type: ConnectorType; label: string; icon: s
     { type: "github_gist", label: "GitHub Gist", icon: "github", available: !!process.env.GITHUB_ACCESS_TOKEN, category: "developer" },
     { type: "discord", label: "Discord Export (webhook)", icon: "message-circle", available: !!process.env.DISCORD_BOT_TOKEN, category: "communication" },
     { type: "hubspot", label: "HubSpot", icon: "briefcase", available: !!process.env.HUBSPOT_ACCESS_TOKEN, category: "crm" },
-    { type: "elevenlabs", label: "ElevenLabs TTS", icon: "volume-2", available: !!process.env.ELEVENLABS_API_KEY, category: "audio" },
+    { type: "elevenlabs", label: "ElevenLabs TTS", icon: "volume-2", available: !!(process.env.ELEVENLABS_API_KEY || cmsService.getEffectiveAiConfig("text_to_speech")?.apiKey), category: "audio" },
     { type: "google_calendar", label: "Google Calendar", icon: "calendar", available: false, category: "productivity" },
     { type: "todoist", label: "Todoist", icon: "check-square", available: false, category: "productivity" },
     { type: "github", label: "GitHub", icon: "github", available: false, category: "developer" },
@@ -551,11 +552,12 @@ async function exportToElevenLabs(
   config: { apiKey?: string; voiceId?: string; modelId?: string }
 ): Promise<ConnectorExportResult> {
   try {
-    const apiKey = config.apiKey || process.env.ELEVENLABS_API_KEY;
+    const cmsTtsConfig = cmsService.getEffectiveAiConfig("text_to_speech");
+    const apiKey = config.apiKey || cmsTtsConfig?.apiKey || process.env.ELEVENLABS_API_KEY;
     if (!apiKey) return { success: false, error: "ElevenLabs API key not configured." };
 
     const voiceId = config.voiceId || "21m00Tcm4TlvDq8ikWAM";
-    const modelId = config.modelId || "eleven_multilingual_v2";
+    const modelId = config.modelId || cmsTtsConfig?.model || "eleven_multilingual_v2";
 
     const textForTts = prepareTtsText(content).substring(0, 5000);
 

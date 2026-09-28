@@ -134,3 +134,81 @@ export function createOpenAIClient(provider: AIClientProvider = "default"): Open
   clientCache.set(provider, client);
   return client;
 }
+
+export function createCustomOpenAIClient(apiKey: string, baseURL?: string): OpenAI {
+  return new OpenAI({
+    apiKey,
+    ...(baseURL ? { baseURL } : {}),
+  });
+}
+
+export interface AIClientFunctionResolution {
+  client: OpenAI;
+  model: string;
+  provider: string;
+  apiKey?: string;
+  baseUrl?: string;
+  temperature?: number;
+  tokenOptions: { max_tokens: number } | { max_completion_tokens: number };
+}
+
+/**
+ * Creates or resolves an AI client for any specific function configured in Mathesar CMS.
+ * Checks proset_cms (ai_functions) first for model and key overrides.
+ * Falls back seamlessly to environment variables if unconfigured or blank.
+ */
+export function createAIClientForFunction(
+  functionKey: string,
+  fallbackOptions?: {
+    defaultProvider?: AIClientProvider;
+    defaultModel?: string;
+    maxTokens?: number;
+    temperature?: number;
+  },
+): AIClientFunctionResolution {
+  // Dynamically import / require cmsService to avoid circular dependency
+  let cmsConfig: any = undefined;
+  try {
+    const { cmsService } = require("./modules/ai-customization/cms-service");
+    cmsConfig = cmsService.getEffectiveAiConfig(functionKey);
+  } catch {
+    // If cmsService cannot be loaded, continue with fallback
+  }
+
+  const maxTokens = cmsConfig?.maxTokens || fallbackOptions?.maxTokens || 4096;
+
+  if (cmsConfig) {
+    const providerKey = (cmsConfig.provider === "openai" ? "default" : cmsConfig.provider) as AIClientProvider;
+    const apiKey = cmsConfig.apiKey || getOpenAIApiKey(providerKey) || "missing-openai-api-key";
+    const baseURL = cmsConfig.baseUrl || getOpenAIBaseUrl(providerKey);
+
+    const client = new OpenAI({
+      apiKey,
+      ...(baseURL ? { baseURL } : {}),
+    });
+
+    return {
+      client,
+      model: cmsConfig.model,
+      provider: cmsConfig.provider,
+      apiKey: cmsConfig.apiKey,
+      baseUrl: cmsConfig.baseUrl,
+      temperature: cmsConfig.temperature ?? fallbackOptions?.temperature,
+      tokenOptions: getChatCompletionTokenOptions(providerKey, maxTokens),
+    };
+  }
+
+  const provider = fallbackOptions?.defaultProvider || "default";
+  const model = fallbackOptions?.defaultModel || getAIModel(provider);
+  const client = createOpenAIClient(provider);
+
+  return {
+    client,
+    model,
+    provider,
+    apiKey: getOpenAIApiKey(provider),
+    baseUrl: getOpenAIBaseUrl(provider),
+    temperature: fallbackOptions?.temperature,
+    tokenOptions: getChatCompletionTokenOptions(provider, maxTokens),
+  };
+}

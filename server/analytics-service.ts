@@ -10,6 +10,10 @@ export type EventType =
   | 'export_completed'
   | 'subscription_created'
   | 'subscription_cancelled'
+  // In-place upgrade of an already-paying account (tier and/or interval moved
+  // up without a new subscription). Distinct from 'subscription_created', which
+  // fires on the first purchase — an upgrade has its own funnel step.
+  | 'plan_upgraded'
   | 'pro_access_checkout'
   | 'cloud_sync_checkout'
   | 'backup_completed'

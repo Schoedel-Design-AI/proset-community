@@ -538,10 +538,16 @@ const translations = {
 
     "category.academic": "Academic Pack",
     "category.music": "Music Pack",
+    "category.saint": "Saint Pack",
+    "module.saint": "Saint Pack",
 
     "complexity.simple": "Simple",
     "complexity.intermediate": "Intermediate",
     "complexity.advanced": "Advanced",
+    "detail.autoDiscern": "Auto-Discern",
+    "detail.autoDiscernHint": "Let Proset intuitively discern the best prayer path from your voice",
+    "detail.proceedCurrentChoices": "Proceed with Current Choices",
+    "detail.stepOf": "Step {current} of {total}",
     "detail.askClarify": "Clarifying questions",
     "detail.codeBlockOutput": "Code block",
     "detail.includeWebSources": "Web sources",
@@ -717,6 +723,12 @@ const translations = {
     "conversion.course_syllabus": "Course Syllabus",
     "conversion.lesson_plan": "Lesson Plan",
     "conversion.essay_explainer": "Essay Explainer",
+    "conversion.christian_prayer": "Christian Prayer",
+    "conversion.saints_devotional_prayer": "Marian & Saints Prayer",
+    "conversion.bulletin_insert": "Bulletin Insert",
+    "conversion.catechesis_lesson": "Catechesis Lesson Plan",
+    "conversion.pastoral_plan": "Pastoral Plan",
+    "conversion.ocia_planning": "OCIA Formation Plan",
 
     "export.plainText": "Plain Text (.txt)",
     "export.markdown": "Markdown (.md)",
@@ -764,11 +776,12 @@ const translations = {
     "privacy.ownershipTitle": "6. Data Ownership",
     "privacy.ownershipBody": "You own everything you create with Proset. You can export your data at any time from the app settings, or securely delete your account entirely, wiping all traces from our systems.",
     "privacy.thirdPartyTitle": "7. Third-Party Services",
-    "privacy.thirdPartyBody": "Google Cloud hosts application, task-queue, object-storage, authentication, and Firestore data. Configured AI processing may use OpenAI, Groq, DeepSeek, Qwen, or NVIDIA Nemotron-compatible services. Only the content and instructions needed for the requested operation are sent to an AI provider; we do not intentionally send your email address as model input. Research requests may send the assembled research question and source context to an OpenAI web-search request. Provider availability and routing can change, so the run record preserves the provider and model actually used.",
+    "privacy.thirdPartyBody": "Google Cloud hosts application, task-queue, object-storage, authentication, and Firestore data. Firebase Authentication, part of Google Cloud, provides account sign-in and identity. Web payments are processed by Stripe, where payment details are entered directly and are not stored on our servers. Android subscriptions are managed through RevenueCat together with Google Play. These billing providers receive account and purchase identifiers, not your recordings, transcripts, or generated content. SendGrid delivers transactional email such as address verification, password reset, and support replies. Plausible provides privacy-friendly, cookie-free analytics for our public website. Configured AI processing may use OpenAI, Groq, DeepSeek, Qwen, or NVIDIA Nemotron-compatible services. Only the content and instructions needed for the requested operation are sent to an AI provider; we do not intentionally send your email address as model input. Research requests may send the assembled research question and source context to an OpenAI web-search request. Provider availability and routing can change, so the run record preserves the provider and model actually used.",
     "privacy.retentionTitle": "8. Data Retention",
     "privacy.retentionBody": "Saved recordings and audio, transcripts, typed or file context, retained source originals, generated files, and account information remain until you remove them or delete your account, subject to product settings and legal or security obligations. A Thought Thread conversion keeps an immutable ordered source snapshot, hashes, provenance, preparation chunks, and run metadata even if you later edit the Thread; deleting the Thread removes those Thread-owned records and retained Thread-only source uploads but does not delete its source recordings or separately saved outputs. Account deletion attempts personal-data and object cleanup before removing the authentication identity. Limited backups, security records, or processor copies may expire on their own documented schedules.",
     "privacy.rightsTitle": "9. Your Rights",
     "privacy.rightsBody": "You have the right to access, rectify, export, and delete your personal data at any time. You can export your data from Settings, update your account information, or permanently delete your account. To exercise any of these rights, use the tools provided in the app or contact us at support@proset.ai. We will respond to data requests within 30 days.",
+    "privacy.deleteDataLink": "Request deletion of your data \u2192",
     "privacy.permissionsTitle": "10. Permissions",
     "privacy.permissionsBody": "We request the microphone permission exclusively to allow you to record voice notes. This is the core functionality of the app. We never listen in the background, and recording only begins when you explicitly press the Record button.",
     "privacy.contactTitle": "Contact",
@@ -1303,6 +1316,16 @@ const translations = {
     "upgrade.transcriptionLimit": "You've used all {limit} transcriptions this month",
     "upgrade.conversionLimit": "You've used all {limit} conversions this month",
     "upgrade.insufficientTokens": "You've used your monthly AI Credits. Upgrade for more credits — they reset each month.",
+    // Shown instead of the line above when the account is ALREADY on the top tier:
+    // there is no plan above Pro, so offering an upgrade is a dead end. The two
+    // variants exist because the credit-pack card in Settings is gated on
+    // displayTier === "pro" — a COMP (displayTier "friends-of-barry") cannot buy a
+    // pack or a storage add-on, so it must never be told to.
+    "upgrade.creditsExhaustedPro": "You've used your monthly AI Credits. They reset on the 1st of the month.",
+    "upgrade.creditsExhaustedProBuy": "You've used your monthly AI Credits. They reset on the 1st of the month, or you can buy an AI Credit Pack for more right away.",
+    "upgrade.storageFullPro": "Your cloud storage is full. Add more storage to keep recording.",
+    "upgrade.storageFullTop": "Your cloud storage is full. Delete recordings or files to free up space.",
+    "upgrade.managePlan": "Manage Plan",
     "upgrade.storageLimit": "Your cloud storage is full",
     "upgrade.recordingLimit": "You've reached your plan's recording length limit. Upgrade to record longer.",
     "upgrade.fileTooLarge": "This file is {size} — your plan allows up to {limit}",
@@ -1919,10 +1942,16 @@ const translations = {
 
     "category.academic": "Academic Pack",
     "category.music": "Music Pack",
+    "category.saint": "Saint Pack",
+    "module.saint": "Saint Pack",
 
     "complexity.simple": "Básico",
     "complexity.intermediate": "Intermedio",
     "complexity.advanced": "Avanzado",
+    "detail.autoDiscern": "Discernimiento automático",
+    "detail.autoDiscernHint": "Deja que Proset discierna intuitivamente el mejor camino de oración a partir de tu voz",
+    "detail.proceedCurrentChoices": "Continuar con las opciones actuales",
+    "detail.stepOf": "Paso {current} de {total}",
     "detail.askClarify": "Preguntas de aclaración",
     "detail.codeBlockOutput": "Bloque de código",
     "detail.includeWebSources": "Fuentes web",
@@ -2098,6 +2127,12 @@ const translations = {
     "conversion.course_syllabus": "Plan de curso",
     "conversion.lesson_plan": "Plan de lección",
     "conversion.essay_explainer": "Explicador de ensayos",
+    "conversion.christian_prayer": "Oración cristiana",
+    "conversion.saints_devotional_prayer": "Oración a la Virgen y Santos",
+    "conversion.bulletin_insert": "Inserto de boletín",
+    "conversion.catechesis_lesson": "Plan de catequesis",
+    "conversion.pastoral_plan": "Plan pastoral",
+    "conversion.ocia_planning": "Plan de formación OCIA",
 
     "export.plainText": "Texto plano (.txt)",
     "export.markdown": "Markdown (.md)",
@@ -2145,11 +2180,12 @@ const translations = {
     "privacy.ownershipTitle": "6. Propiedad de los Datos",
     "privacy.ownershipBody": "Usted es dueño de todo lo que crea con Proset. Puede exportar sus datos en cualquier momento desde la configuración de la aplicación o eliminar su cuenta por completo, eliminando todo rastro de nuestros sistemas.",
     "privacy.thirdPartyTitle": "7. Servicios de Terceros",
-    "privacy.thirdPartyBody": "Google Cloud aloja la aplicación, las colas de tareas, el almacenamiento de objetos, la autenticación y los datos de Firestore. El procesamiento de IA configurado puede usar servicios compatibles de OpenAI, Groq, DeepSeek, Qwen o NVIDIA Nemotron. Solo se envían al proveedor el contenido y las instrucciones necesarios para la operación solicitada; no enviamos intencionalmente su correo como entrada del modelo. Las solicitudes de investigación pueden enviar la pregunta y el contexto ensamblado a una búsqueda web de OpenAI. El registro de ejecución conserva el proveedor y modelo realmente usados.",
+    "privacy.thirdPartyBody": "Google Cloud aloja la aplicaci\u00f3n, las colas de tareas, el almacenamiento de objetos, la autenticaci\u00f3n y los datos de Firestore. Firebase Authentication, parte de Google Cloud, proporciona el inicio de sesi\u00f3n y la identidad de la cuenta. Los pagos web los procesa Stripe, donde los datos de pago se introducen directamente y no se almacenan en nuestros servidores. Las suscripciones de Android se gestionan mediante RevenueCat junto con Google Play. Estos proveedores de facturaci\u00f3n reciben identificadores de cuenta y de compra, no sus grabaciones, transcripciones ni contenido generado. SendGrid entrega el correo transaccional, como la verificaci\u00f3n de la direcci\u00f3n, el restablecimiento de la contrase\u00f1a y las respuestas de soporte. Plausible proporciona anal\u00edticas respetuosas con la privacidad y sin cookies para nuestro sitio web p\u00fablico. El procesamiento de IA configurado puede usar servicios compatibles de OpenAI, Groq, DeepSeek, Qwen o NVIDIA Nemotron. Solo se env\u00edan al proveedor el contenido y las instrucciones necesarios para la operaci\u00f3n solicitada; no enviamos intencionalmente su correo como entrada del modelo. Las solicitudes de investigaci\u00f3n pueden enviar la pregunta y el contexto ensamblado a una b\u00fasqueda web de OpenAI. El registro de ejecuci\u00f3n conserva el proveedor y modelo realmente usados.",
     "privacy.retentionTitle": "8. Retenci\u00f3n de Datos",
     "privacy.retentionBody": "Las grabaciones y el audio guardados, transcripciones, contexto escrito o de archivo, originales retenidos, archivos generados e información de cuenta permanecen hasta que los elimine o borre su cuenta, sujetos a ajustes del producto y obligaciones legales o de seguridad. Una conversión de hilo conserva una instantánea inmutable ordenada, hashes, procedencia, fragmentos de preparación y metadatos aunque luego edite el hilo. Eliminar el hilo borra sus registros y cargas exclusivas, pero no sus grabaciones fuente ni resultados guardados por separado. La eliminación de cuenta intenta limpiar datos y objetos personales antes de retirar la identidad de autenticación.",
     "privacy.rightsTitle": "9. Sus Derechos",
     "privacy.rightsBody": "Usted tiene derecho a acceder, rectificar, exportar y eliminar sus datos personales en cualquier momento. Puede exportar sus datos desde Configuraci\u00f3n, actualizar la informaci\u00f3n de su cuenta o eliminar permanentemente su cuenta. Para ejercer cualquiera de estos derechos, utilice las herramientas proporcionadas en la aplicaci\u00f3n o cont\u00e1ctenos en support@proset.ai. Responderemos a las solicitudes de datos en un plazo de 30 d\u00edas.",
+    "privacy.deleteDataLink": "Solicitar la eliminaci\u00f3n de sus datos \u2192",
     "privacy.permissionsTitle": "10. Permisos",
     "privacy.permissionsBody": "Solicitamos el permiso de micrófono exclusivamente para permitirle grabar notas de voz. Esta es la funcionalidad principal de la aplicación. Nunca escuchamos en segundo plano, y la grabación solo comienza cuando presiona explícitamente el botón de Grabar.",
     "privacy.contactTitle": "Contacto",
@@ -2684,6 +2720,17 @@ const translations = {
     "upgrade.transcriptionLimit": "Usaste tus {limit} transcripciones del mes",
     "upgrade.conversionLimit": "Usaste tus {limit} conversiones del mes",
     "upgrade.insufficientTokens": "Usaste tus Créditos de IA mensuales. Mejora tu plan para más créditos — se renuevan cada mes.",
+    // Se muestra en lugar de la línea anterior cuando la cuenta YA está en el plan
+    // más alto: no hay nada por encima de Pro, así que ofrecer una mejora es un
+    // callejón sin salida. Hay dos variantes porque la tarjeta de paquetes de
+    // créditos está limitada a displayTier === "pro": una cuenta COMPENSADA
+    // (displayTier "friends-of-barry") no puede comprar paquetes ni almacenamiento,
+    // así que nunca se le debe pedir que lo haga.
+    "upgrade.creditsExhaustedPro": "Ya usaste tus Créditos de IA del mes. Se renuevan el día 1.",
+    "upgrade.creditsExhaustedProBuy": "Ya usaste tus Créditos de IA del mes. Se renuevan el día 1, o puedes comprar un Paquete de Créditos de IA para tener más de inmediato.",
+    "upgrade.storageFullPro": "Tu almacenamiento en la nube está lleno. Agrega más almacenamiento para seguir grabando.",
+    "upgrade.storageFullTop": "Tu almacenamiento en la nube está lleno. Elimina grabaciones o archivos para liberar espacio.",
+    "upgrade.managePlan": "Gestionar plan",
     "upgrade.storageLimit": "Tu almacenamiento en la nube está lleno",
     "upgrade.recordingLimit": "Llegaste al límite de duración de grabación de tu plan. Mejora tu plan para grabar más tiempo.",
     "upgrade.fileTooLarge": "Este archivo pesa {size} — tu plan permite hasta {limit}",

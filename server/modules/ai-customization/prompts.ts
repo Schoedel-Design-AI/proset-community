@@ -4,6 +4,12 @@
  */
 
 import { SkillDefinition, KnowledgebaseResource } from "@shared/schema";
+import {
+  SAINT_PACK_DEFAULT_KNOWLEDGEBASES,
+  SAINT_PACK_DEFAULT_PROMPTS,
+  SAINT_PACK_DEFAULT_SKILLS,
+} from "@shared/saint-pack";
+
 export const GENEROUS_PARSING_PREAMBLE = `IMPORTANT GUIDELINES FOR INPUT PROCESSING:
 - The input text may come from a voice recording transcription, imported text/documents/spreadsheets, or directly typed text. Adapt your processing accordingly.
 - For voice transcripts: expect informal speech patterns, tangents, filler words, self-corrections, and incomplete thoughts.
@@ -3188,6 +3194,10 @@ export const CONVERSION_KNOWLEDGEBASES: Record<string, KnowledgebaseResource[]> 
     { title: "Harvard Bok Center — Facilitating Discussion", url: "https://bokcenter.harvard.edu/discussion", description: "Harvard's teaching centre guide to preparing discussion questions and opening prompts" }
   ]
 };
+
+Object.assign(CONVERSION_PROMPTS, SAINT_PACK_DEFAULT_PROMPTS);
+Object.assign(CONVERSION_SKILLS, SAINT_PACK_DEFAULT_SKILLS);
+Object.assign(CONVERSION_KNOWLEDGEBASES, SAINT_PACK_DEFAULT_KNOWLEDGEBASES);
 
 export const LEARNING_CATEGORIES = {
   speech_pattern: "How the user speaks (filler words, sentence structure, bilingual mixing)",

@@ -1,4 +1,5 @@
 import { type AIClientProvider, getAIModel, hasDedicatedAIProviderConfig } from "./openai-client";
+import { cmsService } from "./modules/ai-customization/cms-service";
 
 export type ConversionModelBucket = "regular" | "advanced";
 export type UserSelectableConversionModelId =
@@ -38,6 +39,8 @@ export interface ConversionModelRoute {
   reason: string;
   bucket: ConversionModelBucket;
   selectedModelId: UserSelectableConversionModelId | null;
+  customApiKey?: string;
+  customBaseUrl?: string;
 }
 
 const DEFAULT_CONTEXT_WINDOWS: Partial<Record<UserSelectableConversionModelId, number>> = {
@@ -293,7 +296,7 @@ export function resolveConversionModelRouteChain(
     ? preferences?.regularModelId ?? null
     : preferences?.advancedModelId ?? null;
 
-  // User explicitly picked a model — don't fall back
+  // 1. User explicitly picked a model in UI settings — honor user choice
   if (selectedPreference) {
     const option = bucketOptions.find((o) => o.id === selectedPreference);
     if (option) {
@@ -310,13 +313,49 @@ export function resolveConversionModelRouteChain(
     }
   }
 
-  const configuredRoutes: ConversionModelRoute[] = bucketOptions.map((option) => ({
-    provider: option.provider,
-    model: option.model,
-    reason: "configured_bucket_default",
-    bucket,
-    selectedModelId: option.id,
-  }));
+  // 2. Check for specific conversion type override in Mathesar CMS (e.g. conversion_slide_deck)
+  if (normalizedType === "slide_deck") {
+    const typeCmsOverride = cmsService.getEffectiveAiConfig("conversion_slide_deck");
+    if (typeCmsOverride && typeCmsOverride.isActive && typeCmsOverride.apiKey) {
+      const providerKey = (typeCmsOverride.provider === "openai" ? "default" : typeCmsOverride.provider) as AIClientProvider;
+      return {
+        routes: [{
+          provider: providerKey,
+          model: typeCmsOverride.model,
+          reason: "cms_type_override",
+          bucket,
+          selectedModelId: null,
+          customApiKey: typeCmsOverride.apiKey,
+          customBaseUrl: typeCmsOverride.baseUrl,
+        }],
+        bucket,
+      };
+    }
+  }
+
+  // 3. Map configured options to routes, attaching CMS model and API key overrides
+  const configuredRoutes: ConversionModelRoute[] = bucketOptions.map((option) => {
+    const cmsFnKey = option.id === "deepseek_flash_fireworks"
+      ? "conversion_regular"
+      : option.id === "deepseek_flash"
+        ? "conversion_regular_backup"
+        : option.id === "deepseek_advanced"
+          ? "conversion_advanced"
+          : option.id === "groq_gpt_oss_120b"
+            ? "conversion_advanced_backup"
+            : undefined;
+    const cmsFn = cmsFnKey ? cmsService.getAiFunction(cmsFnKey) : null;
+
+    return {
+      provider: option.provider,
+      model: cmsFn?.model || option.model,
+      reason: "configured_bucket_default",
+      bucket,
+      selectedModelId: option.id,
+      customApiKey: cmsFn?.api_key || undefined,
+      customBaseUrl: cmsFn?.base_url || undefined,
+    };
+  });
   const openAIFallback = resolveLegacyOpenAIConversionModel(normalizedType, bucket);
 
   // Advanced policy is the DeepSeek advanced lane → OpenAI GPT-5.4 → Groq

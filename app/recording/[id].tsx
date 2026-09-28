@@ -42,7 +42,7 @@ import { useRecordings, type Conversion } from "@/lib/recordings-context";
 import NavigationDrawer from "@/components/NavigationDrawer";
 import FeedbackIconButton from "@/components/FeedbackIconButton";
 import FloatingActionHalo from "@/components/FloatingActionHalo";
-import ProfileDropdown from "@/components/ProfileDropdown";
+import ProfileDropdown, { AVATAR_MENU_ANCHOR_GAP } from "@/components/ProfileDropdown";
 import { useFeedback } from "@/lib/feedback-context";
 import { formatDuration, generateId, CONVERSION_TYPES, CONVERSION_COMPLEXITY_GROUPS, CONVERSION_COMPLEXITY_MAP, PACK_GROUPS, EXPORT_FORMATS, AUDIO_EXPORT_FORMATS, type AudioExportFormat, CITATION_STYLES, TIER_DISPLAY_NAMES, getRequiredTierForConversionType, isConversionTypeAvailable, RESEARCH_FORMS_TYPES, researchFormWebDefault, type SubscriptionTier } from "@/lib/utils";
 import { useCyclingStatus } from "@/lib/useCyclingStatus";
@@ -55,7 +55,7 @@ import {
   getBackgroundUploadStatus,
 } from "@/lib/upload-worker";
 // Cloud-only transcription — local whisper preview disconnected
-import { useResponsiveLayout } from "@/lib/useResponsiveLayout";
+import { useResponsiveLayout, contentColumnRightInset } from "@/lib/useResponsiveLayout";
 import { useLanguage } from "@/lib/i18n";
 import { useTextScale, sf, type TextScale } from "@/lib/typography";
 import ConversionContent from "@/components/ConversionContent";
@@ -442,6 +442,10 @@ export default function RecordingDetailScreen() {
   const [deckStyle, setDeckStyle] = useState<string | null>(null);
   const [deckDownloadingId, setDeckDownloadingId] = useState<string | null>(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  // Measured bottom edge of the top bar that holds the avatar. The menu is an
+  // absolute child of the same root container this row sits in, so the
+  // measured value is directly usable as its `top` — no safe-area term on top.
+  const [headerBottom, setHeaderBottom] = useState(0);
   const [convertingType, setConvertingType] = useState<string | null>(null);
   const [conversionStage, setConversionStage] = useState<string>("");
   // Waiting-phase verb selection: "thinking" during prepare/analyze,
@@ -3055,7 +3059,10 @@ export default function RecordingDetailScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
-      <View style={[styles.topBar, { maxWidth: layout.contentMaxWidth, alignSelf: "center", width: "100%", paddingHorizontal: layout.contentPadding }]}>
+      <View
+        style={[styles.topBar, { maxWidth: layout.contentMaxWidth, alignSelf: "center", width: "100%", paddingHorizontal: layout.contentPadding }]}
+        onLayout={(e) => setHeaderBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)}
+      >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <Pressable
             onPress={() => {
@@ -3108,7 +3115,16 @@ export default function RecordingDetailScreen() {
         </View>
       </View>
 
-      <ProfileDropdown visible={showProfileMenu} onClose={() => setShowProfileMenu(false)} />
+      {/* Anchored under the measured top bar. This menu's positioning parent
+          spans the window, while the row above is centred with `maxWidth` — so
+          the inset must include the centring offset, or on a wide viewport the
+          menu lands at the window edge instead of under the avatar. */}
+      <ProfileDropdown
+        visible={showProfileMenu}
+        onClose={() => setShowProfileMenu(false)}
+        topOffset={headerBottom + AVATAR_MENU_ANCHOR_GAP}
+        rightOffset={contentColumnRightInset(layout)}
+      />
 
       <ScrollView
         style={styles.scrollView}

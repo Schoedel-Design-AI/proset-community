@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Platform, View, Text, ScrollView, StyleSheet, Pressable } from "react-native";
+import { Platform, View, Text, ScrollView, StyleSheet, Pressable, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@react-native-vector-icons/feather/static";
 import { router } from "@/lib/navigation";
@@ -121,6 +121,14 @@ export default function PrivacyScreen() {
           <Text style={styles.paragraph}>
             {t("privacy.rightsBody")}
           </Text>
+          <Pressable
+            style={styles.linkButton}
+            onPress={() => Linking.openURL("https://proset.ai/delete-data")}
+            accessibilityRole="link"
+          >
+            <Feather name="trash-2" size={14} color={Colors.primary} />
+            <Text style={styles.linkButtonText}>{t("privacy.deleteDataLink")}</Text>
+          </Pressable>
         </View>
 
         <View style={styles.section}>
@@ -187,5 +195,20 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     color: Colors.textSecondary,
     fontFamily: "Inter_400Regular",
+  },
+  linkButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "rgba(0, 180, 216, 0.08)",
+    borderRadius: 12,
+  },
+  linkButtonText: {
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.primary,
   },
 });

@@ -23,7 +23,13 @@ import {
 } from "../ai-customization/prompts";
 import { getUserConversionModelPreferences } from "../ai-customization/utils";
 import { resolveConversionModelRouteChain } from "../../conversion-model-routing";
-import { createOpenAIClient, getChatCompletionTokenOptions } from "../../openai-client";
+import {
+  createOpenAIClient,
+  createCustomOpenAIClient,
+  getOpenAIApiKey,
+  getOpenAIBaseUrl,
+  getChatCompletionTokenOptions,
+} from "../../openai-client";
 import { stripThinking } from "../../conversion-post-processor";
 import {
   DECK_LIMITS,
@@ -110,7 +116,9 @@ async function generateDeck(transcript: string, styleId: string, language: "en" 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), GENERATION_TIMEOUT_MS);
     try {
-      const client = createOpenAIClient(route.provider);
+      const client = (route.customApiKey || route.customBaseUrl)
+        ? createCustomOpenAIClient(route.customApiKey || getOpenAIApiKey(route.provider)!, route.customBaseUrl || getOpenAIBaseUrl(route.provider))
+        : createOpenAIClient(route.provider);
       const completion = await client.chat.completions.create(
         {
           model: route.model,

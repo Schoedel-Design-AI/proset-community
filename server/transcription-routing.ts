@@ -3,7 +3,11 @@ import { toFile } from "openai";
 
 import {
   createOpenAIClient,
+  createCustomOpenAIClient,
+  getOpenAIApiKey,
+  getOpenAIBaseUrl,
 } from "./openai-client";
+import { cmsService } from "./modules/ai-customization/cms-service";
 
 export type TranscriptionProvider = "groq" | "mistral" | "openai";
 
@@ -17,6 +21,8 @@ export interface TranscriptionRoute {
    * immediately.
    */
   hedgeAfterMs: number;
+  customApiKey?: string;
+  customBaseUrl?: string;
 }
 
 export interface TranscriptionInput {
@@ -99,11 +105,17 @@ export function getTranscriptionRoutes(
 ): TranscriptionRoute[] {
   const routes: TranscriptionRoute[] = [];
 
-  if (getGroqApiKey(env)) {
+  const primaryConfig = cmsService.getEffectiveAiConfig("transcription_primary");
+  const fallback1Config = cmsService.getEffectiveAiConfig("transcription_fallback_1");
+  const fallback2Config = cmsService.getEffectiveAiConfig("transcription_fallback_2");
+
+  // 1. Primary Route (Default: Groq Whisper)
+  const primaryApiKey = primaryConfig?.apiKey || getGroqApiKey(env);
+  if (primaryApiKey) {
     routes.push({
-      provider: "groq",
-      model: env.GROQ_TRANSCRIPTION_MODEL || "whisper-large-v3-turbo",
-      timeoutMs: getPositiveInteger(
+      provider: (primaryConfig?.provider as TranscriptionProvider) || "groq",
+      model: primaryConfig?.model || env.GROQ_TRANSCRIPTION_MODEL || "whisper-large-v3-turbo",
+      timeoutMs: primaryConfig?.timeoutMs || getPositiveInteger(
         env,
         "TRANSCRIPTION_GROQ_TIMEOUT_MS",
         DEFAULT_GROQ_TIMEOUT_MS,
@@ -113,14 +125,18 @@ export function getTranscriptionRoutes(
         "TRANSCRIPTION_PRIMARY_HEDGE_MS",
         DEFAULT_PRIMARY_HEDGE_MS,
       ),
+      customApiKey: primaryConfig?.apiKey,
+      customBaseUrl: primaryConfig?.baseUrl,
     });
   }
 
-  if (getMistralApiKey(env)) {
+  // 2. First Fallback (Default: Mistral Voxtral)
+  const fallback1ApiKey = fallback1Config?.apiKey || getMistralApiKey(env);
+  if (fallback1ApiKey) {
     routes.push({
-      provider: "mistral",
-      model: env.MISTRAL_TRANSCRIPTION_MODEL || "voxtral-mini-2602",
-      timeoutMs: getPositiveInteger(
+      provider: (fallback1Config?.provider as TranscriptionProvider) || "mistral",
+      model: fallback1Config?.model || env.MISTRAL_TRANSCRIPTION_MODEL || "voxtral-mini-2602",
+      timeoutMs: fallback1Config?.timeoutMs || getPositiveInteger(
         env,
         "TRANSCRIPTION_MISTRAL_TIMEOUT_MS",
         DEFAULT_MISTRAL_TIMEOUT_MS,
@@ -130,19 +146,25 @@ export function getTranscriptionRoutes(
         "TRANSCRIPTION_SECONDARY_HEDGE_MS",
         DEFAULT_SECONDARY_HEDGE_MS,
       ),
+      customApiKey: fallback1Config?.apiKey,
+      customBaseUrl: fallback1Config?.baseUrl,
     });
   }
 
-  if (getDefaultOpenAIApiKey(env)) {
+  // 3. Second Fallback (Default: OpenAI Whisper)
+  const fallback2ApiKey = fallback2Config?.apiKey || getDefaultOpenAIApiKey(env);
+  if (fallback2ApiKey) {
     routes.push({
-      provider: "openai",
-      model: env.OPENAI_TRANSCRIPTION_MODEL || "gpt-4o-transcribe",
-      timeoutMs: getPositiveInteger(
+      provider: (fallback2Config?.provider as TranscriptionProvider) || "openai",
+      model: fallback2Config?.model || env.OPENAI_TRANSCRIPTION_MODEL || "gpt-4o-transcribe",
+      timeoutMs: fallback2Config?.timeoutMs || getPositiveInteger(
         env,
         "TRANSCRIPTION_OPENAI_TIMEOUT_MS",
         DEFAULT_OPENAI_TIMEOUT_MS,
       ),
       hedgeAfterMs: DEFAULT_SECONDARY_HEDGE_MS,
+      customApiKey: fallback2Config?.apiKey,
+      customBaseUrl: fallback2Config?.baseUrl,
     });
   }
 
@@ -278,11 +300,12 @@ async function transcribeMistral(
   input: TranscriptionInput,
   signal: AbortSignal,
 ): Promise<string> {
-  const apiKey = getMistralApiKey();
+  const apiKey = route.customApiKey || getMistralApiKey();
   if (!apiKey) throw new Error("MISTRAL_API_KEY is not configured");
 
+  const client = route.customApiKey ? new Mistral({ apiKey }) : getMistralClient(apiKey);
   const contextBias = input.prompt?.trim() ? [input.prompt.trim()] : undefined;
-  const result = await getMistralClient(apiKey).audio.transcriptions.complete(
+  const result = await client.audio.transcriptions.complete(
     {
       model: route.model,
       file: {
@@ -308,7 +331,9 @@ async function transcribeOpenAICompatible(
   signal: AbortSignal,
 ): Promise<string> {
   const provider = route.provider === "groq" ? "groq" : "default";
-  const client = createOpenAIClient(provider);
+  const client = (route.customApiKey || route.customBaseUrl)
+    ? createCustomOpenAIClient(route.customApiKey || getOpenAIApiKey(provider)!, route.customBaseUrl || getOpenAIBaseUrl(provider))
+    : createOpenAIClient(provider);
   const file = await toFile(input.fileBuffer, input.fileName);
   const result = await client.audio.transcriptions.create(
     {

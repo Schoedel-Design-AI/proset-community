@@ -4,7 +4,7 @@ import type { Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import compression from "compression";
-import { rateLimit } from "express-rate-limit";
+import { rateLimit, ipKeyGenerator } from "express-rate-limit";
 import { Readable } from "stream";
 import type { IncomingMessage } from "http";
 import { registerRoutes } from "./routes";
@@ -20,6 +20,7 @@ import * as path from "path";
 import * as crypto from "crypto";
 import { getOpenAIApiKey, getOpenAIBaseUrl, hasDedicatedAIProviderConfig } from "./openai-client";
 import { getTranscriptionRoutes, getTranscriptionTotalTimeoutMs } from "./transcription-routing";
+import { forwardedClientIp } from "./rate-limits";
 
 import { getPublicDeploymentInfo } from "./deployment-info";
 import { validateEmailAddress } from "@shared/email-validation";
@@ -164,13 +165,19 @@ function setupMatrixWellKnown(app: express.Application) {
 }
 
 function setupRateLimiting(app: express.Application) {
-  const getForwardedIp = (req: express.Request): string => {
-    const forwarded = req.headers["x-forwarded-for"];
-    if (typeof forwarded === "string" && forwarded.trim().length > 0) {
-      return forwarded.split(",")[0].trim();
-    }
-    return req.socket.remoteAddress || "unknown";
-  };
+  // The client address, for bucketing and for auth log attribution. Delegates to
+  // the shared resolver, which reads req.ip through Express's trusted proxy chain
+  // (trust proxy is set below) instead of the first x-forwarded-for entry — that
+  // entry is caller-supplied, so a rotating header would defeat every limiter
+  // keyed on it. ipKeyGenerator() then coarsens an IPv6 address to its /64, so a
+  // caller cannot rotate within their own subnet to escape a bucket either.
+  //
+  // CE note: a self-hosted instance sits behind its own single reverse proxy, so
+  // `trust proxy: 1` below is the right depth for this tree. Operators running an
+  // extra CDN hop in front must raise it to match, or req.ip resolves to the CDN
+  // edge and every visitor shares one bucket.
+  const getForwardedIp = (req: express.Request): string =>
+    ipKeyGenerator(forwardedClientIp(req));
 
   const getAuthLimiterKey = (req: express.Request): string => {
     const ip = getForwardedIp(req);
@@ -189,7 +196,7 @@ function setupRateLimiting(app: express.Application) {
     skipSuccessfulRequests: true,
     message: { error: "We've temporarily paused sign-in attempts for your safety. Try again in about 15 minutes — your account is fine." },
     keyGenerator: getAuthLimiterKey,
-    skip: (req) => req.hostname === "localhost" || req.hostname === "127.0.0.1" || process.env.DISABLE_RATE_LIMIT === "true",
+    skip: (req) => (process.env.NODE_ENV !== "production" && (req.hostname === "localhost" || req.hostname === "127.0.0.1")) || process.env.DISABLE_RATE_LIMIT === "true",
   });
 
   const registrationLimiter = rateLimit({
@@ -199,7 +206,7 @@ function setupRateLimiting(app: express.Application) {
     legacyHeaders: false,
     message: { error: "You've hit our registration safety limit. Take a breather — your info is safe — and try again in about an hour." },
     keyGenerator: getForwardedIp,
-    skip: (req) => req.hostname === "localhost" || req.hostname === "127.0.0.1" || process.env.DISABLE_RATE_LIMIT === "true",
+    skip: (req) => (process.env.NODE_ENV !== "production" && (req.hostname === "localhost" || req.hostname === "127.0.0.1")) || process.env.DISABLE_RATE_LIMIT === "true",
   });
 
   const apiLimiter = rateLimit({
@@ -208,19 +215,20 @@ function setupRateLimiting(app: express.Application) {
     standardHeaders: "draft-7",
     legacyHeaders: false,
     message: { error: "Too many requests. Please slow down." },
-    skip: (req) => req.hostname === "localhost" || req.hostname === "127.0.0.1" || process.env.DISABLE_RATE_LIMIT === "true",
+    skip: (req) => (process.env.NODE_ENV !== "production" && (req.hostname === "localhost" || req.hostname === "127.0.0.1")) || process.env.DISABLE_RATE_LIMIT === "true",
   });
 
+  // Keyed on the client address, NOT req.socket.remoteAddress: behind a reverse
+  // proxy the socket peer is that proxy (or the load balancer), so keying on it
+  // would collapse every user of the instance into one bucket.
   const aiLimiter = rateLimit({
     windowMs: 60 * 1000,
     limit: 10,
     standardHeaders: "draft-7",
     legacyHeaders: false,
     message: { error: "Too many AI requests. Please wait a moment before trying again." },
-    keyGenerator: (req) => {
-      return req.userId || req.socket.remoteAddress || "unknown";
-    },
-    skip: (req) => req.hostname === "localhost" || req.hostname === "127.0.0.1" || process.env.DISABLE_RATE_LIMIT === "true",
+    keyGenerator: getForwardedIp,
+    skip: (req) => (process.env.NODE_ENV !== "production" && (req.hostname === "localhost" || req.hostname === "127.0.0.1")) || process.env.DISABLE_RATE_LIMIT === "true",
   });
 
   const passwordResetLimiter = rateLimit({
@@ -230,7 +238,7 @@ function setupRateLimiting(app: express.Application) {
     legacyHeaders: false,
     message: { error: "We've capped reset attempts to keep your account safe. Sit tight for about 15 minutes, then try again." },
     keyGenerator: getForwardedIp,
-    skip: (req) => req.hostname === "localhost" || req.hostname === "127.0.0.1" || process.env.DISABLE_RATE_LIMIT === "true",
+    skip: (req) => (process.env.NODE_ENV !== "production" && (req.hostname === "localhost" || req.hostname === "127.0.0.1")) || process.env.DISABLE_RATE_LIMIT === "true",
   });
 
   const verificationResendLimiter = rateLimit({
@@ -240,7 +248,7 @@ function setupRateLimiting(app: express.Application) {
     legacyHeaders: false,
     message: { error: "We just sent one — give it about a minute to land in your inbox before requesting another." },
     keyGenerator: getForwardedIp,
-    skip: (req) => req.hostname === "localhost" || req.hostname === "127.0.0.1" || process.env.DISABLE_RATE_LIMIT === "true",
+    skip: (req) => (process.env.NODE_ENV !== "production" && (req.hostname === "localhost" || req.hostname === "127.0.0.1")) || process.env.DISABLE_RATE_LIMIT === "true",
   });
 
   app.use("/api/auth/sign-in", authLimiter);
@@ -1086,7 +1094,7 @@ function validateEnvironment(): void {
     limit: 30,
     standardHeaders: "draft-7",
     legacyHeaders: false,
-    skip: (req) => req.hostname === "localhost" || req.hostname === "127.0.0.1" || process.env.DISABLE_RATE_LIMIT === "true",
+    skip: (req) => (process.env.NODE_ENV !== "production" && (req.hostname === "localhost" || req.hostname === "127.0.0.1")) || process.env.DISABLE_RATE_LIMIT === "true",
   });
 
   app.get("/health", healthLimiter, async (_req: Request, res: Response) => {

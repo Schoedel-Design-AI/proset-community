@@ -90,3 +90,50 @@ test("the deploy log prints the purchase flags it is about to write", async () =
   assert.match(deploy, /Purchase flags written to this revision/, "a silent flag revert must be visible in the deploy log");
   assert.match(deploy, /add-ons\s+= \$\{PROSET_ADDON_PURCHASES_ENABLED:-true\}/);
 });
+
+/**
+ * Capacity and liveness are Cloud Run SERVICE settings. They live in the deploy
+ * path rather than in the repo's application code, so a missing flag silently
+ * reverts them: the service keeps whatever the last deploy set, and the loss is
+ * invisible until load arrives (a 3-instance ceiling at concurrency 80 caps the
+ * product at ~240 in-flight requests) or until an instance wedges with no probe
+ * to recycle it. These assertions make that regression fail the suite.
+ */
+
+test("the deploy path raises the instance ceiling instead of capping at 3", async () => {
+  const deploy = await readFile("scripts/deploy.sh", "utf8");
+  assert.match(
+    deploy,
+    /--max-instances 10 \\/,
+    "scripts/deploy.sh must pin the raised ceiling so a deploy cannot quietly restore 3",
+  );
+});
+
+test("the deploy path wires a liveness probe onto the shallow route", async () => {
+  const deploy = await readFile("scripts/deploy.sh", "utf8");
+  const probe = deploy.split("\n").find((line) => line.includes("--liveness-probe"));
+  assert.ok(probe, "scripts/deploy.sh must pass --liveness-probe, or a wedged instance is never recycled");
+  assert.match(probe, /httpGet\.path=\/api\/live/, "the probe must target the shallow liveness route");
+  assert.match(
+    probe,
+    /httpGet\.port=5000/,
+    "the probe must use the container's real port (5000); a wrong port fails every probe and restarts healthy instances",
+  );
+  assert.doesNotMatch(
+    probe,
+    /httpGet\.path=\/api\/health/,
+    "the probe must not target /api/health: it awaits Firestore and Stripe, so a dependency blip would restart every instance",
+  );
+});
+
+test("the shallow liveness route exists and does no work", async () => {
+  const index = await readFile("server/index.ts", "utf8");
+  const route = index.slice(index.indexOf('app.get("/api/live"'));
+  assert.ok(route.length > 0, "server/index.ts must define GET /api/live for the probe to hit");
+  const handler = route.slice(0, route.indexOf("app.get("));
+  assert.doesNotMatch(
+    handler,
+    /await|storage\.checkHealth|getUncachableStripeClient/,
+    "liveness must not depend on Firestore or Stripe, or a dependency blip cycles every instance",
+  );
+});

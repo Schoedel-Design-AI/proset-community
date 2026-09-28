@@ -10,6 +10,10 @@ import {
 } from "@shared/thought-thread-source";
 import {
   createOpenAIClient,
+  createCustomOpenAIClient,
+  createAIClientForFunction,
+  getOpenAIApiKey,
+  getOpenAIBaseUrl,
   getChatCompletionTokenOptions,
   type AIClientProvider,
 } from "../../openai-client";
@@ -76,7 +80,9 @@ async function extractEvidenceLedger(
   let lastError: unknown;
   for (const route of routes) {
     try {
-      const client = createOpenAIClient(route.provider);
+      const client = (route.customApiKey || route.customBaseUrl)
+        ? createCustomOpenAIClient(route.customApiKey || getOpenAIApiKey(route.provider)!, route.customBaseUrl || getOpenAIBaseUrl(route.provider))
+        : createOpenAIClient(route.provider);
       const outputBudget = Math.min(
         4_096,
         Math.max(1_200, Math.ceil(estimateThoughtThreadTokens(text) * 0.75)),
@@ -99,8 +105,14 @@ async function extractEvidenceLedger(
       });
       const content = response.choices[0]?.message?.content?.trim();
       if (!content) throw new Error("The evidence extraction returned no content.");
-      const audit = await client.chat.completions.create({
-        model: route.model,
+      const auditRes = createAIClientForFunction("thought_thread_audit", {
+        defaultProvider: route.provider,
+        defaultModel: route.model,
+      });
+      const auditClient = (route.customApiKey || route.customBaseUrl) ? client : auditRes.client;
+      const auditModel = (route.customApiKey || route.customBaseUrl) ? route.model : auditRes.model;
+      const audit = await auditClient.chat.completions.create({
+        model: auditModel,
         messages: [
           {
             role: "system",

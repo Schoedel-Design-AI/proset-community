@@ -7,6 +7,9 @@ import {
 } from "../ai-customization/prompts";
 import {
   createOpenAIClient,
+  createCustomOpenAIClient,
+  getOpenAIApiKey,
+  getOpenAIBaseUrl,
   getChatCompletionTokenOptions,
 } from "../../openai-client";
 import { resolveConversionModelRouteChain } from "../../conversion-model-routing";
@@ -151,7 +154,9 @@ export async function runCoreConversion(
 
   for (const route of routes) {
     try {
-      const client = createOpenAIClient(route.provider);
+      const client = (route.customApiKey || route.customBaseUrl)
+        ? createCustomOpenAIClient(route.customApiKey || getOpenAIApiKey(route.provider)!, route.customBaseUrl || getOpenAIBaseUrl(route.provider))
+        : createOpenAIClient(route.provider);
       const completion = await client.chat.completions.create({
         model: route.model,
         messages: [

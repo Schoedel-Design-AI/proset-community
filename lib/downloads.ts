@@ -118,19 +118,12 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
   return bytes.buffer;
 }
 
-/** Converts an arbitrary binary response into base64 for the native writer. */
-export function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  const CHUNK = 0x8000;
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    binary += String.fromCharCode.apply(
-      null,
-      Array.from(bytes.subarray(i, i + CHUNK)) as unknown as number[],
-    );
-  }
-  return btoa(binary);
-}
+/**
+ * Base64 lives in lib/base64.ts so pure (React-Native-free) modules can use it — the
+ * printing pipeline needs to encode image and font bytes without loading `react-native`
+ * into a Node test. Re-exported here because this module is the historical import site.
+ */
+export { arrayBufferToBase64, bytesToBase64 } from "./base64";
 
 function currentPlatform(): DownloadPlatform {
   if (Platform.OS === "web") return "web";

@@ -26,7 +26,7 @@ import { getRecordingsCountKey } from "@/lib/recordings-count-label";
 import { useRecordings } from "@/lib/recordings-context";
 import { MediaImportError, importMediaFromFile, type MediaImportProgress } from "@/lib/media-import";
 import { formatDuration, formatDate } from "@/lib/utils";
-import { useResponsiveLayout } from "@/lib/useResponsiveLayout";
+import { useResponsiveLayout, contentColumnRightInset } from "@/lib/useResponsiveLayout";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 import { useAuth } from "@/lib/auth-context";
 import { useQuery } from "@tanstack/react-query";
@@ -35,7 +35,7 @@ import { useTextScale, sf, type TextScale } from "@/lib/typography";
 import NavigationDrawer from "@/components/NavigationDrawer";
 import FeedbackIconButton from "@/components/FeedbackIconButton";
 import FloatingActionHalo from "@/components/FloatingActionHalo";
-import ProfileDropdown from "@/components/ProfileDropdown";
+import ProfileDropdown, { AVATAR_MENU_ANCHOR_GAP } from "@/components/ProfileDropdown";
 import { useFeedback } from "@/lib/feedback-context";
 import type { Recording } from "@/lib/recordings-context";
 import { createThoughtThread } from "@/lib/thought-threads";
@@ -223,6 +223,10 @@ export default function RecordingsScreen() {
   const containedFabInset = layout.isMobile ? 24 : Math.max((layout.width - Math.min(layout.width, layout.contentMaxWidth)) / 2 + layout.contentPadding, layout.contentPadding);
   const { openFeedback, feedbackVisible } = useFeedback();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  // Measured bottom edge of the header row that holds the avatar. The menu is
+  // an absolute child of the same root container this row sits in, so the
+  // measured value is directly usable as its `top` — no safe-area term on top.
+  const [headerBottom, setHeaderBottom] = useState(0);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
@@ -445,7 +449,10 @@ export default function RecordingsScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
-      <View style={[styles.header, { maxWidth: layout.contentMaxWidth, alignSelf: "center", width: "100%", paddingHorizontal: layout.contentPadding }]}>
+      <View
+        style={[styles.header, { maxWidth: layout.contentMaxWidth, alignSelf: "center", width: "100%", paddingHorizontal: layout.contentPadding }]}
+        onLayout={(e) => setHeaderBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)}
+      >
         <View style={styles.headerLeft}>
           <Pressable
             style={({ pressed }) => [styles.hamburgerBtn, pressed && { opacity: 0.7 }]}
@@ -833,7 +840,16 @@ export default function RecordingsScreen() {
         surface="scrolling"
         containerStyle={{ left: containedFeedbackInset }}
       />
-      <ProfileDropdown visible={showProfileMenu} onClose={() => setShowProfileMenu(false)} />
+      {/* Anchored under the measured header row. This menu's positioning parent
+          spans the window, while the row above is centred with `maxWidth` — so
+          the inset must include the centring offset, or on a wide viewport the
+          menu lands at the window edge instead of under the avatar. */}
+      <ProfileDropdown
+        visible={showProfileMenu}
+        onClose={() => setShowProfileMenu(false)}
+        topOffset={headerBottom + AVATAR_MENU_ANCHOR_GAP}
+        rightOffset={contentColumnRightInset(layout)}
+      />
 
       <NavigationDrawer
         visible={drawerVisible}

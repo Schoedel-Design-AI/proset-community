@@ -20,14 +20,14 @@ import { useLanguage } from "@/lib/i18n";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import AvatarView from "@/components/AvatarView";
 import { useRecordings } from "@/lib/recordings-context";
-import { useResponsiveLayout } from "@/lib/useResponsiveLayout";
+import { useResponsiveLayout, contentColumnRightInset } from "@/lib/useResponsiveLayout";
 import { useAuth } from "@/lib/auth-context";
 import { useQuery } from "@tanstack/react-query";
 import { useTextScale, sf, type TextScale } from "@/lib/typography";
 
 import NavigationDrawer from "@/components/NavigationDrawer";
 import FeedbackIconButton from "@/components/FeedbackIconButton";
-import ProfileDropdown from "@/components/ProfileDropdown";
+import ProfileDropdown, { AVATAR_MENU_ANCHOR_GAP } from "@/components/ProfileDropdown";
 import { useFeedback } from "@/lib/feedback-context";
 import {
   CORNER_TEXT_ACTION_SIZE,
@@ -233,6 +233,10 @@ const [displayName, setDisplayName] = useState(false);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  // Measured bottom edge of the header row that holds the avatar, in the app
+  // shell's coordinate space. The menu is an absolute child of that same shell,
+  // so this measured value IS the anchor offset — no safe-area term on top.
+  const [headerBottom, setHeaderBottom] = useState(0);
   const [subscriptionBanner, setSubscriptionBanner] = useState<"success" | "cancelled" | null>(null);
   const [recordingLimitToast, setRecordingLimitToast] = useState(false);
 
@@ -356,7 +360,10 @@ const [displayName, setDisplayName] = useState(false);
   return (
     <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
       <View style={[styles.appShell, { maxWidth: layout.contentMaxWidth }]} pointerEvents="box-none">
-      <View style={[styles.header, { width: "100%", paddingHorizontal: layout.contentPadding }]}>
+      <View
+        style={[styles.header, { width: "100%", paddingHorizontal: layout.contentPadding }]}
+        onLayout={(e) => setHeaderBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)}
+      >
         <View style={styles.headerLeft}>
           <Pressable
             style={({ pressed }) => [styles.hamburgerBtn, pressed && { opacity: 0.7 }]}
@@ -415,8 +422,15 @@ const [displayName, setDisplayName] = useState(false);
         </View>
       </View>
 
-      {/* Profile dropdown menu */}
-      <ProfileDropdown visible={showProfileMenu} onClose={() => setShowProfileMenu(false)} />
+      {/* Profile dropdown menu — anchored under the measured header row. The
+          menu's positioning parent is `styles.appShell`, the centred column
+          itself, so the row's own contentPadding is the correct right inset. */}
+      <ProfileDropdown
+        visible={showProfileMenu}
+        onClose={() => setShowProfileMenu(false)}
+        topOffset={headerBottom + AVATAR_MENU_ANCHOR_GAP}
+        rightOffset={layout.contentPadding}
+      />
 
       {activeNotification === "subscription" && subscriptionBanner && (
         <View style={{ maxWidth: layout.contentMaxWidth, alignSelf: "center" as const, width: "100%" }}>

@@ -1,6 +1,6 @@
 {
   "name": "proset-community",
-  "version": "1.0.89",
+  "version": "1.0.92",
   "scripts": {
     "postinstall": "patch-package",
     "lint": "eslint .",
@@ -9,6 +9,12 @@
     "release:notes": "node scripts/release-notes.mjs",
     "release:notes:dry": "node scripts/release-notes.mjs --dry-run",
     "android:edge-audit": "python3 scripts/audit-android-edge-to-edge.py",
+    "cms:sync": "npx tsx scripts/sync-cms-from-mathesar.ts",
+    "cms:seed:ai": "npx tsx scripts/seed-ai-functions-cms.ts",
+    "cms:evals": "npx tsx scripts/run-cms-evals.ts",
+    "cms:batch": "npx tsx scripts/batch-model-comparison.ts",
+    "cms:export-ft": "npx tsx scripts/export-finetune-dataset.ts",
+    "cms:prompt-history": "npx tsx scripts/prompt-history.ts",
     "web:dev": "vite",
     "web:build": "NODE_ENV=production vite build",
     "server:dev": "NODE_ENV=development tsx server/index.ts",
@@ -118,6 +124,7 @@
     "react-native-file-access": "4.0.3",
     "react-native-get-random-values": "^2.0.0",
     "react-native-haptic-feedback": "*",
+    "react-native-html-to-pdf": "1.3.0",
     "react-native-keyboard-controller": "1.22.2",
     "react-native-keychain": "*",
     "react-native-linear-gradient": "*",

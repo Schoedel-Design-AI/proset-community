@@ -33,7 +33,7 @@ import { useActiveRecording } from "@/lib/active-recording-context";
 import { featureFlags } from "@/lib/feature-flags";
 import { shouldPromptDiscardOnLeave } from "@/lib/record-navigation";
 import FeedbackIconButton from "@/components/FeedbackIconButton";
-import ProfileDropdown from "@/components/ProfileDropdown";
+import ProfileDropdown, { AVATAR_MENU_ANCHOR_GAP } from "@/components/ProfileDropdown";
 import NavigationDrawer from "@/components/NavigationDrawer";
 import { useFeedback } from "@/lib/feedback-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -84,6 +84,10 @@ export default function RecordScreen() {
   const ts = useTextScale();
   const { feedbackVisible } = useFeedback();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  // Measured bottom edge of the top bar that holds the avatar, in the app
+  // shell's coordinate space — the menu is an absolute child of that same
+  // shell, so this value IS the anchor offset (no safe-area term on top).
+  const [headerBottom, setHeaderBottom] = useState(0);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [showUpgradeHint, setShowUpgradeHint] = useState(false);
   const styles = useMemo(() => makeStyles(ts), [ts]);
@@ -390,7 +394,11 @@ export default function RecordScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top + webTopInset }]}>
       <View style={[styles.appShell, { maxWidth: layout.contentMaxWidth }]} pointerEvents="box-none">
-        <View style={styles.topBar} testID="record-page-header">
+        <View
+          style={styles.topBar}
+          testID="record-page-header"
+          onLayout={(e) => setHeaderBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)}
+        >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <Pressable
               onPress={() => setDrawerVisible(true)}
@@ -643,7 +651,15 @@ export default function RecordScreen() {
           surface="solid"
           containerStyle={{ left: containedFeedbackInset }}
         />
-        <ProfileDropdown visible={showProfileMenu} onClose={() => setShowProfileMenu(false)} />
+        {/* Anchored under the measured top bar. The menu's positioning parent is
+            `styles.appShell`, the centred column itself, so the row's own
+            contentPadding is the correct right inset. */}
+        <ProfileDropdown
+          visible={showProfileMenu}
+          onClose={() => setShowProfileMenu(false)}
+          topOffset={headerBottom + AVATAR_MENU_ANCHOR_GAP}
+          rightOffset={layout.contentPadding}
+        />
 
         <NavigationDrawer
           visible={drawerVisible}
