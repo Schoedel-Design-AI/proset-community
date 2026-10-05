@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exported_at": "2026-09-22T23:40:52.397754+00:00",
+  "exported_at": "2026-10-01T02:04:14.780431+00:00",
   "packs": [
     {
       "pack_key": "core",
@@ -841,19 +841,6 @@
       "is_active": true
     },
     {
-      "type_key": "outline",
-      "system_prompt": "Transform the following transcript into a clear, hierarchical outline. Follow these guidelines:\n\n1. **Hierarchical structure**: Use a multi-level outline format with roman numerals (I, II, III) for major sections, capital letters (A, B, C) for subsections, arabic numbers (1, 2, 3) for details, and lowercase letters (a, b, c) for sub-details.\n\n2. **Logical grouping**: Organize all information from the transcript into coherent, logically related sections. Identify the natural structure — whether by topic, chronology, argument, or process.\n\n3. **Concise entries**: Each outline point should be a brief, clear phrase or single sentence — not a full paragraph. Capture the essence of each idea.\n\n4. **Completeness**: Include all substantive points from the transcript. Don't omit information, but do condense repetitive or verbose passages into single clear entries.\n\n5. **Parallel structure**: Use consistent grammatical structure within the same outline level (e.g., all items at one level start with verbs, or all are noun phrases).\n\n6. **Markdown formatting**: Use markdown with proper indentation for each level. Bold key terms and section headers.\n\n7. **Summary header**: Start with a one-line title that captures the overall topic of the transcript.\n\nThe outline should serve as a complete structural map of the content — someone reading it should understand the full scope and organization of the original recording at a glance.\n\nReturn ONLY the finished outline artifact. Do not include or repeat the prompt, instructions, analysis, reasoning, thinking process, or commentary about how you produced it.",
-      "structural_template": null,
-      "methodology_notes": null,
-      "verbatim_tradition_rule": false,
-      "ecumenical_posture": false,
-      "preferred_model_tier": "standard",
-      "temperature": 0.7,
-      "version": "1.0.0",
-      "changelog_note": null,
-      "is_active": true
-    },
-    {
       "type_key": "podcast_script",
       "system_prompt": "Transform the following transcript into a podcast script written for TWO hosts. The script should feel like a real conversation between two people who genuinely find this topic interesting. Follow these guidelines:\n\n1. **Two-host format**:\n   - **Host A (ALEX) = \"The Explainer\"** — knows the material, breaks down concepts clearly\n   - **Host B (SAM) = \"The Questioner\"** — acts as the audience surrogate, asks \"wait, why?\" questions, reacts naturally\n\n2. **Script format**: Write one line per utterance with speaker tags in brackets. Leave a blank line between speakers:\n   [ALEX]: So today we're diving into something that honestly surprised me.\n\n   [SAM]: Oh no. What now.\n\n   [ALEX]: Okay — you know how everyone says [common belief]? Turns out... not so much.\n\n3. **Conversational rhythm**:\n   - Alternate short punchy lines with longer explanations\n   - Sprinkle in natural affirmations: \"Right.\", \"Exactly.\", \"Okay so—\", \"Wait, really?\"\n   - Use contractions always — write for ears, not eyes\n   - No semicolons, no parentheticals — if you wouldn't say it out loud, rewrite it\n\n4. **Episode structure** (target ~150 words per minute of audio):\n   - **Cold open** (15–30 seconds) — the single most surprising finding, stated as a question or contradiction\n   - **Setup** (30–60 seconds) — what we're covering, why it matters now\n   - **Segments** (3–5 segments, 2–4 minutes each) — one idea per segment, end each with a hook into the next\n   - **Takeaways** (1–2 minutes) — 3 things to remember\n   - **Outro** (15 seconds) — brief sign-off\n\n5. **Transitions**: Use natural bridges like \"And on that note...\", \"Which brings us to...\", \"Here's where it gets interesting—\"\n\n6. **Genre/style awareness**: Analyze the content to determine the best podcast style:\n   - **Conversational duo** (default) — two hosts discuss and riff, making complex topics accessible\n   - **Interview style** — if the content features a clear expert/questioner dynamic\n   - **Narrative** — if the content tells a story with a clear arc (case studies, events)\n   - **Debate** — if the content presents multiple opposing viewpoints\n   - **Solo explainer** — only if the content is a straightforward tutorial with no room for back-and-forth\n   If the transcript content strongly suggests a particular genre, adapt the format accordingly.\n\n7. **Hook early** — if the first 30 seconds aren't interesting, listeners skip. Open with the most surprising or counterintuitive finding.\n\n8. **One idea per segment** — don't cram too much; let ideas breathe. Use stories and concrete examples for abstract concepts.\n\n9. **Vary pacing** — alternate between fast energy and slow, thoughtful moments.\n\n10. **End with value** — give listeners clear takeaways or an action item, not a generic wrap-up.\n\nFormat the entire output in markdown with the speaker tags in brackets. Add a suggested episode title and estimated duration at the top.",
       "structural_template": null,
@@ -1385,6 +1372,19 @@
       "version": "1.0.0",
       "changelog_note": null,
       "is_active": true
+    },
+    {
+      "type_key": "outline",
+      "system_prompt": "Transform the following transcript into a clear, hierarchical outline written in GitHub-Flavored Markdown. Follow these guidelines:\n\n1. **Hierarchical structure**: Express the hierarchy through Markdown structure, never through spacing. Make every major section a level-2 heading with its label inside the heading text (`## I. Market Opportunity`), then put everything beneath it in list items: `-` items for subsections (`- **A.** Current market size: $4.2B`) and nested `-` items indented two spaces for details, keeping the outline's own numbering (I, A, 1, a) inside the heading or item text. Never place an indented line without a list marker: in Markdown that line is a plain paragraph, not a subordinate level, and the hierarchy disappears.\n\n2. **Logical grouping**: Organize all information from the transcript into coherent, logically related sections. Identify the natural structure — whether by topic, chronology, argument, or process.\n\n3. **Concise entries**: Each outline point should be a brief, clear phrase or single sentence — not a full paragraph. Capture the essence of each idea.\n\n4. **Completeness**: Include all substantive points from the transcript. Don't omit information, but do condense repetitive or verbose passages into single clear entries.\n\n5. **Parallel structure**: Use consistent grammatical structure within the same outline level (e.g., all items at one level start with verbs, or all are noun phrases).\n\n6. **Markdown formatting**: Write GitHub-Flavored Markdown throughout: `#` and `##` headings for titles and sections, `-` and `1.` list items nested two spaces per level, and `**bold**` for key terms. Never use ALL-CAPS or underlined pseudo-headings, never align columns with spaces or tabs, and never build a level from indentation alone.\n\n7. **Summary header**: Start with a single `#` title line that captures the overall topic of the transcript, then one blank line before the first `##` section.\n\nThe outline should serve as a complete structural map of the content — someone reading it should understand the full scope and organization of the original recording at a glance, and the result must render as a real Markdown document in GitHub, Obsidian, or any .md viewer.\n\nReturn ONLY the finished outline artifact. Do not include or repeat the prompt, instructions, analysis, reasoning, thinking process, or commentary about how you produced it.",
+      "structural_template": null,
+      "methodology_notes": null,
+      "verbatim_tradition_rule": false,
+      "ecumenical_posture": false,
+      "preferred_model_tier": "standard",
+      "temperature": 0.7,
+      "version": "1.1.0",
+      "changelog_note": "GitHub-Flavored Markdown output contract for outline (2026-09-29)",
+      "is_active": true
     }
   ],
   "skills": [
@@ -1500,25 +1500,6 @@
         "Section headers accurately describe the bullets beneath them",
         "No bullet contains more than one distinct idea",
         "A reader can scan all bullets in under 30 seconds"
-      ]
-    },
-    {
-      "type_key": "outline",
-      "voice": "A careful organizer who maps the logical structure of ideas with consistent hierarchy.",
-      "rules": [
-        "Use consistent hierarchical numbering (I, A, 1, a) throughout",
-        "Keep each entry to a phrase or short sentence — not a paragraph",
-        "Maintain parallel grammatical structure within each level",
-        "Capture every substantive point from the source — don't summarize away detail",
-        "Use indentation to show relationships between ideas",
-        "Put the strongest or most foundational point first in each section"
-      ],
-      "output_example": "I. Market Opportunity\n   A. Current market size: $4.2B (2025)\n   B. Projected growth: 18% CAGR through 2030\n   C. Key trends driving demand\n      1. Remote work normalization\n      2. AI-assisted productivity tools\n      3. Privacy regulation compliance\n\nII. Product Strategy\n    A. Core value proposition: voice-first capture\n    B. Differentiation from competitors\n       1. Local-first architecture (privacy advantage)\n       2. 21 structured output formats\n       3. Bilingual input tolerance\n    C. Roadmap priorities\n       1. Mobile app parity (Q2)\n       2. Team collaboration features (Q3)",
-      "quality_criteria": [
-        "The outline reads as a table of contents for the full content",
-        "Hierarchy levels are used consistently and correctly",
-        "No important point from the source is missing",
-        "Entries are brief enough to scan but specific enough to be useful"
       ]
     },
     {
@@ -2309,6 +2290,25 @@
         "Saint's charism accurately echoed",
         "Reverent devotional tone"
       ]
+    },
+    {
+      "type_key": "outline",
+      "voice": "A careful organizer who maps the logical structure of ideas with consistent hierarchy.",
+      "rules": [
+        "Keep the outline's own numbering (I, A, 1, a) inside the heading or item text",
+        "Keep each entry to a phrase or short sentence — not a paragraph",
+        "Maintain parallel grammatical structure within each level",
+        "Capture every substantive point from the source — don't summarize away detail",
+        "Show relationships with GitHub-Flavored Markdown nesting — ## headings plus - list items two spaces per level — never with indentation alone",
+        "Put the strongest or most foundational point first in each section"
+      ],
+      "output_example": "# Market Opportunity and Product Strategy\n\n## I. Market Opportunity\n- **A.** Current market size: **$4.2B** (2025)\n- **B.** Projected growth: 18% CAGR through 2030\n- **C.** Key trends driving demand\n  - **1.** Remote work normalization\n  - **2.** AI-assisted productivity tools\n  - **3.** Privacy regulation compliance\n\n## II. Product Strategy\n- **A.** Core value proposition: voice-first capture\n- **B.** Differentiation from competitors\n  - **1.** Local-first architecture (privacy advantage)\n  - **2.** 21 structured output formats\n  - **3.** Bilingual input tolerance\n- **C.** Roadmap priorities\n  - **1.** Mobile app parity (Q2)\n  - **2.** Team collaboration features (Q3)",
+      "quality_criteria": [
+        "The outline reads as a table of contents for the full content",
+        "Hierarchy levels are used consistently and correctly",
+        "No important point from the source is missing",
+        "Entries are brief enough to scan but specific enough to be useful"
+      ]
     }
   ],
   "examples": [
@@ -2347,7 +2347,7 @@
       "scenario_title": "Action Items from Product Sprint",
       "sub_mode": "default",
       "sample_transcript": "Alright so here are the priorities for this week. First we have to update the billing tiers in Stripe before Wednesday. Next, Maria needs to finish the Spanish translations for the onboarding flow. Third, Dave needs to fix the memory leak in the audio player by tomorrow afternoon. Lastly, make sure all unit tests pass before opening the pull request.",
-      "golden_output": "- [ ] Update billing tiers in Stripe (Owner: Unassigned, Due: Wednesday)\\n- [ ] Complete Spanish translations for onboarding flow (Owner: Maria)\\n- [ ] Fix memory leak in audio player (Owner: Dave, Due: Tomorrow afternoon)\\n- [ ] Verify all unit tests pass prior to submitting PR (Owner: Unassigned)",
+      "golden_output": "- [ ] Update billing tiers in Stripe (Owner: Unassigned, Due: Wednesday)\n- [ ] Complete Spanish translations for onboarding flow (Owner: Maria)\n- [ ] Fix memory leak in audio player (Owner: Dave, Due: Tomorrow afternoon)\n- [ ] Verify all unit tests pass prior to submitting PR (Owner: Unassigned)",
       "notes": "Tests markdown checklist format, owner attribution, and relative deadline parsing.",
       "display_order": 20,
       "is_active": true
@@ -4346,9 +4346,9 @@
       "display_order": 13
     },
     {
-      "model_key": "qwen/qwen3.6-27b",
+      "model_key": "qwen/qwen3.8-27b",
       "provider_key": "groq",
-      "display_name": "Groq Qwen 3.6 27B",
+      "display_name": "Groq Qwen 3.8 27B",
       "model_family": "Qwen",
       "context_window": 131072,
       "recommended_for": "Ultra-fast backup conversion and pre-clarification",
@@ -4463,7 +4463,7 @@
       "category": "analysis",
       "description": "Generates up to 3 discernment questions when transcripts are ambiguous before converting.",
       "provider": "groq",
-      "model": "qwen/qwen3.6-27b",
+      "model": "qwen/qwen3.8-27b",
       "api_key": null,
       "base_url": null,
       "temperature": 0.3,

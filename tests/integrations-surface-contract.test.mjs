@@ -4,13 +4,16 @@
 //   A stored conversion destination has no consumer — `POST /api/calendar/export`
 //   is its only route and `handleExportToCalendarProvider` in
 //   app/recording/[id].tsx is never rendered — so the destination tab promised a
-//   route that never runs (feedback #252), and the Google tab offered Calendar
+//   route that never runs (feedback #252), and a Google tab once offered Calendar
 //   and Tasks rows that requested a *sensitive* Google scope for a feature with
 //   no shipped delivery (feedback #253, docs/google-oauth-verification-kit.md §3
-//   Track A). New destination creation remains gated by
+//   Track A). The Google tab itself was removed on 2026-09-29, so the Google
+//   service rows and the account-connection request are gone from this screen
+//   entirely (locked absence contract: tests/integrations-google-tab-removed-contract.test.mjs).
+//   New destination creation remains gated by
 //   `featureFlags.conversionDestinations`, while accounts with stored rows keep
-//   a management-only revocation surface. Google services remain gated by
-//   `ready`/`delivered` metadata. This test fails if those gates are loosened.
+//   a management-only revocation surface. This test fails if those gates are
+//   loosened.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -83,7 +86,7 @@ test("stored destinations stay revocable while creation remains gated", () => {
   assert.match(cards, /<Feather name="trash-2"/);
 
   const bodyStart = integrations.indexOf('{activeTab === "calendar" && showDestinationsTab && (');
-  const nextTabBody = integrations.indexOf('{activeTab === "google" && (', bodyStart);
+  const nextTabBody = integrations.indexOf('{activeTab === "connectors" && user && (', bodyStart);
   assert.ok(bodyStart >= 0 && nextTabBody > bodyStart, "the destination body must be present");
   const destinationBody = integrations.slice(bodyStart, nextTabBody);
   const managementBranch = destinationBody.match(
@@ -118,7 +121,7 @@ test("the section is no longer called Calendar in either language", () => {
   assert.equal(retired.length, 0, "the calendar-framed tab label must be gone from both catalogs");
 });
 
-test("Google is offered by the Google tab alone", () => {
+test("the destination picker offers no Google service as selectable", () => {
   // google_calendar survives as metadata for stored rows, but must never be a
   // selectable service again: it only opened a pre-filled Google URL, and the
   // conversion's own Add to Calendar actions already do that.
@@ -142,29 +145,12 @@ test("the destination picker defaults to a ready service", () => {
   assert.match(integrations, /useState<string>\("caldav_nextcloud"\)/);
 });
 
-test("the Google tab lists only services with a shipped path", () => {
-  const delivered = [...integrations.matchAll(/delivered: (true|false)/g)].map((m) => m[1]);
-  assert.deepEqual(
-    delivered,
-    ["false", "false", "false", "false", "true", "false"],
-    "only Slides has a production caller (POST /api/google/decks/:deckId/slides)",
-  );
-  assert.match(
-    integrations,
-    /const OFFERED_GOOGLE_SERVICES = GOOGLE_SERVICE_INFO\.filter\(\(service\) => service\.delivered\)/,
-  );
-  const uses = integrations.match(/\{OFFERED_GOOGLE_SERVICES\.map\(/g) || [];
-  assert.equal(uses.length, 2, "both the capability strip and the default rows must use the delivered list");
-  assert.doesNotMatch(integrations, /\{GOOGLE_SERVICE_INFO\.map\(/);
-});
-
-test("connecting a Google account never asks for a sensitive scope", () => {
-  // calendar.events and tasks are Google *sensitive* scopes; the only row that
-  // can start an incremental grant for them is gone, and the add-account
-  // request keeps to the drive.file family.
-  assert.match(integrations, /onConnect\(\["identity", "drive", "slides"\]\)/);
-  assert.doesNotMatch(integrations, /onConnect\(\[[^\]]*"calendar"[^\]]*\]\)/);
-  assert.doesNotMatch(integrations, /onConnect\(\[[^\]]*"tasks"[^\]]*\]\)/);
+test("Google service rows and account requests are gone with the tab", () => {
+  // The removal contract (tests/integrations-google-tab-removed-contract.test.mjs)
+  // owns the absence assertions; this pins the two shapes that used to live here.
+  assert.doesNotMatch(integrations, /delivered:/, "no Google service row metadata may remain in the screen");
+  assert.doesNotMatch(integrations, /onConnect\(\["identity"/, "no account grant request may remain in the screen");
+  assert.doesNotMatch(integrations, /GOOGLE_SERVICE_INFO|OFFERED_GOOGLE_SERVICES/);
 });
 
 test("the honest .ics route stays reachable on the conversion", () => {

@@ -22,7 +22,8 @@ import { router, useLocalSearchParams } from "@/lib/navigation";
 import type { NativeSyntheticEvent, TextLayoutEventData } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@react-native-vector-icons/feather/static";
-import FontAwesome from "@react-native-vector-icons/fontawesome/static";
+import ConversionTypePicker from "@/components/ConversionTypePicker";
+import ConversionIcon from "@/components/ConversionIcon";
 import { Audio } from "@/lib/audio";
 import { getAudioUploadMetadata } from "@/lib/audio-upload-metadata";
 import logoTransparent from "@/assets/images/icons-xai/105-transparent.png";
@@ -44,7 +45,8 @@ import FeedbackIconButton from "@/components/FeedbackIconButton";
 import FloatingActionHalo from "@/components/FloatingActionHalo";
 import ProfileDropdown, { AVATAR_MENU_ANCHOR_GAP } from "@/components/ProfileDropdown";
 import { useFeedback } from "@/lib/feedback-context";
-import { formatDuration, generateId, CONVERSION_TYPES, CONVERSION_COMPLEXITY_GROUPS, CONVERSION_COMPLEXITY_MAP, PACK_GROUPS, EXPORT_FORMATS, AUDIO_EXPORT_FORMATS, type AudioExportFormat, CITATION_STYLES, TIER_DISPLAY_NAMES, getRequiredTierForConversionType, isConversionTypeAvailable, RESEARCH_FORMS_TYPES, researchFormWebDefault, type SubscriptionTier } from "@/lib/utils";
+import { formatDuration, generateId, CONVERSION_TYPES, CONVERSION_COMPLEXITY_GROUPS, CONVERSION_COMPLEXITY_MAP, PACK_GROUPS, EXPORT_FORMATS, AUDIO_EXPORT_FORMATS, type AudioExportFormat, CITATION_STYLES, TIER_DISPLAY_NAMES, getRequiredTierForConversionType, RESEARCH_FORMS_TYPES, researchFormWebDefault, type SubscriptionTier } from "@/lib/utils";
+import { isConversionTypeOffered, listablePackModules, type ConversionAccess } from "@/lib/conversion-availability";
 import { useCyclingStatus } from "@/lib/useCyclingStatus";
 import { getApiUrl, getAuthHeaders } from "@/lib/query-client";
 import { useAuth } from "@/lib/auth-context";
@@ -72,7 +74,7 @@ import {
   keyboardTopEdge,
 } from "@/lib/keyboard-reveal";
 import type { SelfServiceModuleState } from "@shared/self-service-modules";
-import { continueThoughtFromRecording } from "@/lib/thought-threads";
+import { continueThoughtFromRecording, fetchRecordingThreadUsage, deleteThreadWarning } from "@/lib/thought-threads";
 import {
   getFloatingActionBottomOffset,
   RECORDING_DETAIL_ACTION_SIZE,
@@ -306,13 +308,6 @@ function markdownToHtml(md: string): string {
   return result.join("\n");
 }
 
-function ConversionIcon({ name, size, color }: { name: string; size: number; color: string }) {
-  if (name === "linkedin") {
-    return <FontAwesome name="linkedin-square" size={size} color={color} />;
-  }
-  return <Feather name={name as any} size={size} color={color} />;
-}
-
 /**
  * Scroll a field clear of the on-screen keyboard (#198).
  *
@@ -411,31 +406,7 @@ export default function RecordingDetailScreen() {
     };
   }, []);
   const [showConvertMenu, setShowConvertMenu] = useState(false);
-  // Convert sheet: draggable height — pull up on the top handle to elongate.
   const { height: windowHeight } = useWindowDimensions();
-  const [convertSheetHeight, setConvertSheetHeight] = useState<number | null>(null);
-  const convertSheetMeasuredRef = useRef(0);
-  const convertSheetDragStartRef = useRef(0);
-  const convertSheetPan = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        convertSheetDragStartRef.current = convertSheetHeight ?? convertSheetMeasuredRef.current;
-      },
-      onPanResponderMove: (_evt, gesture) => {
-        const natural = convertSheetMeasuredRef.current || windowHeight * 0.5;
-        const minHeight = Math.min(windowHeight * 0.4, natural);
-        const maxHeight = windowHeight * 0.94;
-        setConvertSheetHeight(
-          Math.max(minHeight, Math.min(maxHeight, convertSheetDragStartRef.current - gesture.dy))
-        );
-      },
-    })
-  ).current;
-  useEffect(() => {
-    if (showConvertMenu) setConvertSheetHeight(null);
-  }, [showConvertMenu]);
 
   // Slide Deck: "choose a look" style picker + in-flight download tracking.
   const [showDeckStylePicker, setShowDeckStylePicker] = useState(false);
@@ -547,7 +518,6 @@ export default function RecordingDetailScreen() {
     if (tab === "conversions") setDetailTab("conversions");
     else if (tab === "recording") setDetailTab("recording");
   }, [tab]);
-  const [convertSearchQuery] = useState("");
   // Last research_forms type the user tapped in the convert menu — drives the
   // web-source toggle default (academic_research/bibliography default OFF).
   const [activeResearchFormType, setActiveResearchFormType] = useState<string | null>(null);
@@ -615,8 +585,10 @@ export default function RecordingDetailScreen() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [userTier, setUserTier] = useState<SubscriptionTier>("free");
   const [tierLoaded, setTierLoaded] = useState(false);
-  const [userModulesList, setUserModulesList] = useState<string[]>([]);
   const [moduleStates, setModuleStates] = useState<SelfServiceModuleState[]>([]);
+  // Today /api/modules/self has actually answered: an empty list because the request
+  // failed must not be read as "this account has nothing".
+  const [moduleStatesLoaded, setModuleStatesLoaded] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState("");
   const [usageSummary, setUsageSummary] = useState<{ transcriptions: { used: number; limit: number }; conversions: { used: number; limit: number } } | null>(null);
@@ -878,17 +850,38 @@ export default function RecordingDetailScreen() {
     };
   }, [id, mode]);
 
+  // One rule for "can this account use this type", shared with the rest of the app:
+  // tier for core types, the module state for pack types. It replaces a local version
+  // that consulted the tier map alone once the module check missed.
+  // `moduleStatesLoaded` is what keeps an unanswered /api/modules/self from reading as
+  // "you have no packs": the shared rule then falls back to the tier, instead of locking
+  // a pack the account may well own.
+  const conversionAccess: ConversionAccess = useMemo(
+    () => ({ tier: userTier, moduleStates, moduleStatesLoaded }),
+    [userTier, moduleStates, moduleStatesLoaded],
+  );
+
   const isTypeLocked = (typeValue: string) => {
     if (!tierLoaded) return false;
-    const typeInfo = CONVERSION_TYPES.find(t => t.value === typeValue);
-    if (typeInfo?.module && userModulesList.includes(typeInfo.module)) return false;
-    return !isConversionTypeAvailable(typeValue, userTier);
+    return !isConversionTypeOffered(typeValue, conversionAccess);
   };
 
   const getModuleState = (moduleName?: string) => {
     if (!moduleName) return null;
     return moduleStates.find((module) => module.moduleName === moduleName) || null;
   };
+
+  // The pack modules this menu may list: /api/modules/self's shipped set once it has
+  // answered — so a pack that is missing there is one the server refuses — and until
+  // then the catalog's packs minus the known-unready ones, per the shared rule.
+  const listableModules = useMemo(() => listablePackModules(conversionAccess), [conversionAccess]);
+
+  // Everything the menu may SHOW: every core type, plus pack types for packs that are
+  // actually shipped. Whether one is usable is isTypeLocked's question.
+  const convertMenuTypes = useMemo(
+    () => CONVERSION_TYPES.filter((type) => !type.module || listableModules.has(type.module)),
+    [listableModules],
+  );
 
   const getModuleDisplayName = (moduleName?: string) => {
     if (!moduleName) return "";
@@ -953,15 +946,11 @@ export default function RecordingDetailScreen() {
         .then(data => {
           const modules = Array.isArray(data.modules) ? data.modules : [];
           setModuleStates(modules);
-          setUserModulesList(
-            modules
-              .filter((module: any) => module?.effectiveEnabled)
-              .map((module: any) => module.moduleName),
-          );
+          setModuleStatesLoaded(true);
         })
         .catch(() => {
           setModuleStates([]);
-          setUserModulesList([]);
+          setModuleStatesLoaded(false);
         });
     }
   }, [user]);
@@ -1935,6 +1924,17 @@ export default function RecordingDetailScreen() {
                 }
               }
               const finalContent = event.fullContent || fullContent;
+              // A done event with no text is not a result. Storing it left a conversion
+              // card that opens empty and can never be recovered (Barry, 2026-10-01),
+              // which is what happened when every provider failed server-side and the
+              // response still ended with done.
+              if (!finalContent.trim()) {
+                throw new Error(
+                  language === "es"
+                    ? "El modelo no devolvió contenido. Inténtalo de nuevo."
+                    : "The model returned no content. Please try again.",
+                );
+              }
               const conversion: Conversion = {
                 id: generateId(),
                 type,
@@ -3000,7 +3000,7 @@ export default function RecordingDetailScreen() {
     }
   };
 
-  const handleDeleteRecording = () => {
+  const handleDeleteRecording = async () => {
     const doDelete = () => {
       if (soundRef.current) {
         soundRef.current.unloadAsync();
@@ -3010,10 +3010,18 @@ export default function RecordingDetailScreen() {
       router.replace("/");
     };
 
+    // Name the Thought Threads this delete would leave with a missing source.
+    // The probe never throws, so its worst case is the silence that preceded it.
+    const usage = await fetchRecordingThreadUsage([recording.id]);
+    const warning = deleteThreadWarning(t, usage, "single");
+    const message = warning
+      ? `${t("detail.deleteRecordingMsg")}\n\n${warning}`
+      : t("detail.deleteRecordingMsg");
+
     if (Platform.OS === "web") {
-      if (confirm(t("detail.deleteRecording"))) doDelete();
+      if (confirm(`${t("detail.deleteRecording")}: ${message}`)) doDelete();
     } else {
-      Alert.alert(t("detail.deleteRecording"), t("detail.deleteRecordingMsg"), [
+      Alert.alert(t("detail.deleteRecording"), message, [
         { text: t("common.cancel"), style: "cancel" },
         { text: t("common.delete"), style: "destructive", onPress: doDelete },
       ]);
@@ -4311,40 +4319,21 @@ export default function RecordingDetailScreen() {
         </Pressable>
       </Modal>
 
-      <Modal
+      <ConversionTypePicker
         visible={showConvertMenu}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowConvertMenu(false)}
-        accessibilityViewIsModal={true}
-      >
-        <Pressable style={[styles.modalOverlay, !layout.isMobile && styles.modalOverlayCentered]} onPress={() => setShowConvertMenu(false)} accessibilityLabel={t("common.close")} accessibilityRole="button">
-          <Pressable
-            style={[styles.menuSheet, styles.convertMenuSheet, !layout.isMobile && styles.menuSheetCentered, !layout.isMobile && styles.convertMenuSheetCentered, convertSheetHeight != null && { height: convertSheetHeight, maxHeight: convertSheetHeight }]}
-            onPress={(e) => e.stopPropagation?.()}
-            onLayout={(e) => { convertSheetMeasuredRef.current = e.nativeEvent.layout.height; }}
-          >
-            {layout.isMobile && (
-              <View style={styles.menuHandleTouchZone} {...convertSheetPan.panHandlers}>
-                <View style={styles.menuHandle} />
-              </View>
-            )}
-            <View style={styles.convertMenuHeader}>
-              <View style={styles.convertMenuHeaderText}>
-                <Text style={[styles.menuTitle, styles.convertMenuTitle]} accessibilityRole="header">
-                  {t("detail.conversionTypes")}
-                </Text>
-              </View>
-              <Pressable
-                onPress={() => setShowConvertMenu(false)}
-                hitSlop={8}
-                style={styles.convertMenuCloseBtn}
-                accessibilityLabel={t("common.close")}
-                accessibilityRole="button"
-              >
-                <Feather name="x" size={18} color={Colors.text} />
-              </Pressable>
-            </View>
+        onClose={() => setShowConvertMenu(false)}
+        types={convertMenuTypes}
+        title={t("detail.conversionTypes")}
+        onSelect={(value) => handleConvert(value)}
+        recentTypes={recentConversionTypes}
+        isLocked={isTypeLocked}
+        onLockedPress={handleLockedConversionPress}
+        lockedLabelFor={getLockedTierLabel}
+        isDone={(value) => recording.conversions.some((c) => c.type === value)}
+        doneLabel={t("detail.runAgain" as any)}
+        showDoneCounts
+        headerExtras={
+          <>
             <View style={styles.clarifyToggleRow}>
               <View style={styles.clarifyToggleInfo}>
                 <Feather name="code" size={16} color={useMarkdown ? Colors.primary : Colors.textSecondary} />
@@ -4379,177 +4368,9 @@ export default function RecordingDetailScreen() {
                 />
               </View>
             )}
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              style={[styles.convertMenuScroll, !layout.isMobile && styles.convertMenuScrollDesktop]}
-              contentContainerStyle={styles.convertMenuScrollContent}
-            >
-              {recentConversionTypes.length > 0 && !convertSearchQuery.trim() && (() => {
-                const recentTypes = recentConversionTypes
-                  .map(val => CONVERSION_TYPES.find(ct => ct.value === val))
-                  .filter((ct): ct is NonNullable<typeof ct> => !!ct);
-                if (recentTypes.length === 0) return null;
-                return (
-                  <View style={styles.complexitySection}>
-                    <View style={styles.sectionHeaderRow} accessibilityRole="header">
-                      <View style={[styles.sectionAccentDot, { backgroundColor: Colors.textMuted }]} />
-                      <Feather name="clock" size={13} color={Colors.textMuted} />
-                      <Text style={[styles.sectionHeaderLabel, { color: Colors.textMuted }]}>{t("detail.recentTypes")}</Text>
-                    </View>
-                    {recentTypes.map((type) => {
-                      const alreadyConverted = recording.conversions.some((c) => c.type === type.value);
-                      const locked = isTypeLocked(type.value);
-                      return (
-                        <Pressable
-                          key={type.value}
-                          style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed, alreadyConverted && styles.menuItemDone, locked && { opacity: 0.5 }]}
-                          onPress={() => {
-                            if (locked) {
-                              handleLockedConversionPress(type.value);
-                            } else {
-                              handleConvert(type.value);
-                            }
-                          }}
-                          accessibilityRole="button"
-                        >
-                          <View style={[styles.menuIcon, alreadyConverted && styles.menuIconDone]}>
-                            {locked ? <Feather name="lock" size={18} color={Colors.textMuted} /> : alreadyConverted ? <Feather name="check" size={20} color={Colors.success} /> : <ConversionIcon name={type.icon} size={20} color={Colors.primary} />}
-                          </View>
-                          <View style={styles.menuTextColumn}>
-                            <Text style={[styles.menuLabel, alreadyConverted && styles.menuLabelDone, locked && { color: Colors.textMuted }]}>{t(`conversion.${type.value}` as any)}</Text>
-                            {alreadyConverted && !locked && <Text style={styles.menuDoneLabel}>{t("detail.runAgain" as any)}</Text>}
-                          </View>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                );
-              })()}
-
-              {CONVERSION_COMPLEXITY_GROUPS.map((group, groupIndex) => {
-                const groupAccentColors: Record<string, string> = {
-                  simple: "#00B4D8",
-                  intermediate: "#A78BFA",
-                  advanced: "#F59E0B",
-                };
-                const accent = groupAccentColors[group.key] || Colors.primary;
-                  const groupTypes = CONVERSION_TYPES
-                  .filter(ct => !ct.module)
-                  .filter(ct => CONVERSION_COMPLEXITY_MAP[ct.value] === group.key)
-                  .filter(ct => !convertSearchQuery.trim() || t(`conversion.${ct.value}` as any).toLowerCase().includes(convertSearchQuery.trim().toLowerCase()))
-                  .sort((a, b) => t(`conversion.${a.value}` as any).localeCompare(t(`conversion.${b.value}` as any)));
-                if (groupTypes.length === 0) return null;
-                const doneCount = groupTypes.filter(ct => !isTypeLocked(ct.value) && recording.conversions.some(c => c.type === ct.value)).length;
-                return (
-                  <View key={group.key} style={styles.complexitySection}>
-                    <View style={styles.sectionHeaderRow} accessibilityRole="header">
-                      <View style={[styles.sectionAccentDot, { backgroundColor: accent }]} />
-                      <Feather name={group.icon as any} size={13} color={accent} />
-                      <Text style={[styles.sectionHeaderLabel, { color: accent }]}>{t(group.labelKey as any)}</Text>
-                      {doneCount > 0 && (
-                        <View style={styles.sectionDonePill}>
-                          <Feather name="check" size={9} color={Colors.success} />
-                          <Text style={styles.sectionDonePillText}>{doneCount}/{groupTypes.length}</Text>
-                        </View>
-                      )}
-                    </View>
-                    {groupTypes.map((type) => {
-                      const alreadyConverted = recording.conversions.some((c) => c.type === type.value);
-                      const locked = isTypeLocked(type.value);
-                      return (
-                        <Pressable
-                          key={type.value}
-                          style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed, alreadyConverted && styles.menuItemDone, locked && { opacity: 0.5 }]}
-                          onPress={() => {
-                            if (locked) {
-                              handleLockedConversionPress(type.value);
-                            } else {
-                              handleConvert(type.value);
-                            }
-                          }}
-                          accessibilityLabel={`${t(`conversion.${type.value}` as any)}${locked ? `, requires ${getLockedTierLabel(type.value)}` : ""}${alreadyConverted ? `, ${t("detail.runAgain" as any)}` : ""}`}
-                          accessibilityRole="button"
-                        >
-                          <View style={[styles.menuIcon, alreadyConverted && styles.menuIconDone]} accessibilityElementsHidden={true} importantForAccessibility="no-hide-descendants">
-                            {locked ? <Feather name="lock" size={18} color={Colors.textMuted} /> : alreadyConverted ? <Feather name="check" size={20} color={Colors.success} /> : <ConversionIcon name={type.icon} size={20} color={Colors.primary} />}
-                          </View>
-                          <View style={styles.menuTextColumn}>
-                            <Text style={[styles.menuLabel, alreadyConverted && styles.menuLabelDone, locked && { color: Colors.textMuted }]}>{t(`conversion.${type.value}` as any)}</Text>
-                            {locked && (
-                              <View style={styles.menuMetaRow} accessibilityElementsHidden={true} importantForAccessibility="no-hide-descendants">
-                                <Text style={styles.menuMetaLabel}>{getLockedTierLabel(type.value)}</Text>
-                                <Feather name="lock" size={12} color={Colors.textMuted} />
-                              </View>
-                            )}
-                            {alreadyConverted && !locked && <Text style={styles.menuDoneLabel}>{t("detail.runAgain" as any)}</Text>}
-                          </View>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                );
-              })}
-
-              {PACK_GROUPS.map((pack) => {
-                const packTypes = CONVERSION_TYPES
-                  .filter(ct => ct.module === pack.moduleName)
-                  .filter(ct => !convertSearchQuery.trim() || t(`conversion.${ct.value}` as any).toLowerCase().includes(convertSearchQuery.trim().toLowerCase()))
-                  .sort((a, b) => t(`conversion.${a.value}` as any).localeCompare(t(`conversion.${b.value}` as any)));
-                if (packTypes.length === 0) return null;
-                const doneCount = packTypes.filter(ct => !isTypeLocked(ct.value) && recording.conversions.some(c => c.type === ct.value)).length;
-                return (
-                  <View key={pack.moduleName} style={styles.complexitySection}>
-                    <View style={styles.sectionHeaderRow} accessibilityRole="header">
-                      <View style={[styles.sectionAccentDot, { backgroundColor: pack.accent }]} />
-                      <Feather name={pack.icon as any} size={13} color={pack.accent} />
-                      <Text style={[styles.sectionHeaderLabel, { color: pack.accent }]}>{t(pack.labelKey as any)}</Text>
-                      {doneCount > 0 && (
-                        <View style={styles.sectionDonePill}>
-                          <Feather name="check" size={9} color={Colors.success} />
-                          <Text style={styles.sectionDonePillText}>{doneCount}/{packTypes.length}</Text>
-                        </View>
-                      )}
-                    </View>
-                    {packTypes.map((type) => {
-                      const alreadyConverted = recording.conversions.some((c) => c.type === type.value);
-                      const locked = isTypeLocked(type.value);
-                      return (
-                        <Pressable
-                          key={type.value}
-                          style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed, alreadyConverted && styles.menuItemDone, locked && { opacity: 0.5 }]}
-                          onPress={() => {
-                            if (locked) {
-                              handleLockedConversionPress(type.value);
-                            } else {
-                              handleConvert(type.value);
-                            }
-                          }}
-                          accessibilityLabel={`${t(`conversion.${type.value}` as any)}${locked ? `, requires ${getLockedTierLabel(type.value)}` : ""}${alreadyConverted ? `, ${t("detail.runAgain" as any)}` : ""}`}
-                          accessibilityRole="button"
-                        >
-                          <View style={[styles.menuIcon, alreadyConverted && styles.menuIconDone]} accessibilityElementsHidden={true} importantForAccessibility="no-hide-descendants">
-                            {locked ? <Feather name="lock" size={18} color={Colors.textMuted} /> : alreadyConverted ? <Feather name="check" size={20} color={Colors.success} /> : <ConversionIcon name={type.icon} size={20} color={Colors.primary} />}
-                          </View>
-                          <View style={styles.menuTextColumn}>
-                            <Text style={[styles.menuLabel, alreadyConverted && styles.menuLabelDone, locked && { color: Colors.textMuted }]}>{t(`conversion.${type.value}` as any)}</Text>
-                            {locked && (
-                              <View style={styles.menuMetaRow} accessibilityElementsHidden={true} importantForAccessibility="no-hide-descendants">
-                                <Text style={styles.menuMetaLabel}>{getLockedTierLabel(type.value)}</Text>
-                                <Feather name="lock" size={12} color={Colors.textMuted} />
-                              </View>
-                            )}
-                            {alreadyConverted && !locked && <Text style={styles.menuDoneLabel}>{t("detail.runAgain" as any)}</Text>}
-                          </View>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                );
-              })}
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
+          </>
+        }
+      />
 
       <Modal
         visible={showCitationPicker}
@@ -5870,22 +5691,6 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
     color: Colors.primary,
     fontFamily: "Inter_600SemiBold",
   },
-  convertSearchWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.background,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    marginBottom: 12,
-    gap: 8,
-  },
-  convertSearchInput: {
-    flex: 1,
-    height: 38,
-    color: Colors.text,
-    fontSize: sf(14, ts),
-    fontFamily: "Inter_400Regular",
-  },
   conversionExpandedActions: {
     flexDirection: "row",
     justifyContent: "flex-end",
@@ -6009,11 +5814,6 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
     paddingBottom: 40,
     maxHeight: "80%",
   },
-  convertMenuSheet: {
-    paddingTop: 12,
-    paddingBottom: 24,
-    maxHeight: "86%",
-  },
   menuSheetCentered: {
     borderRadius: 20,
     maxWidth: 480,
@@ -6061,19 +5861,6 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
     fontSize: sf(14, ts),
   },
-  convertMenuSheetCentered: {
-    width: "92%",
-    maxWidth: 760,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
-    paddingHorizontal: 24,
-  },
-  menuHandleTouchZone: {
-    alignSelf: "stretch",
-    alignItems: "center",
-    paddingVertical: 10,
-    marginTop: -10,
-  },
   menuHandle: {
     width: 36,
     height: 4,
@@ -6091,12 +5878,6 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
   },
   convertMenuTitle: {
     marginBottom: 6,
-  },
-  convertMenuSubtitle: {
-    fontSize: sf(13, ts),
-    fontFamily: "Inter_400Regular",
-    color: Colors.textSecondary,
-    lineHeight: 20,
   },
   convertMenuCloseBtn: {
     width: 44,
@@ -6214,22 +5995,8 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
   convertMenuScrollDesktop: {
     maxHeight: 600,
   },
-  convertMenuScrollContent: {
-    paddingBottom: 8,
-  },
-  menuItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    paddingVertical: 14,
-    paddingHorizontal: 4,
-    borderRadius: 12,
-    minHeight: 44,
-  },
   menuItemPressed: {
     backgroundColor: Colors.surfaceHighlight,
-  },
-  menuItemDone: {
-    opacity: 0.6,
   },
   menuIcon: {
     width: 40,
@@ -6239,9 +6006,6 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 14,
-  },
-  menuIconDone: {
-    backgroundColor: "rgba(74, 222, 128, 0.12)",
   },
   menuLabel: {
     fontSize: sf(16, ts),
@@ -6256,24 +6020,6 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
     minWidth: 0,
     gap: 4,
   },
-  menuLabelDone: {
-    color: Colors.textSecondary,
-  },
-  menuDoneLabel: {
-    fontSize: sf(12, ts),
-    fontFamily: "Inter_500Medium",
-    color: Colors.success,
-  },
-  menuMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  menuMetaLabel: {
-    fontSize: sf(11, ts),
-    fontFamily: "Inter_500Medium",
-    color: Colors.textMuted,
-  },
   categoryHeader: {
     fontSize: sf(11, ts),
     fontFamily: "Inter_700Bold",
@@ -6283,43 +6029,6 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
     marginTop: 14,
     marginBottom: 6,
     paddingHorizontal: 4,
-  },
-  complexitySection: {
-    marginBottom: 2,
-  },
-  sectionHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 6,
-    paddingTop: 14,
-    paddingBottom: 6,
-  },
-  sectionAccentDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-  },
-  sectionHeaderLabel: {
-    fontSize: sf(11, ts),
-    fontFamily: "Inter_700Bold",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    flex: 1,
-  },
-  sectionDonePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    backgroundColor: "rgba(74, 222, 128, 0.1)",
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  sectionDonePillText: {
-    fontSize: sf(10, ts),
-    fontFamily: "Inter_500Medium",
-    color: Colors.success,
   },
   citationHeader: {
     flexDirection: "row",

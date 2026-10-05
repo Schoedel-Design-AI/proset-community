@@ -1055,6 +1055,12 @@ ${transcript}`,
       let usedRoute: ConversionModelRoute | null = null;
       let fullResponse = "";
       let streamUsage: any = null;
+      // Set only when an attempt actually produced content and the loop broke out on
+      // success. `stream` and `usedRoute` are assigned BEFORE an attempt can fail, so
+      // they keep the previous attempt's values when a later attempt throws — testing
+      // them after the loop reported success with an empty artifact whenever every
+      // provider failed (Barry, 2026-10-01: a 46s project plan returned 200, no text).
+      let conversionSucceeded = false;
       let thinkingFilter = createThinkingStreamFilter();
 
       for (const route of conversionRoutes) {
@@ -1124,6 +1130,7 @@ ${transcript}`,
             );
           }
 
+          conversionSucceeded = true;
           break; // success — exit the retry loop
         } catch (err: any) {
           lastError = err;
@@ -1132,13 +1139,29 @@ ${transcript}`,
           // Discard any partial response from the failed attempt (on a
           // first-token stall nothing was sent yet, so this is a no-op there).
           fullResponse = "";
+          // Drop the attempt's stream and route too: they are assigned before the
+          // call can fail, so leaving them set makes a failed attempt look like a
+          // successful one to the check below.
+          stream = null;
+          usedRoute = null;
           thinkingFilter = createThinkingStreamFilter();
           console.warn(`[convert] Provider ${route.provider}/${route.model} failed, trying next:`, err?.message || err);
         }
       }
 
-      if (!stream || !usedRoute) {
+      if (!conversionSucceeded || !stream || !usedRoute) {
         console.error("[convert] All providers failed:", lastError);
+        // A thought-thread run is waiting on this conversion; leaving it running would
+        // strand it, and the old path only escaped that by pretending to succeed with an
+        // empty artifact.
+        if (activeThoughtThreadRun) {
+          await failThoughtThreadRun(
+            activeThoughtThreadRun.id,
+            activeThoughtThreadRun.threadId,
+            req.userId!,
+            lastError instanceof Error ? lastError : new Error("All conversion providers failed"),
+          ).catch(() => undefined);
+        }
         return res.status(502).json({
           error: "All conversion providers are currently unavailable. Please try again later.",
         });
@@ -1398,7 +1421,7 @@ ${transcript}`,
     limits: { fileSize: 500 * 1024 * 1024 },
   });
 
-  app.post("/api/convert-audio", audioConvertUpload.single("audio"), async (req: Request, res: Response) => {
+  app.post("/api/convert-audio", requireAuth, audioConvertUpload.single("audio"), async (req: Request, res: Response) => {
     try {
       const rawFormat = (req.body.format || req.query.format || "").toString().trim().toLowerCase().replace(/^\./, "");
       if (!rawFormat || !isSupportedAudioFormat(rawFormat)) {
@@ -1412,15 +1435,18 @@ ${transcript}`,
       if (req.file?.buffer) {
         inputBuffer = req.file.buffer;
       } else if (req.body.audioUri) {
+        // Only our own storage. This branch used to fetch any http(s) URL a caller
+        // named, which let a signed-in account use the server as a request proxy
+        // (SSRF) — and no client has ever sent one: the app uploads the file or
+        // sends a bucket:// pointer, and nothing on the server writes a URL into
+        // recording.audioUri.
         const audioUri = String(req.body.audioUri);
         if (audioUri.startsWith("bucket://")) {
           const bucketKey = audioUri.replace(/^bucket:\/\//, "");
           const { downloadFile } = await import("./object-storage");
           inputBuffer = await downloadFile(bucketKey);
-        } else if (audioUri.startsWith("http://") || audioUri.startsWith("https://")) {
-          const response = await fetch(audioUri);
-          if (!response.ok) throw new Error("Failed to fetch audio from URL.");
-          inputBuffer = Buffer.from(await response.arrayBuffer());
+        } else {
+          return res.status(400).json({ error: "Audio must be uploaded or referenced from Proset storage." });
         }
       } else if (req.body.recordingId && req.user?.id) {
         const recording = await storage.getRecording(String(req.body.recordingId), req.user.id);

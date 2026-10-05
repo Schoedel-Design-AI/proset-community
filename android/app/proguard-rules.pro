@@ -22,3 +22,13 @@
 -keepattributes *Annotation*
 -keepattributes InnerClasses,EnclosingMethod
 -keepattributes SourceFile,LineNumberTable
+
+# react-native-html-to-pdf -> com.tom-roush:pdfbox-android:2.0.27.0.
+# PDFBox's JPXFilter (JPEG2000 image support) references the optional decoder
+# com.gemalto.jp2.JP2Decoder. That artifact is no longer published (Gemalto was
+# absorbed and com.gemalto.jp2:jp2-android left Maven Central), and JPX images
+# never appear in the HTML we print, so the JPX path is unreachable at runtime.
+# Without this, R8 full mode fails the release build with
+# "Missing class com.gemalto.jp2.JP2Decoder" at :app:minifyReleaseWithR8.
+-dontwarn com.gemalto.jp2.**
+

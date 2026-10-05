@@ -497,6 +497,50 @@ router.post("/thought-threads", requireAuth, async (req: Request, res: Response)
   }
 });
 
+/**
+ * Which Thought Threads use these recordings?
+ *
+ * Asked BEFORE a delete, so the confirmation can name the threads that a delete
+ * would damage. Read-only and side-effect free on purpose: the from-recording
+ * route below computes the same candidate set, but it CREATES a thread when
+ * there is none, so it cannot be used as a probe.
+ *
+ * Archived threads are included deliberately. The question here is what a delete
+ * would affect, not which thread is currently active.
+ *
+ * A probe must never be the reason a delete fails: an unknown or unreadable
+ * recording simply has no usage, and the client treats any failure as "no
+ * warning" rather than blocking the action.
+ */
+router.get("/thought-threads/using-recording", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = getRequiredRouteUserId(req);
+    if (!await requireThoughtThreadCloudSync(userId, res)) return;
+    const recordingIds = String(req.query.recordingIds || "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .slice(0, 200);
+    if (recordingIds.length === 0) return res.json({ usage: {} });
+
+    const usage: Record<string, Array<{ id: string; title: string }>> = {};
+    for (const recordingId of recordingIds) {
+      const memberships = await storage.thoughtThreadItems.getByRecording(recordingId, userId);
+      if (memberships.length === 0) continue;
+      const threads = (
+        await Promise.all(
+          memberships.map((item) => storage.thoughtThreads.get(item.threadId, userId)),
+        )
+      ).filter((thread): thread is ThoughtThread => !!thread);
+      if (threads.length === 0) continue;
+      usage[recordingId] = threads.map((thread) => ({ id: thread.id, title: thread.title }));
+    }
+    res.json({ usage });
+  } catch (error: any) {
+    res.status(error.status || 500).json({ error: error.message || "We had trouble checking Thought Threads." });
+  }
+});
+
 router.post("/thought-threads/from-recording/:recordingId", requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = getRequiredRouteUserId(req);

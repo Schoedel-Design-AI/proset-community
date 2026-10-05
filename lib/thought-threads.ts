@@ -5,6 +5,10 @@ import type {
   ThoughtThreadConversionRun,
   ThoughtThreadItem,
 } from "@shared/schema";
+import {
+  deleteThreadWarningCopy,
+  type RecordingThreadUsage,
+} from "@shared/recording-delete-warning";
 import type { TranslationKey } from "@/lib/i18n";
 import { authFetch, getApiUrl } from "@/lib/query-client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -231,4 +235,46 @@ export function addRecordingToThoughtThread(
       }),
     },
   );
+}
+
+export type { RecordingThreadUsage };
+
+/**
+ * Which Thought Threads use these recordings, asked before a delete so the
+ * confirmation can name them.
+ *
+ * Never throws. A failing probe must not be the reason a delete cannot happen,
+ * so every failure reads as "no threads affected" -- the worst case is the
+ * silence the user had before this existed.
+ */
+export async function fetchRecordingThreadUsage(
+  recordingIds: string[],
+): Promise<RecordingThreadUsage> {
+  const ids = recordingIds.filter(Boolean);
+  if (ids.length === 0) return {};
+  try {
+    const params = new URLSearchParams({ recordingIds: ids.join(",") });
+    const data = await thoughtThreadRequest<{ usage?: RecordingThreadUsage }>(
+      `/api/thought-threads/using-recording?${params.toString()}`,
+    );
+    return data?.usage ?? {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * The warning line for a delete, or null when nothing is affected.
+ *
+ * Which sentence, and with what values, is decided in
+ * shared/recording-delete-warning so it can be tested without react-native;
+ * this only translates it.
+ */
+export function deleteThreadWarning(
+  t: TranslateFn,
+  usage: RecordingThreadUsage,
+  kind: "single" | "bulk" = "single",
+): string | null {
+  const copy = deleteThreadWarningCopy(usage, kind);
+  return copy ? t(copy.key, copy.params) : null;
 }

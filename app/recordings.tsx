@@ -38,7 +38,7 @@ import FloatingActionHalo from "@/components/FloatingActionHalo";
 import ProfileDropdown, { AVATAR_MENU_ANCHOR_GAP } from "@/components/ProfileDropdown";
 import { useFeedback } from "@/lib/feedback-context";
 import type { Recording } from "@/lib/recordings-context";
-import { createThoughtThread } from "@/lib/thought-threads";
+import { createThoughtThread, fetchRecordingThreadUsage, deleteThreadWarning } from "@/lib/thought-threads";
 import {
   CORNER_TEXT_ACTION_SIZE,
   getFloatingActionBottomOffset,
@@ -381,9 +381,31 @@ export default function RecordingsScreen() {
     );
   }, [recordings, searchQuery]);
 
-  const handleDelete = (id: string) => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    deleteRecording(id);
+  /**
+   * Deleting a note that a Thought Thread uses leaves that thread with a missing
+   * source, so the final press asks which threads are affected before it
+   * happens. The probe cannot block the delete: it never throws, and a failure
+   * reads as "no threads affected" -- silence, exactly as before this existed.
+   */
+  const handleDelete = async (id: string) => {
+    const usage = await fetchRecordingThreadUsage([id]);
+    const warning = deleteThreadWarning(t, usage, "single");
+    const doDelete = () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      deleteRecording(id);
+    };
+    if (!warning) {
+      doDelete();
+      return;
+    }
+    if (Platform.OS === "web") {
+      if (confirm(warning)) doDelete();
+    } else {
+      Alert.alert(t("home.deleteTitle"), warning, [
+        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.delete"), style: "destructive", onPress: doDelete },
+      ]);
+    }
   };
 
   const handleCombineSelected = useCallback(async () => {
@@ -415,7 +437,7 @@ export default function RecordingsScreen() {
     }
   }, [selectedIds, exitSelectMode, user, isCloudSyncEnabled, t]);
 
-  const handleDeleteSelected = useCallback(() => {
+  const handleDeleteSelected = useCallback(async () => {
     if (selectedIds.size === 0) return;
     const ids = Array.from(selectedIds);
     const doDelete = () => {
@@ -423,7 +445,10 @@ export default function RecordingsScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       exitSelectMode();
     };
-    const message = t("combine.deleteSelectedConfirm", { count: ids.length });
+    const usage = await fetchRecordingThreadUsage(ids);
+    const warning = deleteThreadWarning(t, usage, "bulk");
+    const base = t("combine.deleteSelectedConfirm", { count: ids.length });
+    const message = warning ? `${base}\n\n${warning}` : base;
     if (Platform.OS === "web") {
       if (confirm(message)) doDelete();
     } else {

@@ -287,13 +287,6 @@ export default function NavigationDrawer({
                 ts={ts}
                 testID="drawer-ai-config"
               />
-              <DrawerItem
-                icon="music"
-                label={t("drawer.music")}
-                locked
-                ts={ts}
-                testID="drawer-music"
-              />
               <Pressable
                 onPress={() => handleNav(() => setShowAudioModal(true))}
                 style={({ pressed }) => [styles.drawerItem, pressed && styles.drawerItemPressed]}
@@ -432,7 +425,6 @@ function DrawerItem({
   ts,
   testID,
   iconColor,
-  locked,
 }: {
   icon: DrawerFeatherIconName;
   label: string;
@@ -440,26 +432,7 @@ function DrawerItem({
   ts: import("@/lib/typography").TextScale;
   testID?: string;
   iconColor?: string;
-  locked?: boolean;
 }) {
-  const { t } = useLanguage();
-
-  if (locked) {
-    return (
-      <View
-        style={styles.drawerItem}
-        accessibilityRole="menuitem"
-        accessibilityState={{ disabled: true }}
-        accessibilityLabel={`${label}, ${t("a11y.locked" as any)}`}
-        testID={testID}
-      >
-        <DrawerFeatherIcon name={icon} size={20} color={Colors.textMuted} />
-        <Text style={[styles.drawerItemLabel, styles.drawerItemLabelLocked, { fontSize: sf(15, ts) }]}>{label}</Text>
-        <DrawerFeatherIcon name="lock" size={14} color={Colors.textMuted} style={styles.drawerItemLock} />
-      </View>
-    );
-  }
-
   return (
     <Pressable
       onPress={onPress}
@@ -558,12 +531,6 @@ const styles = StyleSheet.create({
   drawerItemLabel: {
     fontFamily: "Inter_500Medium",
     color: Colors.text,
-  },
-  drawerItemLabelLocked: {
-    color: Colors.textMuted,
-  },
-  drawerItemLock: {
-    marginLeft: "auto",
   },
   audioDeviceSubtitle: {
     fontSize: 11,

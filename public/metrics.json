@@ -1,8 +1,8 @@
 {
-  "updated": "2026-09-01",
-  "users": 21,
-  "payingSubscribers": 0,
-  "mrrUsd": 0,
+  "updated": "2026-10-01",
+  "users": 19,
+  "payingSubscribers": 1,
+  "mrrUsd": 3,
   "sources": {
     "stripe": true,
     "firestore": true

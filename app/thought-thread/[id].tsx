@@ -7,7 +7,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
@@ -18,16 +17,23 @@ import Feather from "@react-native-vector-icons/feather/static";
 import { useQuery } from "@tanstack/react-query";
 import Colors from "@/constants/colors";
 import { router, useLocalSearchParams } from "@/lib/navigation";
+import { ChipRow } from "@/components/ChipRow";
+import ConversionTypePicker from "@/components/ConversionTypePicker";
+import { filterOfferedConversionTypes } from "@/lib/conversion-availability";
+import { readRecentConversionTypes, recordRecentConversionType } from "@/lib/conversion-recents";
 import { useRecordings } from "@/lib/recordings-context";
+import { useClarifyMode } from "@/lib/clarify-mode";
+import { AVATAR_MENU_ANCHOR_GAP } from "@/components/ProfileDropdown";
+import { readConversionOutputFormat } from "@/lib/output-format";
 import { authFetch, getApiUrl } from "@/lib/query-client";
 import { createUtf8Decoder } from "@/lib/utf8";
-import { useResponsiveLayout } from "@/lib/useResponsiveLayout";
+import { useResponsiveLayout, contentColumnRightInset } from "@/lib/useResponsiveLayout";
 import { useTextScale } from "@/lib/typography";
 import { useLanguage } from "@/lib/i18n";
 import {
   CONVERSION_TYPES,
   CITATION_STYLES,
-  TIER_CONVERSION_TYPES,
+  formatDate,
   formatDuration,
   normalizeSubscriptionTier,
   type SubscriptionTier,
@@ -99,6 +105,15 @@ export default function ThoughtThreadDetailScreen() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [titleDraft, setTitleDraft] = useState("");
+  /**
+   * Height measured from the title field's own content, applied on web only.
+   *
+   * react-native-web renders a multiline TextInput as `<textarea rows={1}>`,
+   * which does NOT grow with its content — it scrolls internally, which hides
+   * the TOP of a long title. So on web we apply the height it reports through
+   * `onContentSizeChange`; native grows on its own.
+   */
+  const [titleFieldHeight, setTitleFieldHeight] = useState<number | undefined>(undefined);
   const [newContext, setNewContext] = useState("");
   const [contextDrafts, setContextDrafts] = useState<Record<string, string>>({});
   const [relationshipDrafts, setRelationshipDrafts] = useState<Record<string, {
@@ -106,6 +121,10 @@ export default function ThoughtThreadDetailScreen() {
     relatedSourceId: string | null;
   }>>({});
   const [showAddExisting, setShowAddExisting] = useState(false);
+  const [showThreadMenu, setShowThreadMenu] = useState(false);
+  const [showTypePicker, setShowTypePicker] = useState(false);
+  const [recentTypes, setRecentTypes] = useState<string[]>([]);
+  const [headerBottom, setHeaderBottom] = useState(0);
   const [recordingSearch, setRecordingSearch] = useState("");
   const [selectedType, setSelectedType] = useState("summary");
   const [conversionStage, setConversionStage] = useState("");
@@ -113,8 +132,11 @@ export default function ThoughtThreadDetailScreen() {
   const [lastFile, setLastFile] = useState<{ id: string; name: string } | null>(null);
   const [citationStyle, setCitationStyle] = useState("apa7");
   const [bibliographyType, setBibliographyType] = useState<"standard" | "annotated">("standard");
-  const [outputFormat, setOutputFormat] = useState<"markdown" | "plaintext">("markdown");
-  const [clarifyEnabled, setClarifyEnabled] = useState(true);
+  // Conversion options are device preferences, not per-screen state: the clarify
+  // mode (Preferences -> Clarify mode) and the output format ("Code block" on the
+  // recording screen). A local copy of either is what made this screen behave
+  // unlike the others.
+  const { clarifyMode } = useClarifyMode();
   const [pendingPrepared, setPendingPrepared] = useState<PreparedRun | null>(null);
   const [clarifyQuestion, setClarifyQuestion] = useState("");
   const [clarifyOptions, setClarifyOptions] = useState<string[]>([]);
@@ -122,6 +144,7 @@ export default function ThoughtThreadDetailScreen() {
   const titleDirtyRef = useRef(false);
   const dirtyContextIdsRef = useRef(new Set<string>());
   const detailThreadId = detail?.thread.id;
+  const isThreadArchived = detail?.thread.status === "archived";
   const detailThreadVersion = detail?.thread.version;
   const { data: subscription } = useQuery<{ tier?: string }>({
     queryKey: ["/api/stripe/subscription"],
@@ -129,19 +152,28 @@ export default function ThoughtThreadDetailScreen() {
   const { data: moduleData } = useQuery<{ modules?: SelfServiceModuleState[] }>({
     queryKey: ["/api/modules/self"],
   });
-  const enabledModules = useMemo(
-    () => new Set((moduleData?.modules || [])
-      .filter((module) => module.effectiveEnabled)
-      .map((module) => module.moduleName)),
-    [moduleData?.modules],
-  );
   const tier: SubscriptionTier = normalizeSubscriptionTier(subscription?.tier);
+  // A conversion type is offered only if its module is SHIPPED — `/api/modules/self`
+  // lists shipped modules only, for every role, and the server refuses the rest.
   const availableTypes = useMemo(
-    () => CONVERSION_TYPES.filter((type) =>
-      TIER_CONVERSION_TYPES[tier]?.includes(type.value)
-      || (!!type.module && enabledModules.has(type.module))),
-    [enabledModules, tier],
+    () => filterOfferedConversionTypes(CONVERSION_TYPES, {
+      tier,
+      moduleStates: moduleData?.modules,
+    }),
+    [moduleData?.modules, tier],
   );
+  const selectedTypeEntry = useMemo(
+    () => availableTypes.find((type) => type.value === selectedType) || availableTypes[0] || null,
+    [availableTypes, selectedType],
+  );
+
+  useEffect(() => {
+    let mounted = true;
+    readRecentConversionTypes()
+      .then((values) => { if (mounted) setRecentTypes(values); })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, []);
 
   useEffect(() => {
     if (availableTypes.length > 0 && !availableTypes.some((type) => type.value === selectedType)) {
@@ -643,6 +675,7 @@ export default function ThoughtThreadDetailScreen() {
         if (stored) customPrompt = JSON.parse(stored)?.[selectedType] || undefined;
       } catch {}
       setConversionStage(t("thread.stageFreeze"));
+      const outputFormat = await readConversionOutputFormat();
       prepared = await thoughtThreadRequest<PreparedRun>(
         `/api/thought-threads/${encodeURIComponent(detail.thread.id)}/prepare-conversion`,
         {
@@ -685,7 +718,10 @@ export default function ThoughtThreadDetailScreen() {
         prepared = await waitForPreparedRun(prepared);
         setPendingPrepared(prepared);
       }
-      if (clarifyEnabled) {
+      // Same rule as the recording screen: "never" converts straight away,
+      // "when_needed" and "always" let the judge model decide whether one
+      // question would improve the result.
+      if (clarifyMode !== "never") {
         setConversionStage(t("thread.stageClarify"));
         const clarification = await thoughtThreadRequest<{
           hasQuestions?: boolean;
@@ -874,17 +910,13 @@ export default function ThoughtThreadDetailScreen() {
   }
 
   const summary = detail.sourceSummary;
-  const estimatedStrategy = conversionPlan?.strategy === "hierarchical"
-    ? t("thread.strategyHierarchical", { model: conversionPlan.model })
-    : conversionPlan?.strategy === "blocked"
-      ? t("thread.strategyBlocked", { count: conversionPlan.absoluteTokenLimit.toLocaleString() })
-      : conversionPlan?.strategy === "direct"
-        ? t("thread.strategyDirect", { model: conversionPlan.model })
-        : t("thread.strategyChecking");
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={[styles.header, { paddingHorizontal: layout.contentPadding }]}>
+      <View
+        style={[styles.header, { paddingHorizontal: layout.contentPadding }]}
+        onLayout={(event) => setHeaderBottom(event.nativeEvent.layout.height)}
+      >
         <Pressable
           onPress={() => router.canGoBack() ? router.back() : router.replace("/thought-threads" as any)}
           style={styles.iconButton}
@@ -900,16 +932,65 @@ export default function ThoughtThreadDetailScreen() {
         {!isCloudSyncEnabled ? (
           <View style={styles.iconButton} />
         ) : (
+          /* Thread-level actions live here, in the corner, instead of a row under
+             the title: Archive is rare and Delete is destructive, and neither
+             belongs in the space between the name and the notes. */
           <Pressable
-            onPress={deleteThread}
+            onPress={() => setShowThreadMenu((current) => !current)}
             style={styles.iconButton}
             accessibilityRole="button"
-            accessibilityLabel={t("thread.delete")}
+            accessibilityLabel={t("thread.actions")}
+            accessibilityState={{ expanded: showThreadMenu }}
           >
-            <Feather name="trash-2" size={19} color={Colors.error} />
+            <Feather name="more-vertical" size={20} color={Colors.text} />
           </Pressable>
         )}
       </View>
+
+      {showThreadMenu ? (
+        <>
+          <Pressable
+            style={styles.menuBackdrop}
+            onPress={() => setShowThreadMenu(false)}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.close")}
+          />
+          {/* Anchored under the measured header row, the same way the avatar menu
+              is anchored: the parent spans the window while the row above is
+              centred with maxWidth, so the inset includes the centring offset. */}
+          <View
+            style={[
+              styles.headerMenu,
+              { top: headerBottom + AVATAR_MENU_ANCHOR_GAP, right: contentColumnRightInset(layout) },
+            ]}
+          >
+            <Pressable
+              onPress={() => {
+                setShowThreadMenu(false);
+                void updateThread({ status: isThreadArchived ? "open" : "archived" });
+              }}
+              style={styles.headerMenuItem}
+              accessibilityRole="button"
+              accessibilityLabel={t(isThreadArchived ? "thread.unarchive" : "thread.archive")}
+            >
+              <Feather name={isThreadArchived ? "rotate-cw" : "archive"} size={16} color={Colors.textSecondary} />
+              <Text style={styles.headerMenuItemText}>{t(isThreadArchived ? "thread.unarchive" : "thread.archive")}</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setShowThreadMenu(false);
+                deleteThread();
+              }}
+              style={styles.headerMenuItem}
+              accessibilityRole="button"
+              accessibilityLabel={t("thread.delete")}
+            >
+              <Feather name="trash-2" size={16} color={Colors.error} />
+              <Text style={[styles.headerMenuItemText, { color: Colors.error }]}>{t("thread.delete")}</Text>
+            </Pressable>
+          </View>
+        </>
+      ) : null}
 
       {!isCloudSyncEnabled ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 16 }}>
@@ -941,28 +1022,54 @@ export default function ThoughtThreadDetailScreen() {
             value={titleDraft}
             onChangeText={(text) => {
               titleDirtyRef.current = true;
-              setTitleDraft(text);
+              // Wrapping is what keeps the BEGINNING of a long title visible: a
+              // single-line field scrolls horizontally to keep the caret in view,
+              // and Android keeps that offset after blur, so a stored
+              // "Thought Thread — Sep 28, 5:25 PM" displayed as
+              // "hought Thread — Sep 28, 5:25 PM". Newlines are stripped so the
+              // wrapped field still holds one line of data (the list card renders
+              // the title with numberOfLines={1}).
+              setTitleDraft(text.replace(/\n/g, " "));
             }}
           onBlur={() => void saveTitle()}
           maxLength={160}
-          style={[styles.titleInput, { fontSize: ts.heading2 }]}
+          multiline
+          // Web: react-native-web renders multiline as <textarea rows={1}>, which
+          // does not grow with its content, so apply the height it reports.
+          onContentSizeChange={(event) => {
+            if (Platform.OS !== "web") return;
+            const height = event?.nativeEvent?.contentSize?.height;
+            if (typeof height === "number" && height > 0 && Math.abs(height - (titleFieldHeight ?? 0)) > 1) {
+              setTitleFieldHeight(height);
+            }
+          }}
+          // Native: keep Enter as "save" now that the field accepts wrapping.
+          {...(Platform.OS === "web" ? {} : { submitBehavior: "blurAndSubmit" as const })}
+          style={[
+            styles.titleInput,
+            { fontSize: ts.heading2 },
+            Platform.OS === "web" && titleFieldHeight ? { height: titleFieldHeight } : null,
+          ]}
           accessibilityLabel={t("thread.titleLabel")}
-        />
-        <View style={styles.statusRow}>
-          {(["open", "ready", "archived"] as const).map((status) => (
-            <Pressable
-              key={status}
-              onPress={() => void updateThread({ status })}
-              style={[styles.statusChip, detail.thread.status === status && styles.statusChipActive]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: detail.thread.status === status }}
-            >
-              <Text style={[styles.statusText, detail.thread.status === status && styles.statusTextActive]}>
-                {t(`thread.${status}`)}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+          />
+        {isThreadArchived || (detail.thread.status === "ready" && detail.thread.lastConvertedAt) ? (
+          <View style={styles.statusRow}>
+            {isThreadArchived ? (
+              <View style={styles.statusBadge}>
+                <Feather name="archive" size={14} color={Colors.textSecondary} />
+                <Text style={styles.statusBadgeText}>{t("thread.archivedBadge")}</Text>
+              </View>
+            ) : null}
+            {detail.thread.status === "ready" && detail.thread.lastConvertedAt ? (
+              <View style={styles.statusBadge}>
+                <Feather name="check-circle" size={14} color={Colors.success || "#10b981"} />
+                <Text style={styles.statusBadgeText}>
+                  {t("thread.convertedBadge", { date: formatDate(String(detail.thread.lastConvertedAt), language) })}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
 
         {error ? (
           <View style={styles.errorCard} accessibilityLiveRegion="assertive">
@@ -971,22 +1078,6 @@ export default function ThoughtThreadDetailScreen() {
             <Pressable onPress={load}><Text style={styles.errorRetry}>{t("thread.reload")}</Text></Pressable>
           </View>
         ) : null}
-
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryTop}>
-            <Text style={[styles.sectionTitle, { fontSize: ts.heading3 }]}>{t("thread.conversionSource")}</Text>
-
-          </View>
-
-
-          {summary.missingRecordingCount > 0 ? (
-            <Text style={[styles.errorText, { fontSize: ts.caption }]}>
-              {summary.missingRecordingCount === 1
-                ? t("thread.sourceMissingOne")
-                : t("thread.sourceMissing", { count: summary.missingRecordingCount })}
-            </Text>
-          ) : null}
-        </View>
 
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { fontSize: ts.heading3 }]}>{t("thread.timeline")}</Text>
@@ -1174,11 +1265,7 @@ export default function ThoughtThreadDetailScreen() {
               </Pressable>
             </View>
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.relationshipRow}
-            >
+            <ChipRow contentContainerStyle={styles.relationshipRow}>
               {CONTEXT_RELATIONSHIPS.map((relationship) => (
                 <Pressable
                   key={relationship}
@@ -1205,15 +1292,11 @@ export default function ThoughtThreadDetailScreen() {
                   </Text>
                 </Pressable>
               ))}
-            </ScrollView>
+            </ChipRow>
             {relationshipDraft.relationship ? (
               <>
 
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.relationshipRow}
-                >
+                <ChipRow contentContainerStyle={styles.relationshipRow}>
                   {orderedItems.map((item, index) => (
                     <Pressable
                       key={item.id}
@@ -1266,7 +1349,7 @@ export default function ThoughtThreadDetailScreen() {
                         </Text>
                       </Pressable>
                     ))}
-                </ScrollView>
+                </ChipRow>
               </>
             ) : null}
             {relationshipChanged ? (
@@ -1320,23 +1403,37 @@ export default function ThoughtThreadDetailScreen() {
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { fontSize: ts.heading3 }]}>{t("thread.convert")}</Text>
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeRow}>
-          {availableTypes.map((type) => (
-            <Pressable
-              key={type.value}
-              onPress={() => setSelectedType(type.value)}
-              style={[styles.typeChip, selectedType === type.value && styles.typeChipActive]}
-              accessibilityState={{ selected: selectedType === type.value }}
-            >
-              <Feather name={type.icon as any} size={14} color={selectedType === type.value ? "#fff" : Colors.textSecondary} />
-              <Text style={[styles.typeText, selectedType === type.value && styles.typeTextActive]}>{type.label}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+        <Pressable
+          onPress={() => setShowTypePicker(true)}
+          style={styles.typeSelector}
+          accessibilityRole="button"
+          accessibilityLabel={t("conversionPicker.title")}
+          accessibilityState={{ expanded: showTypePicker }}
+        >
+          <View style={styles.typeSelectorIcon}>
+            <Feather name={(selectedTypeEntry?.icon as any) || "file"} size={16} color={Colors.primary} />
+          </View>
+          <Text style={[styles.typeSelectorText, { fontSize: ts.body2 }]} numberOfLines={1}>
+            {selectedTypeEntry ? t(`conversion.${selectedTypeEntry.value}` as any) : t("conversionPicker.title")}
+          </Text>
+          <Feather name="chevron-down" size={18} color={Colors.textSecondary} />
+        </Pressable>
+        <ConversionTypePicker
+          visible={showTypePicker}
+          onClose={() => setShowTypePicker(false)}
+          types={availableTypes}
+          selectedType={selectedType}
+          recentTypes={recentTypes}
+          onSelect={(value) => {
+            setShowTypePicker(false);
+            setSelectedType(value);
+            void recordRecentConversionType(value).then(setRecentTypes);
+          }}
+        />
         {["academic_research", "bibliography"].includes(selectedType) ? (
           <View style={styles.optionCard}>
             <Text style={[styles.itemTitle, { fontSize: ts.body2 }]}>{t("thread.citationStyle")}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeRow}>
+            <ChipRow contentContainerStyle={styles.typeRow}>
               {CITATION_STYLES.map((style) => (
                 <Pressable
                   key={style.value}
@@ -1349,7 +1446,7 @@ export default function ThoughtThreadDetailScreen() {
                   </Text>
                 </Pressable>
               ))}
-            </ScrollView>
+            </ChipRow>
             {selectedType === "bibliography" ? (
               <View style={styles.optionRow}>
                 {(["standard", "annotated"] as const).map((value) => (
@@ -1368,28 +1465,6 @@ export default function ThoughtThreadDetailScreen() {
             ) : null}
           </View>
         ) : null}
-        <View style={styles.optionCard}>
-          <View style={styles.toggleRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.itemTitle, { fontSize: ts.body2 }]}>{t("thread.askBefore")}</Text>
-            </View>
-            <Switch value={clarifyEnabled} onValueChange={setClarifyEnabled} />
-          </View>
-          <View style={styles.optionRow}>
-            {(["markdown", "plaintext"] as const).map((value) => (
-              <Pressable
-                key={value}
-                onPress={() => setOutputFormat(value)}
-                style={[styles.optionChip, outputFormat === value && styles.optionChipActive]}
-                accessibilityState={{ selected: outputFormat === value }}
-              >
-                <Text style={[styles.optionChipText, outputFormat === value && styles.optionChipTextActive]}>
-                  {value === "markdown" ? t("thread.markdown") : t("thread.plainText")}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
         {pendingPrepared && clarifyQuestion.trim() ? (
           <View style={styles.clarificationCard}>
             <Text style={[styles.itemTitle, { fontSize: ts.body }]}>{t("thread.clarificationTitle")}</Text>
@@ -1563,15 +1638,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  statusRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
-  statusChip: { minHeight: 44, paddingHorizontal: 14, borderRadius: 22, borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center" },
-  statusChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  statusText: { color: Colors.textSecondary, fontFamily: "Inter_600SemiBold", fontSize: 12 },
-  statusTextActive: { color: "#fff" },
-  summaryCard: { padding: 16, borderRadius: 14, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, gap: 7 },
-  summaryTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
+  statusRow: { flexDirection: "row", gap: 8, flexWrap: "wrap", alignItems: "center" },
+  statusBadge: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 32, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface },
+  statusBadgeText: { color: Colors.textSecondary, fontFamily: "Inter_600SemiBold", fontSize: 12 },
+  menuBackdrop: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 9998 },
+  headerMenu: { position: "absolute", backgroundColor: Colors.surface, borderRadius: 12, paddingVertical: 6, minWidth: 210, zIndex: 9999, borderWidth: 1, borderColor: Colors.border, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 12, elevation: 8 },
+  headerMenuItem: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, minHeight: 44 },
+  headerMenuItemText: { color: Colors.text, fontFamily: "Inter_600SemiBold", fontSize: 13 },
   sectionTitle: { color: Colors.text, fontFamily: "Inter_700Bold" },
-  tokenText: { color: Colors.primary, fontFamily: "Inter_600SemiBold" },
   muted: { color: Colors.textMuted, lineHeight: 20 },
   strategyText: { color: Colors.textSecondary, lineHeight: 20 },
   errorCard: { padding: 13, borderRadius: 12, borderWidth: 1, borderColor: Colors.error, backgroundColor: "rgba(239, 68, 68, 0.08)", flexDirection: "row", alignItems: "center", gap: 9 },
@@ -1611,17 +1685,15 @@ const styles = StyleSheet.create({
   savedContextInput: { minHeight: 88, color: Colors.textSecondary, lineHeight: 20, backgroundColor: Colors.background, borderRadius: 9, padding: 10 },
   saveContextButton: { alignSelf: "flex-end", minHeight: 44, paddingHorizontal: 10, borderRadius: 9, backgroundColor: "rgba(0, 180, 216, 0.1)", flexDirection: "row", alignItems: "center", gap: 6 },
   typeRow: { gap: 8, paddingVertical: 2 },
-  typeChip: { minHeight: 44, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, flexDirection: "row", alignItems: "center", gap: 6 },
-  typeChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  typeText: { color: Colors.textSecondary, fontFamily: "Inter_600SemiBold", fontSize: 12 },
-  typeTextActive: { color: "#fff" },
+  typeSelector: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, paddingHorizontal: 12 },
+  typeSelectorIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: "rgba(0, 180, 216, 0.12)", alignItems: "center", justifyContent: "center" },
+  typeSelectorText: { flex: 1, color: Colors.text, fontFamily: "Inter_600SemiBold" },
   optionCard: { borderRadius: 14, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface, padding: 12, gap: 10 },
   optionRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" },
   optionChip: { minHeight: 44, borderRadius: 22, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 12, alignItems: "center", justifyContent: "center" },
   optionChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   optionChipText: { color: Colors.textSecondary, fontFamily: "Inter_600SemiBold", fontSize: 12 },
   optionChipTextActive: { color: "#fff" },
-  toggleRow: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 12 },
   clarificationCard: { borderRadius: 14, borderWidth: 1, borderColor: Colors.primary, backgroundColor: "rgba(0, 180, 216, 0.08)", padding: 14, gap: 12 },
   clarificationActions: { flexDirection: "row", alignItems: "center", gap: 10 },
   convertButton: { minHeight: 54, borderRadius: 13, backgroundColor: Colors.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 },

@@ -1,6 +1,6 @@
 {
   "name": "proset-community",
-  "version": "1.0.92",
+  "version": "1.0.97",
   "scripts": {
     "postinstall": "patch-package",
     "lint": "eslint .",

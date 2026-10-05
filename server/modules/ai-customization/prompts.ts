@@ -693,9 +693,9 @@ OUTPUT FORMAT (follow exactly):
 
   spreadsheet: "Analyze the following content and extract or reorganize structured data into CSV format. If the input is already tabular/CSV data, clean it up, normalize headers, fix formatting issues, and reorganize for clarity. If the input is prose or a transcript, identify categories, items, values, dates, or any quantifiable information. Output ONLY valid CSV with a header row and data rows. Use commas as delimiters and quote fields that contain commas. Make the data as organized and useful as possible.",
   prompt: "Transform the following transcript into a well-crafted AI prompt. The prompt should be clear, specific, and actionable. Include context, desired output format, constraints, and any relevant details from the transcript. Structure it so it can be directly used with an AI assistant to get useful results.",
-  outline: `Transform the following transcript into a clear, hierarchical outline. Follow these guidelines:
+  outline: `Transform the following transcript into a clear, hierarchical outline written in GitHub-Flavored Markdown. Follow these guidelines:
 
-1. **Hierarchical structure**: Use a multi-level outline format with roman numerals (I, II, III) for major sections, capital letters (A, B, C) for subsections, arabic numbers (1, 2, 3) for details, and lowercase letters (a, b, c) for sub-details.
+1. **Hierarchical structure**: Express the hierarchy through Markdown structure, never through spacing. Make every major section a level-2 heading with its label inside the heading text (\`## I. Market Opportunity\`), then put everything beneath it in list items: \`-\` items for subsections (\`- **A.** Current market size: $4.2B\`) and nested \`-\` items indented two spaces for details, keeping the outline's own numbering (I, A, 1, a) inside the heading or item text. Never place an indented line without a list marker: in Markdown that line is a plain paragraph, not a subordinate level, and the hierarchy disappears.
 
 2. **Logical grouping**: Organize all information from the transcript into coherent, logically related sections. Identify the natural structure — whether by topic, chronology, argument, or process.
 
@@ -705,11 +705,11 @@ OUTPUT FORMAT (follow exactly):
 
 5. **Parallel structure**: Use consistent grammatical structure within the same outline level (e.g., all items at one level start with verbs, or all are noun phrases).
 
-6. **Markdown formatting**: Use markdown with proper indentation for each level. Bold key terms and section headers.
+6. **Markdown formatting**: Write GitHub-Flavored Markdown throughout: \`#\` and \`##\` headings for titles and sections, \`-\` and \`1.\` list items nested two spaces per level, and \`**bold**\` for key terms. Never use ALL-CAPS or underlined pseudo-headings, never align columns with spaces or tabs, and never build a level from indentation alone.
 
-7. **Summary header**: Start with a one-line title that captures the overall topic of the transcript.
+7. **Summary header**: Start with a single \`#\` title line that captures the overall topic of the transcript, then one blank line before the first \`##\` section.
 
-The outline should serve as a complete structural map of the content — someone reading it should understand the full scope and organization of the original recording at a glance.
+The outline should serve as a complete structural map of the content — someone reading it should understand the full scope and organization of the original recording at a glance, and the result must render as a real Markdown document in GitHub, Obsidian, or any .md viewer.
 
 Return ONLY the finished outline artifact. Do not include or repeat the prompt, instructions, analysis, reasoning, thinking process, or commentary about how you produced it.`,
   notes: `Transform the following transcript into clean, well-organized notes. Follow these guidelines:
@@ -1990,30 +1990,32 @@ CONSTRAINTS:
   outline: {
     voice: "A careful organizer who maps the logical structure of ideas with consistent hierarchy.",
     rules: [
-      "Use consistent hierarchical numbering (I, A, 1, a) throughout",
+      "Keep the outline's own numbering (I, A, 1, a) inside the heading or item text",
       "Keep each entry to a phrase or short sentence — not a paragraph",
       "Maintain parallel grammatical structure within each level",
       "Capture every substantive point from the source — don't summarize away detail",
-      "Use indentation to show relationships between ideas",
+      "Show relationships with GitHub-Flavored Markdown nesting — ## headings plus - list items two spaces per level — never with indentation alone",
       "Put the strongest or most foundational point first in each section"
     ],
-    outputExample: `I. Market Opportunity
-   A. Current market size: $4.2B (2025)
-   B. Projected growth: 18% CAGR through 2030
-   C. Key trends driving demand
-      1. Remote work normalization
-      2. AI-assisted productivity tools
-      3. Privacy regulation compliance
+    outputExample: `# Market Opportunity and Product Strategy
 
-II. Product Strategy
-    A. Core value proposition: voice-first capture
-    B. Differentiation from competitors
-       1. Local-first architecture (privacy advantage)
-       2. 21 structured output formats
-       3. Bilingual input tolerance
-    C. Roadmap priorities
-       1. Mobile app parity (Q2)
-       2. Team collaboration features (Q3)`,
+## I. Market Opportunity
+- **A.** Current market size: **$4.2B** (2025)
+- **B.** Projected growth: 18% CAGR through 2030
+- **C.** Key trends driving demand
+  - **1.** Remote work normalization
+  - **2.** AI-assisted productivity tools
+  - **3.** Privacy regulation compliance
+
+## II. Product Strategy
+- **A.** Core value proposition: voice-first capture
+- **B.** Differentiation from competitors
+  - **1.** Local-first architecture (privacy advantage)
+  - **2.** 21 structured output formats
+  - **3.** Bilingual input tolerance
+- **C.** Roadmap priorities
+  - **1.** Mobile app parity (Q2)
+  - **2.** Team collaboration features (Q3)`,
     qualityCriteria: [
       "The outline reads as a table of contents for the full content",
       "Hierarchy levels are used consistently and correctly",

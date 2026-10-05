@@ -1,10 +1,10 @@
 {
   "name": "proset-native",
   "displayName": "Proset",
-  "version": "1.0.92",
+  "version": "1.0.97",
   "android": {
     "package": "ms.aifor.app",
-    "versionCode": 132,
+    "versionCode": 137,
     "adaptiveIcon": {
       "foregroundImage": "./android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_foreground.png",
       "backgroundColor": "#00B4D8"

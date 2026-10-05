@@ -117,8 +117,8 @@ const MODEL_DEFINITIONS: Record<UserSelectableConversionModelId, Omit<UserSelect
   },
   groq_qwen_36_27b: {
     id: "groq_qwen_36_27b",
-    label: "Groq Qwen 3.6 27B",
-    description: "Fast backup. 662 TPS at $0.29/M input via Groq LPU.",
+    label: "Groq Qwen 3.8 27B",
+    description: "Fast cross-provider backup, served on Groq's LPU. Qwen 3.8 27B.",
     provider: "groq",
     bucket: "regular",
   },
@@ -150,10 +150,10 @@ export function resolveConversionModelId(value: unknown): UserSelectableConversi
 const DEFAULT_MODEL_ORDER: Record<ConversionModelBucket, UserSelectableConversionModelId[]> = {
   // Fireworks-hosted DeepSeek Flash is primary (same model, ~176 t/s,
   // lower TTFT). When Fireworks is not configured, official DeepSeek Flash
-  // takes its place as primary (same quality). Groq Qwen 3.6 27B is the fast
+  // takes its place as primary (same quality). Groq Qwen 3.8 27B is the fast
   // cross-provider backup. Groq-first for mechanical types was evaluated and
-  // rejected: DeepSeek Flash beats Qwen3.6 27B on quality (AA Intelligence
-  // Index 50 vs 37) and price ($0.06 vs $0.90/M blended).
+  // rejected: DeepSeek Flash is the cheaper lane for this work, and the backup
+  // exists to cover a DeepSeek-side outage rather than to lead.
   regular: ["deepseek_flash_fireworks", "deepseek_flash", "groq_qwen_36_27b"],
   advanced: ["deepseek_advanced", "groq_gpt_oss_120b"],
 };
