@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   StyleSheet,
   Text,
@@ -23,6 +23,9 @@ import { useResponsiveLayout } from "@/lib/useResponsiveLayout";
 import { useTextScale, sf, type TextScale } from "@/lib/typography";
 import { generatePasswordForRole } from "@/lib/password-generator";
 import { getApiUrl } from "@/lib/query-client";
+import { useAuth, AuthError } from "@/lib/auth-context";
+import ResetLinkSent from "@/components/ResetLinkSent";
+import { requestPasswordResetLink } from "@/lib/password-reset";
 import {
   confirmFirebasePasswordReset,
   isFirebaseClientConfigured,
@@ -49,6 +52,25 @@ export default function ResetPasswordScreen() {
   const [tokenValid, setTokenValid] = useState<boolean | null>(null);
   const [noToken, setNoToken] = useState(false);
   const [actionEmail, setActionEmail] = useState("");
+  const [autoSignIn, setAutoSignIn] = useState<"idle" | "working" | "failed">("idle");
+
+  // "Send me a new link" recovery (a link that expired or was already used must
+  // not be a dead end back at the sign-in form).
+  const { user, login } = useAuth();
+  const [recoveryEmail, setRecoveryEmail] = useState("");
+  const [recoverySending, setRecoverySending] = useState(false);
+  const [recoveryResending, setRecoveryResending] = useState(false);
+  const [recoverySentAt, setRecoverySentAt] = useState<number | null>(null);
+  const [recoveryError, setRecoveryError] = useState("");
+  const prefilledRecoveryEmail = useRef(false);
+
+  useEffect(() => {
+    if (prefilledRecoveryEmail.current || recoveryEmail) return;
+    if (user?.email) {
+      prefilledRecoveryEmail.current = true;
+      setRecoveryEmail(user.email);
+    }
+  }, [user?.email, recoveryEmail]);
 
   const handleGeneratePassword = async () => {
     const pw = generatePasswordForRole(undefined);
@@ -108,6 +130,75 @@ export default function ResetPasswordScreen() {
 
   const token = params.oobCode || params.token;
 
+  /**
+   * Sign the person in with the password they just chose. They proved control of
+   * the mailbox and typed this password seconds ago, so returning them to a
+   * sign-in form to retype it is pure friction (NIST SP 800-63B does not require
+   * re-authentication after a password reset). MFA is the one case that needs the
+   * login screen, which owns the 6-digit challenge UI.
+   */
+  const signInWithNewPassword = async (email: string, password: string) => {
+    if (!email || !password) return;
+    setAutoSignIn("working");
+    try {
+      await login(email, password);
+      router.replace("/");
+    } catch (err: unknown) {
+      if (err instanceof AuthError && err.code === "MFA_CHALLENGE_REQUIRED") {
+        router.replace({ pathname: "/login", params: { email } });
+        return;
+      }
+      console.warn(
+        "Automatic sign-in after password reset failed:",
+        err instanceof Error ? err.message : err,
+      );
+      setAutoSignIn("failed");
+    }
+  };
+
+  const submitRecoveryRequest = async (isResend: boolean) => {
+    const cleanEmail = recoveryEmail.trim().toLowerCase();
+    if (!cleanEmail) {
+      setRecoveryError(t("login.fillAllFields"));
+      return;
+    }
+    if (isResend) setRecoveryResending(true);
+    else setRecoverySending(true);
+    setRecoveryError("");
+
+    const result = await requestPasswordResetLink(cleanEmail, getApiUrl());
+
+    if (!result.ok) {
+      setRecoveryError(
+        result.reason === "invalid_email"
+          ? t("login.fillAllFields")
+          : result.reason === "rate_limited"
+            ? t("login.resetRequestRateLimited")
+            : t("login.resetRequestUnavailable"),
+      );
+      if (isResend) setRecoveryResending(false);
+      else setRecoverySending(false);
+      return;
+    }
+
+    setRecoverySentAt(Date.now());
+    setRecoveryResending(false);
+    setRecoverySending(false);
+  };
+
+  const handleRequestNewLink = () => submitRecoveryRequest(false);
+  const handleResendNewLink = () => submitRecoveryRequest(true);
+
+  /**
+   * Fallback when the automatic sign-in did not happen (MFA, unverified address,
+   * unexpected failure): hand the user to the sign-in form with their address
+   * already filled in, so nothing has to be retyped.
+   */
+  const handleSignInAfterReset = () => {
+    const nextEmail = (actionEmail || recoveryEmail).trim().toLowerCase();
+    router.replace(nextEmail ? { pathname: "/login", params: { email: nextEmail } } : "/login");
+  };
+
   const handleResetPassword = async () => {
     setError("");
 
@@ -165,6 +256,7 @@ export default function ResetPasswordScreen() {
         }
       }
       setSuccess(true);
+      await signInWithNewPassword(actionEmail, newPassword);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t("common.somethingWentWrong"));
     } finally {
@@ -211,49 +303,107 @@ export default function ResetPasswordScreen() {
                 <ActivityIndicator size="large" color={Colors.primary} />
               </View>
             ) : success ? (
-              <>
+              autoSignIn === "working" ? (
                 <View style={styles.successContainer}>
-                  <Feather name="check-circle" size={48} color={Colors.success} />
-                  <Text style={[styles.formTitle, { fontSize: ts.heading2, marginTop: 16 }]}>
-                    {t("login.resetPassword")}
-                  </Text>
-                  <Text style={styles.successText}>
-                    {t("login.passwordResetSuccess")}
-                  </Text>
+                  <ActivityIndicator size="large" color={Colors.primary} />
+                  <Text style={styles.successText}>{t("login.signingIn")}</Text>
                 </View>
+              ) : (
+                <>
+                  <View style={styles.successContainer}>
+                    <Feather name="check-circle" size={48} color={Colors.success} />
+                    <Text style={[styles.formTitle, { fontSize: ts.heading2, marginTop: 16 }]}>
+                      {t("login.resetPassword")}
+                    </Text>
+                    <Text style={styles.successText}>
+                      {t("login.passwordResetSuccess")}
+                    </Text>
+                  </View>
 
-                <Pressable
-                  style={styles.submitButton}
-                  onPress={handleGoToLogin}
-                  testID="go-to-login-button"
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.submitButtonText}>{t("login.backToSignIn")}</Text>
-                </Pressable>
-              </>
+                  <Pressable
+                    style={styles.submitButton}
+                    onPress={handleSignInAfterReset}
+                    testID="go-to-login-button"
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.submitButtonText}>{t("login.signIn")}</Text>
+                  </Pressable>
+                </>
+              )
             ) : hasInvalidToken ? (
-              <>
-                <View style={styles.successContainer}>
-                  <Feather name={noToken ? "mail" : "alert-circle"} size={48} color={noToken ? Colors.primary : Colors.error} />
-                  <Text style={[styles.formTitle, { fontSize: ts.heading2, marginTop: 16 }]}>
-                    {noToken ? t("login.resetPassword") : t("login.resetTokenExpired")}
-                  </Text>
-                  <Text style={styles.successText}>
-                    {noToken
-                      ? "Sign in and tap \u201CForgot password?\u201D to receive a fresh reset link by email."
-                      : t("login.resetTokenExpiredDesc")}
-                  </Text>
-                </View>
+              recoverySentAt ? (
+                <ResetLinkSent
+                  email={recoveryEmail.trim().toLowerCase()}
+                  lastSentAt={recoverySentAt}
+                  resending={recoveryResending}
+                  onResend={handleResendNewLink}
+                  onBackToSignIn={handleGoToLogin}
+                  testID="reset-link-sent-recovery"
+                />
+              ) : (
+                <>
+                  <View style={styles.successContainer}>
+                    <Feather name={noToken ? "mail" : "alert-circle"} size={48} color={noToken ? Colors.primary : Colors.error} />
+                    <Text style={[styles.formTitle, { fontSize: ts.heading2, marginTop: 16 }]}>
+                      {noToken ? t("login.forgotPasswordTitle") : t("login.resetTokenExpired")}
+                    </Text>
+                  </View>
 
-                <Pressable
-                  style={styles.submitButton}
-                  onPress={handleGoToLogin}
-                  testID="go-to-login-expired"
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.submitButtonText}>{noToken ? "Go to sign in" : t("login.backToSignIn")}</Text>
-                </Pressable>
-              </>
+                  {recoveryError ? (
+                    <View style={styles.errorContainer} accessibilityRole="alert" accessibilityLiveRegion="assertive">
+                      <Feather name="alert-circle" size={16} color={Colors.error} />
+                      <Text style={styles.errorText}>{recoveryError}</Text>
+                    </View>
+                  ) : null}
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>{t("login.email")}</Text>
+                    <View style={styles.inputContainer}>
+                      <Feather name="mail" size={18} color={Colors.textMuted} style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.input}
+                        value={recoveryEmail}
+                        onChangeText={setRecoveryEmail}
+                        placeholder={t("login.emailPlaceholder")}
+                        placeholderTextColor={Colors.textMuted}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        autoComplete="email"
+                        textContentType="emailAddress"
+                        editable={!recoverySending}
+                        testID="recovery-email-input"
+                        accessibilityLabel={t("login.email")}
+                      />
+                    </View>
+                  </View>
+
+                  <Pressable
+                    style={[styles.submitButton, recoverySending && styles.submitButtonDisabled]}
+                    onPress={handleRequestNewLink}
+                    disabled={recoverySending}
+                    testID="request-new-reset-link"
+                    accessibilityRole="button"
+                  >
+                    {recoverySending ? (
+                      <ActivityIndicator color={Colors.white} />
+                    ) : (
+                      <Text style={styles.submitButtonText}>{t("login.sendNewResetLink")}</Text>
+                    )}
+                  </Pressable>
+
+                  <Pressable
+                    onPress={handleGoToLogin}
+                    style={styles.toggleButton}
+                    testID="go-to-login-expired"
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.toggleText}>
+                      <Text style={styles.toggleLink}>{t("login.backToSignIn")}</Text>
+                    </Text>
+                  </Pressable>
+                </>
+              )
             ) : (
               <>
                 <Text style={[styles.formTitle, { fontSize: ts.heading2 }]}>

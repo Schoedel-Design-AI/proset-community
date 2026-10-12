@@ -6,6 +6,7 @@ import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
 import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
+import ms.aifor.app.mailbox.MailboxPackage
 import ms.aifor.app.recording.RecordingForegroundPackage
 import ms.aifor.app.upload.UploadWorkerPackage
 import ms.aifor.app.whisper.WhisperPackage
@@ -17,6 +18,7 @@ class MainApplication : Application(), ReactApplication {
       context = applicationContext,
       packageList =
         PackageList(this).packages.apply {
+          add(MailboxPackage())
           add(RecordingForegroundPackage())
           add(UploadWorkerPackage())
           add(WhisperPackage())

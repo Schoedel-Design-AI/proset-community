@@ -35,6 +35,8 @@ import { validateEmailAddress } from "@shared/email-validation";
 import prosetLogo from "@/assets/images/icons-xai/105-navy-bg.png";
 import { resolvePostLoginRoute } from "@/lib/auth-redirect";
 import { trackPlausibleEventOnce } from "@/lib/plausible";
+import ResetLinkSent from "@/components/ResetLinkSent";
+import { requestPasswordResetLink } from "@/lib/password-reset";
 
 import { useFeedback } from "@/lib/feedback-context";
 
@@ -78,11 +80,14 @@ export default function LoginScreen() {
   // same 400px ceiling on wide screens.
   const { width: windowWidth } = useWindowDimensions();
   const resetSheetWidth = Math.min(windowWidth - 32, 400);
-  const params = useLocalSearchParams<{ tab?: string; magic_token?: string; verified?: string; from?: string; returnTo?: string; plan?: string }>();
+  const params = useLocalSearchParams<{ tab?: string; magic_token?: string; verified?: string; from?: string; returnTo?: string; plan?: string; email?: string }>();
   const fromLanding = params.from === "landing";
   const [mode, setMode] = useState<"login" | "register">(params.tab === "signup" ? "register" : "login");
   const [firstName, setFirstName] = useState("");
-  const [email, setEmail] = useState("");
+  // Prefilled when another screen hands the user here (e.g. the reset screen
+  // after a password change that could not be signed in automatically): they
+  // should never retype an address the app already knows.
+  const [email, setEmail] = useState(params.email ?? "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [mfaCode, setMfaCode] = useState("");
@@ -313,6 +318,8 @@ export default function LoginScreen() {
   const [resetEmail, setResetEmail] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState("");
+  const [resetSentAt, setResetSentAt] = useState<number | null>(null);
+  const [resendBusy, setResendBusy] = useState(false);
 
   const handleForgotPassword = () => {
     setResetMode("email");
@@ -320,36 +327,47 @@ export default function LoginScreen() {
     setResetError("");
   };
 
-  const handleSendResetLink = async () => {
+  /**
+   * One request path for both the first send and a resend, so the rate-limit
+   * copy and the cooldown anchor cannot drift between them.
+   */
+  const submitResetRequest = async (isResend: boolean) => {
     const cleanEmail = resetEmail.trim().toLowerCase();
     if (!cleanEmail) {
       setResetError(t("login.fillAllFields"));
       return;
     }
-    setResetLoading(true);
+    if (isResend) setResendBusy(true);
+    else setResetLoading(true);
     setResetError("");
-    try {
-      const baseUrl = getApiUrl();
-      const response = await globalThis.fetch(new URL("/api/auth/forget-password", baseUrl).toString(), {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: cleanEmail,
-        }),
-      });
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error || "Unable to send a reset link right now.");
-      }
-    } catch (err) {
-      console.error("Password reset request failed:", err);
-      setResetError(err instanceof Error ? err.message : "Unable to send a reset link right now.");
-      setResetLoading(false);
+
+    const result = await requestPasswordResetLink(cleanEmail, getApiUrl());
+
+    if (!result.ok) {
+      setResetError(
+        result.reason === "invalid_email"
+          ? t("login.fillAllFields")
+          : result.reason === "rate_limited"
+            ? t("login.resetRequestRateLimited")
+            : t("login.resetRequestUnavailable"),
+      );
+      if (isResend) setResendBusy(false);
+      else setResetLoading(false);
       return;
     }
+
+    setResetSentAt(Date.now());
     setResetMode("sent");
+    setResendBusy(false);
     setResetLoading(false);
+  };
+
+  const handleSendResetLink = () => submitResetRequest(false);
+  const handleResendResetLink = () => submitResetRequest(true);
+
+  const handleChangeResetEmail = () => {
+    setResetMode("email");
+    setResetError("");
   };
 
   const handleBackToLogin = () => {
@@ -1341,19 +1359,20 @@ export default function LoginScreen() {
 
               {resetMode === "sent" && (
                 <>
-                  <View style={styles.resetHeader}>
-                    <Feather name="check-circle" size={40} color={Colors.success} />
-                    <Text style={styles.resetDesc}>{t("login.resetLinkSent")}</Text>
-                  </View>
-
-                  <Pressable
-                    style={styles.submitButton}
-                    onPress={handleBackToLogin}
-                    testID="back-to-login-button"
-                    accessibilityRole="button"
-                  >
-                    <Text style={styles.submitButtonText}>{t("login.backToSignIn")}</Text>
-                  </Pressable>
+                  <ResetLinkSent
+                    email={resetEmail.trim().toLowerCase()}
+                    lastSentAt={resetSentAt}
+                    resending={resendBusy}
+                    onResend={handleResendResetLink}
+                    onBackToSignIn={handleBackToLogin}
+                    onChangeEmail={handleChangeResetEmail}
+                  />
+                  {resetError ? (
+                    <View style={styles.errorContainer} accessibilityRole="alert">
+                      <Feather name="alert-circle" size={16} color={Colors.error} />
+                      <Text style={styles.errorText}>{resetError}</Text>
+                    </View>
+                  ) : null}
                 </>
               )}
             </Pressable>
