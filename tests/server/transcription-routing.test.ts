@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  applyDurationAwareHedge,
   getTranscriptionRoutes,
   runHedgedTranscription,
   type TranscriptionRoute,
 } from "../../server/transcription-routing";
+import { cmsService } from "../../server/modules/ai-customization/cms-service";
 
 function route(
   provider: TranscriptionRoute["provider"],
@@ -29,6 +31,29 @@ function pendingUntilAborted(signal: AbortSignal): Promise<string> {
     );
   });
 }
+
+// The cmsService singleton loads the bundled catalog snapshot (which carries
+// DB-authoritative transcription rows) at import time. These tests assert the
+// ENV-DRIVEN defaults, so neutralize the catalog maps: every
+// getEffectiveAiConfig call then returns undefined and the env/code defaults
+// are what actually routes. Deterministic regardless of which models the live
+// catalog carries.
+cmsService.applyBundle({
+  version: "test",
+  exported_at: "1970-01-01T00:00:00Z",
+  packs: [],
+  conversion_types: [],
+  prompts: [],
+  skills: [],
+  examples: [],
+  knowledgebases: [],
+  dialogue_steps: [],
+  taxonomies: [],
+  ai_providers: [],
+  ai_models: [],
+  ai_functions: [],
+  global_memory: [],
+});
 
 test("transcription routes use Groq, Mistral, then OpenAI when all are configured", () => {
   const routes = getTranscriptionRoutes({
@@ -128,4 +153,59 @@ test("the overall latency budget aborts a transcription that never completes", a
     ),
     /latency budget/,
   );
+});
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+test("applyDurationAwareHedge keeps short-audio hedges unchanged", () => {
+  const routes = [route("groq", { hedgeAfterMs: 3_000 }), route("mistral", { hedgeAfterMs: 15_000 })];
+  assert.deepEqual(applyDurationAwareHedge(routes, 45), routes);
+  assert.deepEqual(applyDurationAwareHedge(routes, undefined), routes); // unknown duration: conservative default
+});
+
+test("applyDurationAwareHedge disables the speculative hedge at 60s and above", () => {
+  const hedged = applyDurationAwareHedge(
+    [route("groq", { hedgeAfterMs: 3_000, timeoutMs: 15_000 }), route("mistral", { hedgeAfterMs: 15_000, timeoutMs: 30_000 })],
+    550.3,
+  );
+  assert.deepEqual(
+    hedged.map(({ provider, hedgeAfterMs, timeoutMs }) => ({ provider, hedgeAfterMs, timeoutMs })),
+    [
+      { provider: "groq", hedgeAfterMs: 0, timeoutMs: 15_000 },
+      { provider: "mistral", hedgeAfterMs: 0, timeoutMs: 30_000 },
+    ],
+  );
+});
+
+test("a 0 hedgeAfterMs never speculatively launches: the primary wins outright", async () => {
+  const started: string[] = [];
+  const result = await runHedgedTranscription(
+    [route("groq", { hedgeAfterMs: 0 }), route("mistral")],
+    async (candidate) => {
+      started.push(candidate.provider);
+      // Longer than the old fixed hedge window would wait: with the timer
+      // wrongly present at 0 ms this would double-bill; guarded, mistral
+      // must never start while groq succeeds.
+      await delay(80);
+      return `${candidate.provider} transcript`;
+    },
+    500,
+  );
+  assert.equal(result.provider, "groq");
+  assert.deepEqual(started, ["groq"]);
+});
+
+test("with the speculative hedge disabled, failure-based failover still launches the fallback", async () => {
+  const started: string[] = [];
+  const result = await runHedgedTranscription(
+    [route("groq", { hedgeAfterMs: 0 }), route("mistral")],
+    async (candidate) => {
+      started.push(candidate.provider);
+      if (candidate.provider === "groq") throw new Error("provider unavailable");
+      return "fallback transcript";
+    },
+    500,
+  );
+  assert.equal(result.provider, "mistral");
+  assert.deepEqual(started, ["groq", "mistral"]);
 });

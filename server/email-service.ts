@@ -292,19 +292,21 @@ export async function sendMagicLinkEmail(opts: {
   to: string;
   firstName: string;
   magicLinkUrl: string;
+  expiryHoursLabel?: string;
 }): Promise<boolean> {
   if (!ensureInitialized()) {
     throw new Error("Email service is not configured. SENDGRID_API_KEY is missing.");
   }
 
   const { to, firstName, magicLinkUrl } = opts;
+  const expiryLabel = opts.expiryHoursLabel || "3 days";
   const safeFirstName = firstName.replace(/[\r\n]+/g, " ").trim() || "there";
 
   await sgMail.send({
     to,
     from: { email: FROM_EMAIL, name: FROM_NAME },
     subject: "Proset - Your sign-in link",
-    text: `Hi ${safeFirstName},\n\nUse the secure sign-in link below to access Proset:\n\n${magicLinkUrl}\n\nThis link expires in 10 minutes and can be used once.\n\nIf you didn't request this link, you can safely ignore this email.\n\n— Proset`,
+    text: `Hi ${safeFirstName},\n\nUse the secure sign-in link below to access Proset:\n\n${magicLinkUrl}\n\nThis link expires in ${expiryLabel} and can be used once.\n\nIf you didn't request this link, you can safely ignore this email.\n\n— Proset`,
     html: `<div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 440px; margin: 0 auto; background: #0A1628; border-radius: 12px; overflow: hidden;">
       <div style="padding: 36px 32px 24px; text-align: center; background: linear-gradient(180deg, #132240 0%, #0A1628 100%);">
         <h2 style="color: #00B4D8; margin: 0; font-size: 24px; font-weight: 700;">Proset</h2>
@@ -315,7 +317,7 @@ export async function sendMagicLinkEmail(opts: {
           <p style="color: #F0F4F8; font-size: 16px; margin: 0 0 6px; font-weight: 600;">Hi ${escapeHtml(firstName)},</p>
           <p style="color: #8BA4C4; font-size: 15px; margin: 0 0 24px;">Tap below to sign in to Proset:</p>
           <a href="${escapeHtml(magicLinkUrl)}" style="display: inline-block; background: #00B4D8; color: #FFFFFF; font-size: 16px; font-weight: 600; text-decoration: none; padding: 14px 32px; border-radius: 10px; margin: 0 0 20px;">Sign In Securely</a>
-          <p style="color: #8BA4C4; font-size: 14px; margin: 0 0 4px;">This link expires in 10 minutes and can be used once.</p>
+          <p style="color: #8BA4C4; font-size: 14px; margin: 0 0 4px;">This link expires in ${expiryLabel} and can be used once.</p>
           <p style="color: #5A7399; font-size: 12px; margin: 12px 0 0;">If you didn&apos;t request this link, you can safely ignore this email.</p>
           <p style="color: #5A7399; font-size: 11px; margin: 16px 0 0; word-break: break-all;">Or copy this link: ${escapeHtml(magicLinkUrl)}</p>
         </div>

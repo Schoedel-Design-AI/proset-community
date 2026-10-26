@@ -25,6 +25,17 @@ export function isMagicLinkEnabled(): boolean {
   return parseBooleanEnv(process.env.AUTH_MAGIC_LINK_ENABLED);
 }
 
+/**
+ * Lifetime of one magic link, in minutes. Defaults to 72 hours (3 days) —
+ * the deliberate Friends-of-Barry sign-in window, matching the invite
+ * password-reset link's 3-day expiry rather than the 10-minute reset-link
+ * habit; override only with a reason.
+ */
+export function getMagicLinkExpiryMinutes(defaultMinutes = 60 * 24 * 3): number {
+  const raw = Number(process.env.AUTH_MAGIC_LINK_EXPIRY_MINUTES);
+  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : defaultMinutes;
+}
+
 export function buildMagicLinkLoginUrl(token: string, baseUrl?: string): string {
   const origin = normalizeOrigin(baseUrl || process.env.PUBLIC_APP_URL || process.env.AIFORMS_PUBLIC_DOMAIN || "proset.ai");
   const url = new URL("/login", origin);

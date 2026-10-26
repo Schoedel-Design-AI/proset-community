@@ -20,6 +20,18 @@ import {
   CONVERSION_KNOWLEDGEBASES 
 } from "./prompts";
 import { type SkillDefinition, type KnowledgebaseResource } from "@shared/schema";
+// Firestore must be a STATIC import here. A runtime
+// `require("firebase-admin/firestore")` throws "Dynamic require ... is not
+// supported" under the esbuild ESM server bundle, which is how the live
+// Firestore sync path silently died in every deployed environment (the silent
+// catch hid it) while local/tsx runs worked.
+import { getFirestore } from "firebase-admin/firestore";
+// The bundled snapshot is compiled INTO the server bundle (esbuild json loader
+// inlines it), never resolved at runtime: the previous fs + path.join(__dirname)
+// read died in every deployed image with "__dirname is not defined" under the
+// esbuild ESM output, leaving the CMS silently inert in prod and staging while
+// tests (tsx) still saw the rows — divergence caught 2026-10-24.
+import cmsFallbackBundle from "./cms-fallback.json";
 
 export interface EffectiveAiFunctionConfig {
   functionKey: string;
@@ -54,26 +66,23 @@ class CmsService {
   }
 
   /**
-   * Load the compiled local JSON snapshot into in-memory maps.
+   * Validate and load the compiled local JSON snapshot into in-memory maps.
    * This guarantees instant synchronous resolution with 0ms database overhead.
+   * The snapshot is statically imported (embedded by the bundler at build
+   * time), so a deployed image always carries exactly the schema-checked rows
+   * that were in its source tree.
    */
   public loadFallbackBundle() {
     try {
-      const fallbackPath = path.join(__dirname, "cms-fallback.json");
-      if (fs.existsSync(fallbackPath)) {
-        const raw = fs.readFileSync(fallbackPath, "utf-8");
-        const parsed = JSON.parse(raw);
-        const validated = CmsBundleSchema.safeParse(parsed);
-        if (validated.success) {
-          this.applyBundle(validated.data);
-          this.isInitialized = true;
-          return;
-        } else {
-          console.warn("[CmsService] Fallback JSON failed Zod validation:", validated.error.message);
-        }
+      const validated = CmsBundleSchema.safeParse(cmsFallbackBundle);
+      if (validated.success) {
+        this.applyBundle(validated.data);
+        this.isInitialized = true;
+        return;
       }
+      console.warn("[CmsService] Fallback JSON failed Zod validation:", validated.error.message);
     } catch (err: any) {
-      console.warn("[CmsService] Could not read cms-fallback.json:", err.message);
+      console.warn("[CmsService] Could not load cms-fallback.json:", err.message);
     }
   }
 
@@ -366,7 +375,6 @@ class CmsService {
 
   public async saveBundleToFirestore(bundle: CmsBundle): Promise<boolean> {
     try {
-      const { getFirestore } = require("firebase-admin/firestore");
       const db = getFirestore();
       await db.collection("system_config").doc("cms_bundle").set(bundle);
       return true;
@@ -378,7 +386,6 @@ class CmsService {
 
   public async loadBundleFromFirestore(): Promise<boolean> {
     try {
-      const { getFirestore } = require("firebase-admin/firestore");
       const db = getFirestore();
       const snap = await db.collection("system_config").doc("cms_bundle").get();
       if (snap.exists) {
@@ -390,16 +397,26 @@ class CmsService {
           console.log(`[CmsService] Successfully loaded live bundle from Firestore (v${validated.data.version}, exported at ${validated.data.exported_at})`);
           return true;
         }
+        console.warn("[CmsService] Firestore bundle present but failed schema validation — keeping the bundled snapshot:", validated.error.message);
+      } else {
+        // The doc has never been persisted (or was deleted). The bundled
+        // snapshot still governs; without this line the state was
+        // indistinguishable from a boot that never ran the load at all —
+        // which is why an entire month of "the catalog is live" went
+        // unchallenged (2026-10-24).
+        console.warn("[CmsService] No CMS bundle document in Firestore — serving the build-time snapshot.");
       }
-    } catch {
-      // Non-fatal if Firestore not configured (e.g. test environment)
+    } catch (err: any) {
+      // Non-fatal (e.g. test environment): the bundled snapshot is still loaded.
+      // But never silently — a dead live-sync left prod on code defaults for
+      // three weeks of deploys before this warning existed.
+      console.warn("[CmsService] Firestore bundle load failed:", err?.message || err);
     }
     return false;
   }
 
   public initRealtimeFirestoreListener() {
     try {
-      const { getFirestore } = require("firebase-admin/firestore");
       const db = getFirestore();
       db.collection("system_config").doc("cms_bundle").onSnapshot((snap: any) => {
         if (snap && snap.exists) {

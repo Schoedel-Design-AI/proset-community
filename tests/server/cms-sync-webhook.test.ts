@@ -25,7 +25,7 @@ test("cmsSyncRouter provides status and hot-reload webhook", async () => {
     assert.equal(statusData.status, "ok");
     assert.ok(statusData.cms.isInitialized);
     assert.equal(statusData.cms.counts.aiFunctions, 17);
-    assert.equal(statusData.cms.counts.aiModels, 19);
+    assert.equal(statusData.cms.counts.aiModels, 21);
 
     // 2. POST /api/admin/cms-sync without token -> 401
     const unauthRes = await fetch(`${baseUrl}/api/admin/cms-sync`, {

@@ -62,7 +62,7 @@ test("getEffectiveAiConfig resolves default env variables when API key is unset"
     assert.ok(config);
     assert.equal(config.apiKey, "test-mock-groq-key-12345");
     assert.equal(config.provider, "groq");
-    assert.equal(config.model, "whisper-large-v3");
+    assert.equal(config.model, "whisper-large-v3-turbo");
     assert.equal(config.baseUrl, "https://api.groq.com/openai/v1");
   } finally {
     if (originalGroqKey !== undefined) {
@@ -114,7 +114,7 @@ test("transcription routes incorporate CMS models and custom settings", () => {
   const routes = getTranscriptionRoutes(mockEnv);
   assert.ok(routes.length >= 3, "Should return at least 3 transcription routes");
   assert.equal(routes[0].provider, "groq");
-  assert.equal(routes[0].model, "whisper-large-v3");
+  assert.equal(routes[0].model, "whisper-large-v3-turbo");
 });
 
 test("conversion model route chain respects function-specific overrides over bucket defaults", () => {

@@ -44,9 +44,17 @@ export const TIER_TOKEN_ALLOWANCES: Record<SubscriptionTier, number> = {
  *
  * Rate history:
  * - Original design (vault "Proset Monetization and Pricing Plan"): 200 tokens
- *   per minute ≈ 3.33 tokens/sec. Chosen to keep worst-case per-user cost close
- *   to break-even even when the hedged provider (Mistral/OpenAI, ~$0.18–$0.36/hr
- *   of audio) serves instead of Groq ($0.04/hr).
+ *   per minute ≈ 3.33 tokens/sec. The original margin model assumed FAILover —
+ *   the hedged provider (Mistral, ~$0.18–$0.36/hr of audio) serving "instead
+ *   of" Groq ($0.04/hr). Reality: the hedged chain RACES the providers, so both
+ *   bill the same audio. At a fixed 3 s hedge Groq (measured 2026-10-24:
+ *   ~8 s for a 600 s segment) is hedged on essentially every long call, putting
+ *   worst-case fully-utilized Pro serving cost at ~$0.22-$0.40/hr, i.e. $6.11
+ *   to $11.11/month against $5.99. transcription-routing's
+ *   applyDurationAwareHedge now disables the speculative hedge above 60 s of
+ *   audio (failure-based failover stays), returning the long-audio worst case
+ *   near the Groq-only $1.11/month. Keep that mechanism in mind whenever this
+ *   rate or the hedge shape changes.
  * - Original code (pre-launch): 1 token/sec. Diverged from the design without a
  *   deliberate reconciliation; caught during the 2026-09-17 launch review.
  * - Current: 2 tokens/sec — halfway between the two. Cuts worst-case exposure
@@ -168,12 +176,12 @@ export function getPlanFeatures(tier: SubscriptionTier, language: string = "en")
   if (tier === "free") {
     return es
       ? [
-          `${tokens} Créditos de IA para probarlo`,
+          `${tokens} Créditos de IA para probarlo (se renuevan cada mes)`,
           "Grabaciones de 3 min",
           "Sin sincronización en la nube",
         ]
       : [
-          `${tokens} AI Credits to try it out`,
+          `${tokens} AI Credits to try it out (resets monthly)`,
           "3-min recordings",
           "No cloud sync",
         ];

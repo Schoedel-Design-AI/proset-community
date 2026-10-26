@@ -57,6 +57,19 @@ const DEFAULT_PRIMARY_HEDGE_MS = 3_000;
 const DEFAULT_SECONDARY_HEDGE_MS = 15_000;
 const DEFAULT_TOTAL_TIMEOUT_MS = 60_000;
 
+/**
+ * Speculative hedging is a SHORT-audio latency play: at a fixed 3 s it launches
+ * the fallback while the primary is still healthy, which double-bills every
+ * request the primary would have finished inside the hedge window. Groq latency
+ * scales with audio length (measured 2026-10-24 on prod: ~8 s for a 600 s
+ * segment, 0.6-4 s for short notes, Mistral ~6-8 s — so the hedge bought no
+ * extra latency on long audio, it only doubled spend). Above this duration the
+ * hedge is disabled and failover relies on the primary's own route timeout:
+ * runHedgedTranscription still launches the next route on any failure or abort,
+ * so reliability is unchanged while the heavy stopped being double-billed.
+ */
+const LONG_TRANSCRIPTION_HEDGE_THRESHOLD_SECONDS = 60;
+
 let mistralClient: Mistral | null = null;
 
 function getPositiveInteger(
@@ -181,6 +194,29 @@ export function getTranscriptionTotalTimeoutMs(
   );
 }
 
+/**
+ * Long audio keeps the fallback chain for RELIABILITY (route timeouts and
+ * provider failures still fail over) but drops the SPECULATIVE hedge: at a
+ * fixed 3 s the hedge double-bills every long request, because Groq needs
+ * longer than 3 s to transcribe a 600 s segment and Mistral finishes at about
+ * the same time anyway. Callers that do not know the duration keep the
+ * short-audio hedge (conservative default, short calls are cheap).
+ */
+export function applyDurationAwareHedge(
+  routes: TranscriptionRoute[],
+  durationSec?: number,
+): TranscriptionRoute[] {
+  if (typeof durationSec !== "number" || !Number.isFinite(durationSec)) {
+    return routes;
+  }
+  if (durationSec < LONG_TRANSCRIPTION_HEDGE_THRESHOLD_SECONDS) {
+    return routes;
+  }
+  return routes.map((route) =>
+    route.hedgeAfterMs > 0 ? { ...route, hedgeAfterMs: 0 } : route,
+  );
+}
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -242,7 +278,11 @@ export async function runHedgedTranscription(
       const controller = new AbortController();
       controllers.set(index, controller);
 
-      if (index + 1 < routes.length) {
+      // hedgeAfterMs of 0 means "no speculative hedge" (duration-aware long
+      // audio): the hedge timer must not exist, or a 0 ms timeout would launch
+      // the fallback instantly on every call. Failure-based failover below is
+      // unaffected.
+      if (index + 1 < routes.length && route.hedgeAfterMs > 0) {
         const hedgeTimer = setTimeout(() => launch(index + 1), route.hedgeAfterMs);
         hedgeTimers.set(index, hedgeTimer);
       }
@@ -358,7 +398,7 @@ export async function transcribeAudioLatencyFirst(
   const totalTimeoutMs = getTranscriptionTotalTimeoutMs(env);
 
   return runHedgedTranscription(
-    routes,
+    applyDurationAwareHedge(routes, input.durationSec),
     async (route, signal) => {
       const providerStartedAt = Date.now();
       // Size + duration-hint is what makes the aggregate provider-mix analysis
