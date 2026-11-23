@@ -189,7 +189,7 @@
     "browserslist": "^4.28.9",
     "decode-uri-component": "^0.2.2",
     "esbuild": "^0.28.1",
-    "fast-uri": "^3.1.7",
+    "fast-uri": "^3.1.9",
     "fast-xml-builder": "^1.1.7",
     "fast-xml-parser": "^5.9.0",
     "follow-redirects": "^1.16.0",
