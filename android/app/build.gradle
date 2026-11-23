@@ -93,8 +93,8 @@ android {
         applicationId 'ms.aifor.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 146
-        versionName "1.0.106"
+        versionCode 149
+        versionName "1.0.108"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         externalNativeBuild {
@@ -234,6 +234,10 @@ dependencies {
 
     // WorkManager for background uploads
     implementation("androidx.work:work-runtime-ktx:2.11.2")
+
+    // On-device transcription: MediaPipe Audio Transcriber (NVIDIA Parakeet,
+    // version pinned to the artifact audited 2026-11-17 in Task 2 of the plan).
+    implementation("com.google.mediapipe:tasks-audio:1.2.3")
 
     // The app-owned Java boundary keeps Firebase Auth's newer Kotlin metadata
     // off this module's Kotlin compile classpath while still allowing

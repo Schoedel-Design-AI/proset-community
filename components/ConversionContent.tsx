@@ -239,6 +239,10 @@ export function ConversionContent({
   const richTextStyles = useMemo(() => makeRichTextStyles(ts), [ts]);
   const tableStyles = useMemo(() => makeTableStyles(ts), [ts]);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const isScaffoldedConversion =
+    conversionType === "adhd_plan" ||
+    conversionType === "scaffolded_project_plan" ||
+    conversionType === "scaffolded_action_items";
 
   const handleCopyBlock = async (code: string, index: number) => {
     try {
@@ -445,11 +449,18 @@ export function ConversionContent({
         const checked = taskMatch[2] !== " ";
         const indent = Math.min(Math.floor(taskMatch[1].length / 2), 4);
         elements.push(
-          <View key={`task-${li}`} style={[richTextStyles.listRow, { paddingLeft: 6 + indent * 16 }]}>
+          <View
+            key={`task-${li}`}
+            style={[
+              richTextStyles.listRow,
+              isScaffoldedConversion && richTextStyles.scaffoldTaskRow,
+              { paddingLeft: 6 + indent * 16 },
+            ]}
+          >
             <View style={richTextStyles.taskCheckboxWrap}>
               <Feather
                 name={checked ? "check-square" : "square"}
-                size={16}
+                size={isScaffoldedConversion ? 18 : 16}
                 color={checked ? Colors.primary : Colors.textMuted}
               />
             </View>
@@ -463,6 +474,27 @@ export function ConversionContent({
               {renderInlineFormatting(taskMatch[3], ts)}
             </Text>
           </View>
+        );
+        li++;
+        continue;
+      }
+
+      // Scaffolded prompts use semantic emoji/bold section markers rather than
+      // Markdown headings. Give those markers a clear, shared hierarchy.
+      if (
+        (isScaffoldedConversion &&
+          /^(🧰|🌟|⚡|💻|📱|🔋|✅|🚧|❓)\s+/.test(line.trim())) ||
+        (isScaffoldedConversion &&
+          /^\*\*(Milestone\s+\d+|Phase\s+\d+|Day\s+\d+|Week\s+\d+|High Focus|Computer|Phone Calls|Low Energy)[^*]*\*\*.*$/.test(line.trim()))
+      ) {
+        elements.push(
+          <Text
+            key={`scaffold-heading-${li}`}
+            style={richTextStyles.scaffoldSectionHeading}
+            accessibilityRole="header"
+          >
+            {renderInlineFormatting(line.trim(), ts, { bold: true })}
+          </Text>
         );
         li++;
         continue;
@@ -718,6 +750,24 @@ export const makeRichTextStyles = (ts: TextScale) =>
     taskCheckboxWrap: {
       marginRight: 8,
       marginTop: 4,
+    },
+    scaffoldTaskRow: {
+      backgroundColor: "rgba(0, 180, 216, 0.04)",
+      borderLeftWidth: 2,
+      borderLeftColor: Colors.primary,
+      borderRadius: 8,
+      marginVertical: 4,
+      paddingRight: 10,
+      paddingVertical: 8,
+    },
+    scaffoldSectionHeading: {
+      fontFamily: "Inter_700Bold",
+      fontWeight: "700",
+      fontSize: sf(16.5, ts),
+      lineHeight: 24,
+      color: Colors.text,
+      marginTop: 18,
+      marginBottom: 8,
     },
     taskTextCompleted: {
       textDecorationLine: "line-through",

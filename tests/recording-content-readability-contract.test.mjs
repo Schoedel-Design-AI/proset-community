@@ -16,8 +16,11 @@ const conversionSource = readFileSync(
 
 test("recording transcript uses comfortable card and line spacing", () => {
   for (const source of sources) {
-    assert.match(source, /transcribingCard:\s*\{[^}]*borderRadius:\s*16/);
-    assert.match(source, /transcriptCard:\s*\{[\s\S]*?borderRadius:\s*16[\s\S]*?padding:\s*20/);
+    assert.match(source, /transcribingCard:\s*\{[^}]*backgroundColor:\s*"transparent"/);
+    assert.match(source, /transcriptCard:\s*\{[\s\S]*?backgroundColor:\s*"transparent"/);
+    assert.match(source, /electiveCard:\s*\{[\s\S]*?backgroundColor:\s*"transparent"/);
+    assert.doesNotMatch(source, /electiveTitle/);
+    assert.doesNotMatch(source, /electiveIconBadge/);
     assert.match(source, /transcriptText:\s*\{[\s\S]*?lineHeight:\s*29/);
     assert.doesNotMatch(source, /transcriptText:\s*\{[\s\S]*?includeFontPadding:\s*false/);
     assert.match(source, /readMoreButton:\s*\{[\s\S]*?marginTop:\s*12/);
@@ -33,4 +36,14 @@ test("conversion artifacts preserve breathing room between text blocks", () => {
   for (const source of sources) {
     assert.match(source, /fullModalContent:\s*\{\s*padding:\s*24/);
   }
+});
+
+test("scaffolded conversion responses use a shared visual hierarchy", () => {
+  assert.match(
+    conversionSource,
+    /isScaffoldedConversion[\s\S]*?scaffolded_project_plan[\s\S]*?scaffolded_action_items/,
+  );
+  assert.match(conversionSource, /scaffoldSectionHeading:\s*\{/);
+  assert.match(conversionSource, /scaffoldTaskRow:\s*\{/);
+  assert.match(conversionSource, /size=\{isScaffoldedConversion \? 18 : 16\}/);
 });

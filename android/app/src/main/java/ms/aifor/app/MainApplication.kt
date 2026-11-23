@@ -7,6 +7,7 @@ import com.facebook.react.ReactHost
 import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import ms.aifor.app.mailbox.MailboxPackage
+import ms.aifor.app.parakeet.ParakeetPackage
 import ms.aifor.app.recording.RecordingForegroundPackage
 import ms.aifor.app.upload.UploadWorkerPackage
 import ms.aifor.app.whisper.WhisperPackage
@@ -22,6 +23,7 @@ class MainApplication : Application(), ReactApplication {
           add(RecordingForegroundPackage())
           add(UploadWorkerPackage())
           add(WhisperPackage())
+          add(ParakeetPackage())
         },
       jsMainModulePath = "index",
     )

@@ -77,9 +77,11 @@ export function enabledModuleNames(moduleStates?: ModuleStateLike[] | null): Set
 export function listablePackModules(access: ConversionAccess): Set<string> {
   if (moduleStatesKnown(access)) return shippedModuleNames(access.moduleStates);
   return new Set(
-    CONVERSION_TYPES.filter((type) => type.module && !UNSHIPPED_PACK_MODULES.has(type.module)).map(
-      (type) => type.module as string,
-    ),
+    CONVERSION_TYPES.filter(
+      (type) =>
+        type.module &&
+        (access.isSuperAdmin || !UNSHIPPED_PACK_MODULES.has(type.module)),
+    ).map((type) => type.module as string),
   );
 }
 
@@ -96,8 +98,9 @@ function isOffered(
   shipped: Set<string>,
   enabled: Set<string>,
 ): boolean {
-  // 1. Never offer a pack that is not shipped — even with no server data to ask.
-  if (type.module && UNSHIPPED_PACK_MODULES.has(type.module)) return false;
+  // 1. Never offer a pack that is not shipped, for any role except the super
+  //    admin (the server grants him the unshipped preview).
+  if (type.module && UNSHIPPED_PACK_MODULES.has(type.module) && !access.isSuperAdmin) return false;
   // 2. With the server's answer in hand, its list is the shipment signal.
   if (known && type.module && !shipped.has(type.module)) return false;
   if (access.isSuperAdmin) return true;

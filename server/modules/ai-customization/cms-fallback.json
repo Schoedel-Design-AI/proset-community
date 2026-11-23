@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exported_at": "2026-10-24T18:42:43.309698+00:00",
+  "exported_at": "2026-11-21T10:20:44.641903+00:00",
   "packs": [
     {
       "pack_key": "core",
@@ -105,13 +105,13 @@
       "pack_key": "saint",
       "category": "catechesis",
       "label_en": "OCIA Formation Plan",
-      "label_es": "Plan de Formación OCIA",
+      "label_es": "Plan de Formación RICA",
       "description_en": "Christian initiation plan structured across the 4 canonical periods (Inquiry, Catechumenate, Purification, Mystagogy) and liturgical rites.",
       "description_es": "Plan de iniciación cristiana estructurado en los 4 períodos canónicos y ritos litúrgicos.",
       "feather_icon": "compass",
       "complexity": "advanced",
       "required_tier": "pro",
-      "dialogue_mode": "none",
+      "dialogue_mode": "mandatory_sequential",
       "display_order": 5,
       "is_active": true
     },
@@ -2365,106 +2365,58 @@
   ],
   "knowledgebases": [
     {
-      "type_key": "calendar_event",
-      "title": "RFC 5545 — iCalendar",
-      "url": "https://www.rfc-editor.org/rfc/rfc5545",
-      "description": "Standard for event fields, recurrence, dates, times, attendees, and calendar interoperability",
+      "type_key": "ocia_planning",
+      "title": "USCCB Order of Christian Initiation of Adults",
+      "url": "https://www.usccb.org/beliefs-and-teachings/who-we-teach/christian-initiation-of-adults",
+      "description": "Official USCCB ritual and pastoral guidelines for OCIA",
+      "category": "liturgy",
+      "display_order": 1
+    },
+    {
+      "type_key": "general_request",
+      "title": "Proset Documentation",
+      "url": "https://proset.ai/docs",
+      "description": "How to use Proset for voice-to-structured-artifact conversion",
       "category": null,
       "display_order": 1
     },
     {
-      "type_key": "summary",
-      "title": "Purdue OWL — Quoting, Paraphrasing, and Summarizing",
-      "url": "https://owl.purdue.edu/owl/research_and_citation/using_research/quoting_paraphrasing_and_summarizing/index.html",
-      "description": "Guidance for condensing source material accurately and ethically",
+      "type_key": "course_syllabus",
+      "title": "Carnegie Mellon Eberly Center – Syllabus Design",
+      "url": "https://www.cmu.edu/teaching/designteach/design/syllabus/",
+      "description": "Practical guidance for structuring syllabi, assignments, and course expectations",
       "category": null,
       "display_order": 1
     },
     {
-      "type_key": "statistics",
-      "title": "NIST/SEMATECH e-Handbook of Statistical Methods",
-      "url": "https://www.itl.nist.gov/div898/handbook/",
-      "description": "Authoritative practical guidance on statistical methods, assumptions, and interpretation",
+      "type_key": "requirements",
+      "title": "ISO/IEC/IEEE 29148 – Requirements Engineering",
+      "url": "https://standards.ieee.org/ieee/29148/6937/",
+      "description": "Current international standard for requirements engineering (supersedes IEEE 830)",
       "category": null,
       "display_order": 1
     },
     {
-      "type_key": "spreadsheet",
-      "title": "RFC 4180 – CSV Format",
-      "url": "https://www.rfc-editor.org/rfc/rfc4180",
-      "description": "Official standard for comma-separated values format",
+      "type_key": "saints_devotional_prayer",
+      "title": "Catholic Prayers & Devotions — USCCB",
+      "url": "https://www.usccb.org/prayers",
+      "description": "Traditional Catholic devotions, litanies, and Marian prayers",
+      "category": "devotion",
+      "display_order": 1
+    },
+    {
+      "type_key": "flashcards",
+      "title": "Anki Manual — Card Design",
+      "url": "https://docs.ankiweb.net/getting-started.html",
+      "description": "Authoritative guidance on effective flashcard design and Anki import format",
       "category": null,
       "display_order": 1
     },
     {
-      "type_key": "slide_deck",
-      "title": "Purdue OWL — Designing an Effective PowerPoint",
-      "url": "https://owl.purdue.edu/owl/general_writing/visual_rhetoric/designing_effective_powerpoint_presentations/index.html",
-      "description": "Visual rhetoric, design, and presentation best practices for effective slide decks",
-      "category": null,
-      "display_order": 1
-    },
-    {
-      "type_key": "github_issue",
-      "title": "GitHub Docs - About Issues",
-      "url": "https://docs.github.com/en/issues/tracking-your-work-with-issues/about-issues",
-      "description": "Official guidance for issue structure, collaboration, and traceable work",
-      "category": null,
-      "display_order": 1
-    },
-    {
-      "type_key": "blog_post",
-      "title": "Google Search Quality Guidelines",
-      "url": "https://static.googleusercontent.com/media/guidelines.raterhub.com/en//searchqualityevaluatorguidelines.pdf",
-      "description": "Google's official guide on E-E-A-T and content quality signals",
-      "category": null,
-      "display_order": 1
-    },
-    {
-      "type_key": "freelancer_time_log",
-      "title": "U.S. Department of Labor - Recordkeeping",
-      "url": "https://www.dol.gov/agencies/whd/fact-sheets/21-flsa-recordkeeping",
-      "description": "Authoritative baseline for clear work-time records and retained details",
-      "category": null,
-      "display_order": 1
-    },
-    {
-      "type_key": "quick_research",
-      "title": "Google Scholar",
-      "url": "https://scholar.google.com/",
-      "description": "Academic search engine for peer-reviewed papers and citations",
-      "category": null,
-      "display_order": 1
-    },
-    {
-      "type_key": "bullet_points",
-      "title": "Plain Language Guidelines",
-      "url": "https://www.plainlanguage.gov/guidelines/",
-      "description": "US federal guidelines for concise, audience-centered wording and organization",
-      "category": null,
-      "display_order": 1
-    },
-    {
-      "type_key": "white_paper",
-      "title": "Purdue OWL — White Papers: Purpose and Audience",
-      "url": "https://owl.purdue.edu/owl/subject_specific_writing/professional_technical_writing/white_papers/index.html",
-      "description": "Defines white paper purpose, external audience, and persuasive positioning",
-      "category": null,
-      "display_order": 1
-    },
-    {
-      "type_key": "reference_list",
-      "title": "University of Chicago — CRAAP Test",
-      "url": "https://guides.lib.uchicago.edu/c.php?g=1241077&p=9082343",
-      "description": "Currency, Relevance, Authority, Accuracy, Purpose — a checklist for judging the value of an online source",
-      "category": null,
-      "display_order": 1
-    },
-    {
-      "type_key": "prompt",
-      "title": "OpenAI Prompt Engineering Guide",
-      "url": "https://platform.openai.com/docs/guides/prompt-engineering",
-      "description": "Official strategies for writing effective prompts with GPT models",
+      "type_key": "argumentative_essay",
+      "title": "Purdue OWL — Argumentative Essays",
+      "url": "https://owl.purdue.edu/owl/general_writing/academic_writing/essay_writing/argumentative_essays.html",
+      "description": "Academic guidance for claims, evidence, counterargument, and argumentative structure",
       "category": null,
       "display_order": 1
     },
@@ -2477,50 +2429,10 @@
       "display_order": 1
     },
     {
-      "type_key": "outline",
-      "title": "Purdue OWL — Developing an Outline",
-      "url": "https://owl.purdue.edu/owl/general_writing/the_writing_process/developing_an_outline/index.html",
-      "description": "Guidance for hierarchical outlines, coordination, subordination, and parallelism",
-      "category": null,
-      "display_order": 1
-    },
-    {
-      "type_key": "podcast_script",
-      "title": "Google NotebookLM Audio Overviews",
-      "url": "https://notebooklm.google/",
-      "description": "Google's AI podcast generator — the gold standard for two-host conversational audio from source material",
-      "category": null,
-      "display_order": 1
-    },
-    {
-      "type_key": "pastoral_plan",
-      "title": "Evangelii Gaudium — Pope Francis",
-      "url": "https://www.vatican.va/content/francesco/en/apost_exhortations/documents/papa-francesco_esortazione-ap_20131124_evangelii-gaudium.html",
-      "description": "Foundational apostolic exhortation on the Joy of the Gospel and parish renewal",
-      "category": "magisterium",
-      "display_order": 1
-    },
-    {
-      "type_key": "flashcards",
-      "title": "Anki Manual — Card Design",
-      "url": "https://docs.ankiweb.net/getting-started.html",
-      "description": "Authoritative guidance on effective flashcard design and Anki import format",
-      "category": null,
-      "display_order": 1
-    },
-    {
-      "type_key": "rubric",
-      "title": "Association of American Colleges & Universities — VALUE Rubrics",
-      "url": "https://www.aacu.org/initiatives/value-initiative/value-rubrics",
-      "description": "16 nationally-normed rubrics for essential learning outcomes — the reference set for observable-descriptor writing",
-      "category": null,
-      "display_order": 1
-    },
-    {
-      "type_key": "email",
-      "title": "Business Writing – Harvard Business Review",
-      "url": "https://hbr.org/topic/business-writing",
-      "description": "Professional email writing and communication best practices",
+      "type_key": "project_plan",
+      "title": "PMBOK Guide Overview – PMI",
+      "url": "https://www.pmi.org/pmbok-guide-standards",
+      "description": "Project Management Body of Knowledge framework and terminology",
       "category": null,
       "display_order": 1
     },
@@ -2533,42 +2445,26 @@
       "display_order": 1
     },
     {
-      "type_key": "video_script",
-      "title": "ElevenLabs Text to Speech Best Practices",
-      "url": "https://elevenlabs.io/docs/best-practices/prompting/controls",
-      "description": "Official guidance for punctuation, pacing, pronunciation, and controllable text-to-speech delivery",
+      "type_key": "office_memo",
+      "title": "Purdue OWL — Parts of a Memo",
+      "url": "https://owl.purdue.edu/owl/subject_specific_writing/professional_technical_writing/memos/parts_of_a_memo.html",
+      "description": "Canonical memo anatomy: header, opening, context, task, discussion, and closing segments",
       "category": null,
       "display_order": 1
     },
     {
-      "type_key": "text_message",
-      "title": "Nielsen Norman Group – Writing for Mobile",
-      "url": "https://www.nngroup.com/articles/mobile-content/",
-      "description": "UX research on concise writing for small screens and mobile contexts",
+      "type_key": "outline",
+      "title": "Purdue OWL — Developing an Outline",
+      "url": "https://owl.purdue.edu/owl/general_writing/the_writing_process/developing_an_outline/index.html",
+      "description": "Guidance for hierarchical outlines, coordination, subordination, and parallelism",
       "category": null,
       "display_order": 1
     },
     {
-      "type_key": "catechesis_lesson",
-      "title": "Catechism of the Catholic Church",
-      "url": "https://www.vatican.va/archive/ENG0015/_INDEX.HTM",
-      "description": "Authoritative compendium of Catholic doctrine",
-      "category": "magisterium",
-      "display_order": 1
-    },
-    {
-      "type_key": "quiz",
-      "title": "Testing Effect (Karpicke & Roediger)",
-      "url": "https://www.science.org/doi/10.1126/science.1152408",
-      "description": "Foundational research on why retrieval practice outperforms re-reading for long-term retention",
-      "category": null,
-      "display_order": 1
-    },
-    {
-      "type_key": "general_request",
-      "title": "Proset Documentation",
-      "url": "https://proset.ai/docs",
-      "description": "How to use Proset for voice-to-structured-artifact conversion",
+      "type_key": "notes",
+      "title": "Cornell Note Taking System",
+      "url": "https://lsc.cornell.edu/how-to-study/taking-notes/cornell-note-taking-system/",
+      "description": "Structured note-taking method for cues, notes, summaries, and review",
       "category": null,
       "display_order": 1
     },
@@ -2581,10 +2477,98 @@
       "display_order": 1
     },
     {
-      "type_key": "research_questions",
-      "title": "Harvard Business Review — The Surprising Power of Questions",
-      "url": "https://hbr.org/2018/05/the-surprising-power-of-questions",
-      "description": "Research-backed guidance on asking better questions in conversations and decisions",
+      "type_key": "todo_list",
+      "title": "GTD — Next Actions",
+      "url": "https://gettingthingsdone.com/what-is-gtd/",
+      "description": "Task-capture framework for turning commitments into concrete next actions",
+      "category": null,
+      "display_order": 1
+    },
+    {
+      "type_key": "statistics",
+      "title": "NIST/SEMATECH e-Handbook of Statistical Methods",
+      "url": "https://www.itl.nist.gov/div898/handbook/",
+      "description": "Authoritative practical guidance on statistical methods, assumptions, and interpretation",
+      "category": null,
+      "display_order": 1
+    },
+    {
+      "type_key": "scaffolded_action_items",
+      "title": "CDC — ADHD Treatment and Support",
+      "url": "https://www.cdc.gov/adhd/treatment/index.html",
+      "description": "Evidence-based overview of ADHD supports, routines, and behavioral strategies relevant to task scaffolding",
+      "category": null,
+      "display_order": 1
+    },
+    {
+      "type_key": "action_items",
+      "title": "Asana — Action Items",
+      "url": "https://asana.com/resources/action-items",
+      "description": "Practical guidance for turning discussions into accountable tasks with owners and deadlines",
+      "category": null,
+      "display_order": 1
+    },
+    {
+      "type_key": "lesson_plan",
+      "title": "What Works Clearinghouse Practice Guides",
+      "url": "https://ies.ed.gov/ncee/wwc/practiceguides",
+      "description": "Evidence-based K-12 instructional recommendations from the U.S. Department of Education",
+      "category": null,
+      "display_order": 1
+    },
+    {
+      "type_key": "pastoral_plan",
+      "title": "Evangelii Gaudium — Pope Francis",
+      "url": "https://www.vatican.va/content/francesco/en/apost_exhortations/documents/papa-francesco_esortazione-ap_20131124_evangelii-gaudium.html",
+      "description": "Foundational apostolic exhortation on the Joy of the Gospel and parish renewal",
+      "category": "magisterium",
+      "display_order": 1
+    },
+    {
+      "type_key": "academic_research",
+      "title": "APA Style 7th Edition",
+      "url": "https://apastyle.apa.org/style-grammar-guidelines",
+      "description": "American Psychological Association citation and formatting rules",
+      "category": null,
+      "display_order": 1
+    },
+    {
+      "type_key": "calendar_event",
+      "title": "RFC 5545 — iCalendar",
+      "url": "https://www.rfc-editor.org/rfc/rfc5545",
+      "description": "Standard for event fields, recurrence, dates, times, attendees, and calendar interoperability",
+      "category": null,
+      "display_order": 1
+    },
+    {
+      "type_key": "prompt",
+      "title": "OpenAI Prompt Engineering Guide",
+      "url": "https://platform.openai.com/docs/guides/prompt-engineering",
+      "description": "Official strategies for writing effective prompts with GPT models",
+      "category": null,
+      "display_order": 1
+    },
+    {
+      "type_key": "scaffolded_project_plan",
+      "title": "CDC — ADHD Treatment and Support",
+      "url": "https://www.cdc.gov/adhd/treatment/index.html",
+      "description": "Evidence-based overview of ADHD supports, routines, and behavioral strategies relevant to project scaffolding",
+      "category": null,
+      "display_order": 1
+    },
+    {
+      "type_key": "adhd_plan",
+      "title": "CDC — ADHD Treatment and Support",
+      "url": "https://www.cdc.gov/adhd/treatment/index.html",
+      "description": "Evidence-based overview of ADHD treatment, supports, routines, and behavioral strategies",
+      "category": null,
+      "display_order": 1
+    },
+    {
+      "type_key": "blog_post",
+      "title": "Google Search Quality Guidelines",
+      "url": "https://static.googleusercontent.com/media/guidelines.raterhub.com/en//searchqualityevaluatorguidelines.pdf",
+      "description": "Google's official guide on E-E-A-T and content quality signals",
       "category": null,
       "display_order": 1
     },
@@ -2605,99 +2589,43 @@
       "display_order": 1
     },
     {
-      "type_key": "office_memo",
-      "title": "Purdue OWL — Parts of a Memo",
-      "url": "https://owl.purdue.edu/owl/subject_specific_writing/professional_technical_writing/memos/parts_of_a_memo.html",
-      "description": "Canonical memo anatomy: header, opening, context, task, discussion, and closing segments",
+      "type_key": "research_questions",
+      "title": "Harvard Business Review — The Surprising Power of Questions",
+      "url": "https://hbr.org/2018/05/the-surprising-power-of-questions",
+      "description": "Research-backed guidance on asking better questions in conversations and decisions",
       "category": null,
       "display_order": 1
     },
     {
-      "type_key": "todo_list",
-      "title": "GTD — Next Actions",
-      "url": "https://gettingthingsdone.com/what-is-gtd/",
-      "description": "Task-capture framework for turning commitments into concrete next actions",
+      "type_key": "reference_list",
+      "title": "University of Chicago — CRAAP Test",
+      "url": "https://guides.lib.uchicago.edu/c.php?g=1241077&p=9082343",
+      "description": "Currency, Relevance, Authority, Accuracy, Purpose — a checklist for judging the value of an online source",
       "category": null,
       "display_order": 1
     },
     {
-      "type_key": "saints_devotional_prayer",
-      "title": "Catholic Prayers & Devotions — USCCB",
-      "url": "https://www.usccb.org/prayers",
-      "description": "Traditional Catholic devotions, litanies, and Marian prayers",
-      "category": "devotion",
-      "display_order": 1
-    },
-    {
-      "type_key": "action_items",
-      "title": "Asana — Action Items",
-      "url": "https://asana.com/resources/action-items",
-      "description": "Practical guidance for turning discussions into accountable tasks with owners and deadlines",
+      "type_key": "summary",
+      "title": "Purdue OWL — Quoting, Paraphrasing, and Summarizing",
+      "url": "https://owl.purdue.edu/owl/research_and_citation/using_research/quoting_paraphrasing_and_summarizing/index.html",
+      "description": "Guidance for condensing source material accurately and ethically",
       "category": null,
       "display_order": 1
     },
     {
-      "type_key": "bulletin_insert",
-      "title": "USCCB Communications Best Practices",
-      "url": "https://www.usccb.org/offices/public-affairs",
-      "description": "Catholic parish communication standards and guidelines",
-      "category": "pastoral",
-      "display_order": 1
-    },
-    {
-      "type_key": "lesson_plan",
-      "title": "What Works Clearinghouse Practice Guides",
-      "url": "https://ies.ed.gov/ncee/wwc/practiceguides",
-      "description": "Evidence-based K-12 instructional recommendations from the U.S. Department of Education",
+      "type_key": "quick_research",
+      "title": "Google Scholar",
+      "url": "https://scholar.google.com/",
+      "description": "Academic search engine for peer-reviewed papers and citations",
       "category": null,
       "display_order": 1
     },
     {
-      "type_key": "adhd_plan",
-      "title": "CDC — ADHD Treatment and Support",
-      "url": "https://www.cdc.gov/adhd/treatment/index.html",
-      "description": "Evidence-based overview of ADHD treatment, supports, routines, and behavioral strategies",
+      "type_key": "podcast_script",
+      "title": "Google NotebookLM Audio Overviews",
+      "url": "https://notebooklm.google/",
+      "description": "Google's AI podcast generator — the gold standard for two-host conversational audio from source material",
       "category": null,
-      "display_order": 1
-    },
-    {
-      "type_key": "notes",
-      "title": "Cornell Note Taking System",
-      "url": "https://lsc.cornell.edu/how-to-study/taking-notes/cornell-note-taking-system/",
-      "description": "Structured note-taking method for cues, notes, summaries, and review",
-      "category": null,
-      "display_order": 1
-    },
-    {
-      "type_key": "course_syllabus",
-      "title": "Carnegie Mellon Eberly Center – Syllabus Design",
-      "url": "https://www.cmu.edu/teaching/designteach/design/syllabus/",
-      "description": "Practical guidance for structuring syllabi, assignments, and course expectations",
-      "category": null,
-      "display_order": 1
-    },
-    {
-      "type_key": "scaffolded_project_plan",
-      "title": "CDC — ADHD Treatment and Support",
-      "url": "https://www.cdc.gov/adhd/treatment/index.html",
-      "description": "Evidence-based overview of ADHD supports, routines, and behavioral strategies relevant to project scaffolding",
-      "category": null,
-      "display_order": 1
-    },
-    {
-      "type_key": "scaffolded_action_items",
-      "title": "CDC — ADHD Treatment and Support",
-      "url": "https://www.cdc.gov/adhd/treatment/index.html",
-      "description": "Evidence-based overview of ADHD supports, routines, and behavioral strategies relevant to task scaffolding",
-      "category": null,
-      "display_order": 1
-    },
-    {
-      "type_key": "ocia_planning",
-      "title": "USCCB Order of Christian Initiation of Adults",
-      "url": "https://www.usccb.org/prayer-and-worship/sacraments-and-sacramentals/baptism/christian-initiation-of-adults",
-      "description": "Official USCCB ritual and pastoral guidelines for OCIA",
-      "category": "liturgy",
       "display_order": 1
     },
     {
@@ -2709,10 +2637,58 @@
       "display_order": 1
     },
     {
-      "type_key": "project_plan",
-      "title": "PMBOK Guide Overview – PMI",
-      "url": "https://www.pmi.org/pmbok-guide-standards",
-      "description": "Project Management Body of Knowledge framework and terminology",
+      "type_key": "freelancer_time_log",
+      "title": "U.S. Department of Labor - Recordkeeping",
+      "url": "https://www.dol.gov/agencies/whd/fact-sheets/21-flsa-recordkeeping",
+      "description": "Authoritative baseline for clear work-time records and retained details",
+      "category": null,
+      "display_order": 1
+    },
+    {
+      "type_key": "github_issue",
+      "title": "GitHub Docs - About Issues",
+      "url": "https://docs.github.com/en/issues/tracking-your-work-with-issues/about-issues",
+      "description": "Official guidance for issue structure, collaboration, and traceable work",
+      "category": null,
+      "display_order": 1
+    },
+    {
+      "type_key": "bullet_points",
+      "title": "Plain Language Guidelines",
+      "url": "https://www.plainlanguage.gov/guidelines/",
+      "description": "US federal guidelines for concise, audience-centered wording and organization",
+      "category": null,
+      "display_order": 1
+    },
+    {
+      "type_key": "catechesis_lesson",
+      "title": "Catechism of the Catholic Church",
+      "url": "https://www.vatican.va/archive/ENG0015/_INDEX.HTM",
+      "description": "Authoritative compendium of Catholic doctrine",
+      "category": "magisterium",
+      "display_order": 1
+    },
+    {
+      "type_key": "bulletin_insert",
+      "title": "USCCB Communications Best Practices",
+      "url": "https://www.usccb.org/offices/public-affairs",
+      "description": "Catholic parish communication standards and guidelines",
+      "category": "pastoral",
+      "display_order": 1
+    },
+    {
+      "type_key": "email",
+      "title": "Business Writing – Harvard Business Review",
+      "url": "https://hbr.org/topic/business-writing",
+      "description": "Professional email writing and communication best practices",
+      "category": null,
+      "display_order": 1
+    },
+    {
+      "type_key": "slide_deck",
+      "title": "Purdue OWL — Designing an Effective PowerPoint",
+      "url": "https://owl.purdue.edu/owl/general_writing/visual_rhetoric/designing_effective_powerpoint_presentations/index.html",
+      "description": "Visual rhetoric, design, and presentation best practices for effective slide decks",
       "category": null,
       "display_order": 1
     },
@@ -2725,306 +2701,58 @@
       "display_order": 1
     },
     {
-      "type_key": "argumentative_essay",
-      "title": "Purdue OWL — Argumentative Essays",
-      "url": "https://owl.purdue.edu/owl/general_writing/academic_writing/essay_writing/argumentative_essays.html",
-      "description": "Academic guidance for claims, evidence, counterargument, and argumentative structure",
+      "type_key": "video_script",
+      "title": "ElevenLabs Text to Speech Best Practices",
+      "url": "https://elevenlabs.io/docs/best-practices/prompting/controls",
+      "description": "Official guidance for punctuation, pacing, pronunciation, and controllable text-to-speech delivery",
       "category": null,
       "display_order": 1
     },
     {
-      "type_key": "requirements",
-      "title": "ISO/IEC/IEEE 29148 – Requirements Engineering",
-      "url": "https://standards.ieee.org/ieee/29148/6937/",
-      "description": "Current international standard for requirements engineering (supersedes IEEE 830)",
+      "type_key": "quiz",
+      "title": "Testing Effect (Karpicke & Roediger)",
+      "url": "https://www.science.org/doi/10.1126/science.1152408",
+      "description": "Foundational research on why retrieval practice outperforms re-reading for long-term retention",
       "category": null,
       "display_order": 1
-    },
-    {
-      "type_key": "academic_research",
-      "title": "APA Style 7th Edition",
-      "url": "https://apastyle.apa.org/style-grammar-guidelines",
-      "description": "American Psychological Association citation and formatting rules",
-      "category": null,
-      "display_order": 1
-    },
-    {
-      "type_key": "academic_research",
-      "title": "MLA Style Center",
-      "url": "https://style.mla.org/",
-      "description": "Modern Language Association style guide for humanities",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "nonfiction_draft",
-      "title": "Poynter — Writing and Editing",
-      "url": "https://www.poynter.org/topic/writing-editing/",
-      "description": "Journalism craft guidance on structure, clarity, leads, and revision",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "requirements",
-      "title": "User Stories – Mountain Goat Software",
-      "url": "https://www.mountaingoatsoftware.com/agile/user-stories",
-      "description": "Writing effective user stories with acceptance criteria",
-      "category": null,
-      "display_order": 2
     },
     {
       "type_key": "spreadsheet",
-      "title": "Excel Functions Reference",
-      "url": "https://support.microsoft.com/en-us/office/excel-functions-alphabetical-b3944572-255d-4efb-bb96-c6d90033e188",
-      "description": "Microsoft's complete list of Excel formulas and functions",
+      "title": "RFC 4180 – CSV Format",
+      "url": "https://www.rfc-editor.org/rfc/rfc4180",
+      "description": "Official standard for comma-separated values format",
       "category": null,
-      "display_order": 2
+      "display_order": 1
     },
     {
-      "type_key": "summary",
-      "title": "Plain Language Guidelines",
-      "url": "https://www.plainlanguage.gov/guidelines/",
-      "description": "Best practices for clear, concise, audience-centered summaries",
+      "type_key": "text_message",
+      "title": "Nielsen Norman Group – Writing for Mobile",
+      "url": "https://www.nngroup.com/articles/mobile-content/",
+      "description": "UX research on concise writing for small screens and mobile contexts",
       "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "slide_deck",
-      "title": "Purdue OWL — Visual Rhetoric",
-      "url": "https://owl.purdue.edu/owl/general_writing/visual_rhetoric/index.html",
-      "description": "Color theory, purposeful typography, and visual arrangement for presentations",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "calendar_event",
-      "title": "Google Calendar API — Events",
-      "url": "https://developers.google.com/calendar/api/v3/reference/events",
-      "description": "Event data model for summaries, descriptions, locations, attendees, reminders, and recurrence",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "general_request",
-      "title": "Wikipedia",
-      "url": "https://en.wikipedia.org",
-      "description": "General reference for factual information across topics",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "github_issue",
-      "title": "GitHub Docs - Issue Forms",
-      "url": "https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema",
-      "description": "Official schema and field guidance for collecting reproducible issue reports",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "christian_prayer",
-      "title": "Dei Verbum — Dogmatic Constitution on Divine Revelation",
-      "url": "https://www.vatican.va/archive/hist_councils/ii_vatican_council/documents/vat-ii_const_19651118_dei-verbum_en.html",
-      "description": "Vatican II on Scripture as the soul of theology and prayer (DV 21–26)",
-      "category": "magisterium",
-      "display_order": 2
-    },
-    {
-      "type_key": "research_questions",
-      "title": "Bloom's Taxonomy Verb Chart",
-      "url": "https://cft.vanderbilt.edu/guides-sub-pages/blooms-taxonomy/",
-      "description": "Question-design framework for comprehension, analysis, evaluation, and creation",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "freelancer_time_log",
-      "title": "Kimai Documentation",
-      "url": "https://www.kimai.org/documentation/",
-      "description": "Operational guidance for projects, activities, durations, rates, and timesheet records",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "discussion_questions",
-      "title": "Vanderbilt CFT — Difficult Discussions",
-      "url": "https://cft.vanderbilt.edu/guides-sub-pages/difficult-dialogues/",
-      "description": "Facilitator guidance for productive disagreement and stalled discussions",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "course_syllabus",
-      "title": "Vanderbilt Center for Teaching – Creating a Syllabus",
-      "url": "https://cft.vanderbilt.edu/guides-sub-pages/creating-a-syllabus/",
-      "description": "Evidence-based recommendations for course policies, tone, and syllabus clarity",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "quick_research",
-      "title": "Wikipedia – Reliable Sources",
-      "url": "https://en.wikipedia.org/wiki/Wikipedia:Reliable_sources",
-      "description": "Guidelines for evaluating source credibility and reliability",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "bibliography",
-      "title": "MLA Style Center",
-      "url": "https://style.mla.org/",
-      "description": "Modern Language Association style guide for humanities",
-      "category": null,
-      "display_order": 2
+      "display_order": 1
     },
     {
       "type_key": "white_paper",
-      "title": "Purdue OWL — White Papers: Organization and Other Tips",
-      "url": "https://owl.purdue.edu/owl/subject_specific_writing/professional_technical_writing/white_papers/organization_and_other_tips.html",
-      "description": "Canonical white paper organization: summary, background, problem, solution, conclusion, works cited",
+      "title": "Purdue OWL — White Papers: Purpose and Audience",
+      "url": "https://owl.purdue.edu/owl/subject_specific_writing/professional_technical_writing/white_papers/index.html",
+      "description": "Defines white paper purpose, external audience, and persuasive positioning",
       "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "argumentative_essay",
-      "title": "UNC Writing Center — Argument",
-      "url": "https://writingcenter.unc.edu/tips-and-tools/argument/",
-      "description": "Clear framework for debatable thesis statements, reasons, evidence, and warrants",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "essay_explainer",
-      "title": "Harvard College Writing Center — How to Do a Close Reading",
-      "url": "https://writingcenter.fas.harvard.edu/pages/how-do-close-reading",
-      "description": "Method for explaining textual details, structure, and meaning",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "reference_list",
-      "title": "Benedictine University — Evaluating Sources: The CRAAP Test",
-      "url": "https://researchguides.ben.edu/source-evaluation",
-      "description": "Structured questions for evaluating the credibility and usefulness of web sources",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "bullet_points",
-      "title": "Nielsen Norman Group — How Users Read on the Web",
-      "url": "https://www.nngroup.com/articles/how-users-read-on-the-web/",
-      "description": "UX research on scanning behavior, bullets, headings, and information scent",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "adhd_plan",
-      "title": "NICE Guideline NG87 — Attention Deficit Hyperactivity Disorder",
-      "url": "https://www.nice.org.uk/guidance/ng87",
-      "description": "Clinical guideline covering ADHD recognition, management, environmental modifications, and support planning",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "prompt",
-      "title": "Anthropic Prompt Engineering",
-      "url": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview",
-      "description": "Claude-specific prompting techniques and best practices",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "blog_post",
-      "title": "Hemingway App",
-      "url": "https://hemingwayapp.com/",
-      "description": "Readability and clarity tool — write at grade-level audiences",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "scaffolded_action_items",
-      "title": "NICE Guideline NG87 — Attention Deficit Hyperactivity Disorder",
-      "url": "https://www.nice.org.uk/guidance/ng87",
-      "description": "Clinical guideline with support and environmental-modification principles for ADHD",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "office_memo",
-      "title": "Purdue OWL — Memo Format",
-      "url": "https://owl.purdue.edu/owl/subject_specific_writing/professional_technical_writing/memos/format.html",
-      "description": "Standard memo formatting, section distribution, and short descriptive heading guidance",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "outline",
-      "title": "University of Washington — Outlining",
-      "url": "https://depts.washington.edu/owrc/Handouts/Outlining.pdf",
-      "description": "Writing-center guide to organizing main ideas, supporting points, and structure",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "email",
-      "title": "RFC 5322 – Internet Message Format",
-      "url": "https://www.rfc-editor.org/rfc/rfc5322",
-      "description": "Official standard for email message structure and headers",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "flashcards",
-      "title": "Quizlet — Import Formats",
-      "url": "https://help.quizlet.com/hc/en-us/articles/360029977151-Creating-and-importing-flashcard-sets",
-      "description": "Quizlet's supported CSV/TSV import formats and constraints",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "linkedin_post",
-      "title": "LinkedIn Creator Mode Guide",
-      "url": "https://www.linkedin.com/help/linkedin/answer/a522537",
-      "description": "Official guide to LinkedIn Creator tools and content features",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "podcast_script",
-      "title": "NPR Training: Storytelling",
-      "url": "https://training.npr.org/",
-      "description": "NPR's editorial guidance on audio storytelling, pacing, and narrative structure",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "lesson_plan",
-      "title": "Universal Design for Learning Guidelines 3.0",
-      "url": "https://udlguidelines.cast.org/",
-      "description": "CAST framework for designing inclusive learning experiences with multiple means of engagement, representation, and action/expression",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "project_plan",
-      "title": "Agile Manifesto & Principles",
-      "url": "https://agilemanifesto.org/principles.html",
-      "description": "Core principles of agile project management",
-      "category": null,
-      "display_order": 2
+      "display_order": 1
     },
     {
       "type_key": "rubric",
-      "title": "Carnegie Mellon Eberly Center — Creating and Using Rubrics",
-      "url": "https://www.cmu.edu/teaching/designteach/teach/rubrics.html",
-      "description": "Practical guidance on when to use analytic vs holistic rubrics and how to write descriptors",
+      "title": "Association of American Colleges & Universities — VALUE Rubrics",
+      "url": "https://www.aacu.org/initiatives/value-initiative/value-rubrics",
+      "description": "16 nationally-normed rubrics for essential learning outcomes — the reference set for observable-descriptor writing",
       "category": null,
-      "display_order": 2
+      "display_order": 1
     },
     {
-      "type_key": "todo_list",
-      "title": "Todoist — Getting Things Done",
-      "url": "https://todoist.com/productivity-methods/getting-things-done",
-      "description": "Practical implementation guidance for contexts, projects, and next actions",
+      "type_key": "quiz",
+      "title": "Bloom's Revised Taxonomy — Vanderbilt CFT",
+      "url": "https://cft.vanderbilt.edu/guides-sub-pages/blooms-taxonomy/",
+      "description": "Cognitive-level framework for writing items that test comprehension, application, and analysis",
       "category": null,
       "display_order": 2
     },
@@ -3037,42 +2765,90 @@
       "display_order": 2
     },
     {
-      "type_key": "study_guide",
-      "title": "The Learning Scientists — Six Strategies for Effective Learning",
-      "url": "https://www.learningscientists.org/downloadable-materials",
-      "description": "Practitioner-friendly summaries and posters of retrieval practice, spaced practice, elaboration, interleaving, concrete examples, and dual coding",
+      "type_key": "bullet_points",
+      "title": "Nielsen Norman Group — How Users Read on the Web",
+      "url": "https://www.nngroup.com/articles/how-users-read-on-the-web/",
+      "description": "UX research on scanning behavior, bullets, headings, and information scent",
       "category": null,
       "display_order": 2
     },
     {
-      "type_key": "scaffolded_project_plan",
-      "title": "NICE Guideline NG87 — Attention Deficit Hyperactivity Disorder",
-      "url": "https://www.nice.org.uk/guidance/ng87",
-      "description": "Clinical guideline with environmental modifications and support principles for ADHD",
-      "category": null,
-      "display_order": 2
-    },
-    {
-      "type_key": "quiz",
-      "title": "Bloom's Revised Taxonomy — Vanderbilt CFT",
+      "type_key": "research_questions",
+      "title": "Bloom's Taxonomy Verb Chart",
       "url": "https://cft.vanderbilt.edu/guides-sub-pages/blooms-taxonomy/",
-      "description": "Cognitive-level framework for writing items that test comprehension, application, and analysis",
+      "description": "Question-design framework for comprehension, analysis, evaluation, and creation",
       "category": null,
       "display_order": 2
     },
     {
-      "type_key": "action_items",
-      "title": "Atlassian — Meeting Notes Template",
-      "url": "https://www.atlassian.com/software/confluence/templates/meeting-notes",
-      "description": "Template for decisions, action items, owners, and follow-up tracking",
+      "type_key": "argumentative_essay",
+      "title": "UNC Writing Center — Argument",
+      "url": "https://writingcenter.unc.edu/tips-and-tools/argument/",
+      "description": "Clear framework for debatable thesis statements, reasons, evidence, and warrants",
       "category": null,
       "display_order": 2
     },
     {
-      "type_key": "video_script",
-      "title": "Plain Language Guidelines",
-      "url": "https://www.plainlanguage.gov/guidelines/",
-      "description": "Audience-centered guidance for concise, direct language that is easy to understand when spoken",
+      "type_key": "nonfiction_draft",
+      "title": "Poynter — Writing and Editing",
+      "url": "https://www.poynter.org/topic/writing-editing/",
+      "description": "Journalism craft guidance on structure, clarity, leads, and revision",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "blog_post",
+      "title": "Hemingway App",
+      "url": "https://hemingwayapp.com/",
+      "description": "Readability and clarity tool — write at grade-level audiences",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "course_syllabus",
+      "title": "Vanderbilt Center for Teaching – Creating a Syllabus",
+      "url": "https://cft.vanderbilt.edu/guides-sub-pages/creating-a-syllabus/",
+      "description": "Evidence-based recommendations for course policies, tone, and syllabus clarity",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "bibliography",
+      "title": "MLA Style Center",
+      "url": "https://style.mla.org/",
+      "description": "Modern Language Association style guide for humanities",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "lesson_plan",
+      "title": "Universal Design for Learning Guidelines 3.0",
+      "url": "https://udlguidelines.cast.org/",
+      "description": "CAST framework for designing inclusive learning experiences with multiple means of engagement, representation, and action/expression",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "outline",
+      "title": "University of Washington — Outlining",
+      "url": "https://depts.washington.edu/owrc/Handouts/Outlining.pdf",
+      "description": "Writing-center guide to organizing main ideas, supporting points, and structure",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "essay_explainer",
+      "title": "Harvard College Writing Center — How to Do a Close Reading",
+      "url": "https://writingcenter.fas.harvard.edu/pages/how-do-close-reading",
+      "description": "Method for explaining textual details, structure, and meaning",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "podcast_script",
+      "title": "NPR Training: Storytelling",
+      "url": "https://training.npr.org/",
+      "description": "NPR's editorial guidance on audio storytelling, pacing, and narrative structure",
       "category": null,
       "display_order": 2
     },
@@ -3085,10 +2861,18 @@
       "display_order": 2
     },
     {
-      "type_key": "notes",
-      "title": "Purdue OWL — Paraphrase and Summary",
-      "url": "https://owl.purdue.edu/owl/research_and_citation/using_research/quoting_paraphrasing_and_summarizing/paraphrasing.html",
-      "description": "Guidance on condensing source material without losing meaning",
+      "type_key": "christian_prayer",
+      "title": "Dei Verbum — Dogmatic Constitution on Divine Revelation",
+      "url": "https://www.vatican.va/archive/hist_councils/ii_vatican_council/documents/vat-ii_const_19651118_dei-verbum_en.html",
+      "description": "Vatican II on Scripture as the soul of theology and prayer (DV 21–26)",
+      "category": "magisterium",
+      "display_order": 2
+    },
+    {
+      "type_key": "video_script",
+      "title": "Plain Language Guidelines",
+      "url": "https://www.plainlanguage.gov/guidelines/",
+      "description": "Audience-centered guidance for concise, direct language that is easy to understand when spoken",
       "category": null,
       "display_order": 2
     },
@@ -3101,34 +2885,234 @@
       "display_order": 2
     },
     {
-      "type_key": "study_guide",
-      "title": "Make It Stick — Book Companion Site",
-      "url": "https://www.retrievalpractice.org/make-it-stick/",
-      "description": "Curated companion to Brown, Roediger & McDaniel's synthesis of retrieval-based learning",
+      "type_key": "general_request",
+      "title": "Wikipedia",
+      "url": "https://en.wikipedia.org",
+      "description": "General reference for factual information across topics",
       "category": null,
-      "display_order": 3
+      "display_order": 2
     },
     {
-      "type_key": "email",
-      "title": "Grammarly Email Writing Guide",
-      "url": "https://www.grammarly.com/blog/email-writing-tips/",
-      "description": "Tone, structure, and etiquette for professional emails",
+      "type_key": "discussion_questions",
+      "title": "Vanderbilt CFT — Difficult Discussions",
+      "url": "https://cft.vanderbilt.edu/guides-sub-pages/difficult-dialogues/",
+      "description": "Facilitator guidance for productive disagreement and stalled discussions",
       "category": null,
-      "display_order": 3
+      "display_order": 2
     },
     {
-      "type_key": "blog_post",
-      "title": "Yoast SEO Blog",
-      "url": "https://yoast.com/seo-blog/",
-      "description": "Practical SEO writing tips: structure, keywords, meta descriptions",
+      "type_key": "flashcards",
+      "title": "Quizlet — Import Formats",
+      "url": "https://help.quizlet.com/hc/en-us/articles/360029977151-Creating-and-importing-flashcard-sets",
+      "description": "Quizlet's supported CSV/TSV import formats and constraints",
       "category": null,
-      "display_order": 3
+      "display_order": 2
+    },
+    {
+      "type_key": "office_memo",
+      "title": "Purdue OWL — Memo Format",
+      "url": "https://owl.purdue.edu/owl/subject_specific_writing/professional_technical_writing/memos/format.html",
+      "description": "Standard memo formatting, section distribution, and short descriptive heading guidance",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "todo_list",
+      "title": "Todoist — Getting Things Done",
+      "url": "https://todoist.com/productivity-methods/getting-things-done",
+      "description": "Practical implementation guidance for contexts, projects, and next actions",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "action_items",
+      "title": "Atlassian — Meeting Notes Template",
+      "url": "https://www.atlassian.com/software/confluence/templates/meeting-notes",
+      "description": "Template for decisions, action items, owners, and follow-up tracking",
+      "category": null,
+      "display_order": 2
     },
     {
       "type_key": "linkedin_post",
-      "title": "Buffer – LinkedIn Strategy",
-      "url": "https://buffer.com/library/linkedin-marketing/",
-      "description": "Data-backed LinkedIn posting strategies, timing, and engagement tactics",
+      "title": "LinkedIn Creator Mode Guide",
+      "url": "https://www.linkedin.com/help/linkedin/answer/a522537",
+      "description": "Official guide to LinkedIn Creator tools and content features",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "calendar_event",
+      "title": "Google Calendar API — Events",
+      "url": "https://developers.google.com/calendar/api/v3/reference/events",
+      "description": "Event data model for summaries, descriptions, locations, attendees, reminders, and recurrence",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "adhd_plan",
+      "title": "NICE Guideline NG87 — Attention Deficit Hyperactivity Disorder",
+      "url": "https://www.nice.org.uk/guidance/ng87",
+      "description": "Clinical guideline covering ADHD recognition, management, environmental modifications, and support planning",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "email",
+      "title": "RFC 5322 – Internet Message Format",
+      "url": "https://www.rfc-editor.org/rfc/rfc5322",
+      "description": "Official standard for email message structure and headers",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "scaffolded_project_plan",
+      "title": "NICE Guideline NG87 — Attention Deficit Hyperactivity Disorder",
+      "url": "https://www.nice.org.uk/guidance/ng87",
+      "description": "Clinical guideline with environmental modifications and support principles for ADHD",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "scaffolded_action_items",
+      "title": "NICE Guideline NG87 — Attention Deficit Hyperactivity Disorder",
+      "url": "https://www.nice.org.uk/guidance/ng87",
+      "description": "Clinical guideline with support and environmental-modification principles for ADHD",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "project_plan",
+      "title": "Agile Manifesto & Principles",
+      "url": "https://agilemanifesto.org/principles.html",
+      "description": "Core principles of agile project management",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "notes",
+      "title": "Purdue OWL — Paraphrase and Summary",
+      "url": "https://owl.purdue.edu/owl/research_and_citation/using_research/quoting_paraphrasing_and_summarizing/paraphrasing.html",
+      "description": "Guidance on condensing source material without losing meaning",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "requirements",
+      "title": "User Stories – Mountain Goat Software",
+      "url": "https://www.mountaingoatsoftware.com/agile/user-stories",
+      "description": "Writing effective user stories with acceptance criteria",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "rubric",
+      "title": "Carnegie Mellon Eberly Center — Creating and Using Rubrics",
+      "url": "https://www.cmu.edu/teaching/designteach/teach/rubrics.html",
+      "description": "Practical guidance on when to use analytic vs holistic rubrics and how to write descriptors",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "spreadsheet",
+      "title": "Excel Functions Reference",
+      "url": "https://support.microsoft.com/en-us/office/excel-functions-alphabetical-b3944572-255d-4efb-bb96-c6d90033e188",
+      "description": "Microsoft's complete list of Excel formulas and functions",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "ocia_planning",
+      "title": "Estatutos Nacionales para la Iniciación Cristiana de Adultos (RICA)",
+      "url": "https://www.usccb.org/resources/USCCB%20ENICA%20Canon%208%20Promulgated%20Spanish%20Translation%20FINAL%2004252024.pdf",
+      "description": "Estados nacionales oficiales de la USCCB en español que implementan el Ritual de la Iniciación Cristiana de Adultos: evangelización, catecumenado, elección, escrutinios y mistagogia.",
+      "category": "liturgy",
+      "display_order": 2
+    },
+    {
+      "type_key": "github_issue",
+      "title": "GitHub Docs - Issue Forms",
+      "url": "https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema",
+      "description": "Official schema and field guidance for collecting reproducible issue reports",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "freelancer_time_log",
+      "title": "Kimai Documentation",
+      "url": "https://www.kimai.org/documentation/",
+      "description": "Operational guidance for projects, activities, durations, rates, and timesheet records",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "quick_research",
+      "title": "Wikipedia – Reliable Sources",
+      "url": "https://en.wikipedia.org/wiki/Wikipedia:Reliable_sources",
+      "description": "Guidelines for evaluating source credibility and reliability",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "reference_list",
+      "title": "Benedictine University — Evaluating Sources: The CRAAP Test",
+      "url": "https://researchguides.ben.edu/source-evaluation",
+      "description": "Structured questions for evaluating the credibility and usefulness of web sources",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "prompt",
+      "title": "Anthropic Prompt Engineering",
+      "url": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview",
+      "description": "Claude-specific prompting techniques and best practices",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "summary",
+      "title": "Plain Language Guidelines",
+      "url": "https://www.plainlanguage.gov/guidelines/",
+      "description": "Best practices for clear, concise, audience-centered summaries",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "study_guide",
+      "title": "The Learning Scientists — Six Strategies for Effective Learning",
+      "url": "https://www.learningscientists.org/downloadable-materials",
+      "description": "Practitioner-friendly summaries and posters of retrieval practice, spaced practice, elaboration, interleaving, concrete examples, and dual coding",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "white_paper",
+      "title": "Purdue OWL — White Papers: Organization and Other Tips",
+      "url": "https://owl.purdue.edu/owl/subject_specific_writing/professional_technical_writing/white_papers/organization_and_other_tips.html",
+      "description": "Canonical white paper organization: summary, background, problem, solution, conclusion, works cited",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "slide_deck",
+      "title": "Purdue OWL — Visual Rhetoric",
+      "url": "https://owl.purdue.edu/owl/general_writing/visual_rhetoric/index.html",
+      "description": "Color theory, purposeful typography, and visual arrangement for presentations",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "academic_research",
+      "title": "MLA Style Center",
+      "url": "https://style.mla.org/",
+      "description": "Modern Language Association style guide for humanities",
+      "category": null,
+      "display_order": 2
+    },
+    {
+      "type_key": "requirements",
+      "title": "INVEST Criteria for User Stories",
+      "url": "https://www.agilealliance.org/glossary/invest/",
+      "description": "Independent, Negotiable, Valuable, Estimable, Small, Testable",
       "category": null,
       "display_order": 3
     },
@@ -3141,42 +3125,10 @@
       "display_order": 3
     },
     {
-      "type_key": "summary",
-      "title": "UNC Writing Center — Summarizing",
-      "url": "https://writingcenter.unc.edu/tips-and-tools/summary-using-it-wisely/",
-      "description": "Writing-center guidance on accurate, useful summaries and main ideas",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "bullet_points",
-      "title": "Microsoft Writing Style Guide",
-      "url": "https://learn.microsoft.com/en-us/style-guide/welcome/",
-      "description": "Plain, consistent writing guidance for technical and product communication",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "outline",
-      "title": "Purdue OWL — Reverse Outlining",
-      "url": "https://owl.purdue.edu/owl/general_writing/the_writing_process/reverse_outlining.html",
-      "description": "Technique for mapping existing content into a logical structure",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "podcast_script",
-      "title": "Podcast Host – Script Templates",
-      "url": "https://www.thepodcasthost.com/planning/podcast-script/",
-      "description": "Practical script templates and structures for different podcast formats",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "video_script",
-      "title": "NPR Training: Storytelling",
-      "url": "https://training.npr.org/",
-      "description": "Editorial guidance for hooks, narrative flow, pacing, and audio-first writing",
+      "type_key": "research_questions",
+      "title": "Purdue OWL — Logic in Argumentative Writing",
+      "url": "https://owl.purdue.edu/owl/general_writing/academic_writing/logic_in_argumentative_writing/index.html",
+      "description": "Logic and reasoning guidance for identifying assumptions, evidence gaps, and fallacies",
       "category": null,
       "display_order": 3
     },
@@ -3189,130 +3141,10 @@
       "display_order": 3
     },
     {
-      "type_key": "general_request",
-      "title": "Merriam-Webster Dictionary",
-      "url": "https://www.merriam-webster.com",
-      "description": "Authoritative definitions, usage, and spelling for word-related asks",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "office_memo",
-      "title": "Grammarly — How to Write a Memo",
-      "url": "https://www.grammarly.com/blog/business-writing/how-to-write-memo",
-      "description": "Practical memo structure: heading, opening statement, context, call to action, discussion, closing",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "todo_list",
-      "title": "SMART Goals Framework",
-      "url": "https://www.mindtools.com/a4wo118/smart-goals",
-      "description": "Criteria for making tasks specific, measurable, achievable, relevant, and time-bound",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "action_items",
-      "title": "GTD — Clarifying Next Actions",
-      "url": "https://gettingthingsdone.com/what-is-gtd/",
-      "description": "Next-action framework for converting open loops into executable tasks",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "calendar_event",
-      "title": "ISO 8601 Date and Time Format",
-      "url": "https://www.iso.org/iso-8601-date-and-time-format.html",
-      "description": "International standard for unambiguous date and time representation",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "adhd_plan",
-      "title": "CHADD — Managing Adult ADHD",
-      "url": "https://chadd.org/for-adults/managing-adult-adhd/",
-      "description": "Practical adult ADHD strategies for planning, structure, routines, and executive-function supports",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "scaffolded_project_plan",
-      "title": "CHADD — Workplace Issues",
-      "url": "https://chadd.org/for-adults/workplace-issues/",
-      "description": "Practical adult ADHD workplace guidance for structure, communication, planning, and accommodations",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "scaffolded_action_items",
-      "title": "CHADD — Managing Adult ADHD",
-      "url": "https://chadd.org/for-adults/managing-adult-adhd/",
-      "description": "Practical adult ADHD strategies for organization, reminders, and executive-function supports",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "project_plan",
-      "title": "Scrum Guide",
-      "url": "https://scrumguides.org/scrum-guide.html",
-      "description": "Official Scrum framework: sprints, roles, ceremonies, artifacts",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "requirements",
-      "title": "INVEST Criteria for User Stories",
-      "url": "https://www.agilealliance.org/glossary/invest/",
-      "description": "Independent, Negotiable, Valuable, Estimable, Small, Testable",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "spreadsheet",
-      "title": "Google Sheets Function List",
-      "url": "https://support.google.com/docs/table/25273",
-      "description": "All available functions in Google Sheets",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "github_issue",
-      "title": "Google Engineering Practices - Bug Reports",
-      "url": "https://google.github.io/eng-practices/review/reviewer/looking-for.html",
-      "description": "Engineering review guidance for correctness, clarity, and testable behavior",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "freelancer_time_log",
-      "title": "Plain Language Guidelines",
-      "url": "https://www.plainlanguage.gov/guidelines/",
-      "description": "Guidance for clear descriptions suitable for invoices and client review",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "quick_research",
-      "title": "CRAAP Test for Source Evaluation",
-      "url": "https://library.csuchico.edu/sites/default/files/craap-test.pdf",
-      "description": "Currency, Relevance, Authority, Accuracy, Purpose framework",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "reference_list",
-      "title": "Carleton University — Evaluating Sources: Use the CRAAP Test",
-      "url": "https://library.carleton.ca/guides/subject/evaluating-sources-use-craap-test",
-      "description": "Applying the CRAAP criteria to decide whether an online source is worth citing",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "prompt",
-      "title": "Chain-of-Thought Prompting",
-      "url": "https://arxiv.org/abs/2201.11903",
-      "description": "Research paper on step-by-step reasoning in language models",
+      "type_key": "video_script",
+      "title": "NPR Training: Storytelling",
+      "url": "https://training.npr.org/",
+      "description": "Editorial guidance for hooks, narrative flow, pacing, and audio-first writing",
       "category": null,
       "display_order": 3
     },
@@ -3325,114 +3157,18 @@
       "display_order": 3
     },
     {
-      "type_key": "slide_deck",
-      "title": "Guy Kawasaki — The 10/20/30 Rule",
-      "url": "https://guykawasaki.com/the_102030_rule/",
-      "description": "Classic presentation guidance: ten slides, twenty minutes, thirty-point type",
+      "type_key": "spreadsheet",
+      "title": "Google Sheets Function List",
+      "url": "https://support.google.com/docs/table/25273",
+      "description": "All available functions in Google Sheets",
       "category": null,
       "display_order": 3
     },
     {
-      "type_key": "academic_research",
-      "title": "Chicago Manual of Style",
-      "url": "https://www.chicagomanualofstyle.org/tools_citationguide.html",
-      "description": "Chicago/Turabian citation quick guide",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "statistics",
-      "title": "UCLA Statistical Consulting Guides",
-      "url": "https://stats.oarc.ucla.edu/other/mult-pkg/whatstat/",
-      "description": "Decision support for selecting appropriate statistical tests by variable type",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "argumentative_essay",
-      "title": "Harvard College Writing Center — Counterargument",
-      "url": "https://writingcenter.fas.harvard.edu/pages/counter-argument",
-      "description": "Guidance on representing opposing views fairly and using rebuttal effectively",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "nonfiction_draft",
-      "title": "Nielsen Norman Group — Writing for the Web",
-      "url": "https://www.nngroup.com/articles/writing-for-the-web/",
-      "description": "Research-backed guidance for scannable prose, headings, and web readability",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "course_syllabus",
-      "title": "Quality Matters – Course Design Standards",
-      "url": "https://www.qualitymatters.org/qa-resources/rubric-standards/higher-ed-rubric/eighth-edition-specific-review-standards",
-      "description": "Widely used standards for aligning objectives, assessments, materials, and learner support",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "lesson_plan",
-      "title": "EEF Teaching and Learning Toolkit",
-      "url": "https://educationendowmentfoundation.org.uk/education-evidence/teaching-learning-toolkit",
-      "description": "Research summaries on instructional approaches and impact in classrooms",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "essay_explainer",
-      "title": "UNC Writing Center — Reading to Write",
-      "url": "https://writingcenter.unc.edu/tips-and-tools/reading-to-write/",
-      "description": "Strategies for understanding and responding to academic texts",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "bibliography",
-      "title": "Chicago Manual of Style",
-      "url": "https://www.chicagomanualofstyle.org/tools_citationguide.html",
-      "description": "Chicago/Turabian citation quick guide",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "research_questions",
-      "title": "Purdue OWL — Logic in Argumentative Writing",
-      "url": "https://owl.purdue.edu/owl/general_writing/academic_writing/logic_in_argumentative_writing/index.html",
-      "description": "Logic and reasoning guidance for identifying assumptions, evidence gaps, and fallacies",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "quiz",
-      "title": "NBME Item-Writing Guide",
-      "url": "https://www.nbme.org/sites/default/files/2020-11/NBME_Item%20Writing%20Guide_2020.pdf",
-      "description": "Practical rules for writing clear multiple-choice stems and plausible distractors",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "rubric",
-      "title": "Susan Brookhart — How to Create and Use Rubrics",
-      "url": "https://www.ascd.org/books/how-to-create-and-use-rubrics-for-formative-assessment-and-grading",
-      "description": "ASCD reference on rubric design as formative and summative assessment",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "flashcards",
-      "title": "Twenty Rules of Formulating Knowledge (Wozniak)",
-      "url": "https://super-memory.com/articles/20rules.htm",
-      "description": "The canonical guide to writing flashcards that work with spaced repetition",
-      "category": null,
-      "display_order": 3
-    },
-    {
-      "type_key": "discussion_questions",
-      "title": "Brookfield & Preskill — Discussion as a Way of Teaching",
-      "url": "https://www.wiley.com/en-us/Discussion+as+a+Way+of+Teaching%3A+Tools+and+Techniques+for+Democratic+Classrooms%2C+2nd+Edition-p-9780787978082",
-      "description": "The reference text on structuring classroom discussion for learning",
+      "type_key": "summary",
+      "title": "UNC Writing Center — Summarizing",
+      "url": "https://writingcenter.unc.edu/tips-and-tools/summary-using-it-wisely/",
+      "description": "Writing-center guidance on accurate, useful summaries and main ideas",
       "category": null,
       "display_order": 3
     },
@@ -3445,242 +3181,282 @@
       "display_order": 3
     },
     {
-      "type_key": "prompt",
-      "title": "Few-Shot Prompting Patterns",
-      "url": "https://www.promptingguide.ai/techniques/fewshot",
-      "description": "Using examples to guide model behavior and output format",
+      "type_key": "email",
+      "title": "Grammarly Email Writing Guide",
+      "url": "https://www.grammarly.com/blog/email-writing-tips/",
+      "description": "Tone, structure, and etiquette for professional emails",
       "category": null,
-      "display_order": 4
+      "display_order": 3
     },
     {
-      "type_key": "flashcards",
-      "title": "Testing Effect (Karpicke & Roediger)",
-      "url": "https://www.science.org/doi/10.1126/science.1152408",
-      "description": "Research base for why active recall — the mechanism flashcards leverage — beats re-reading",
+      "type_key": "nonfiction_draft",
+      "title": "Nielsen Norman Group — Writing for the Web",
+      "url": "https://www.nngroup.com/articles/writing-for-the-web/",
+      "description": "Research-backed guidance for scannable prose, headings, and web readability",
       "category": null,
-      "display_order": 4
+      "display_order": 3
     },
     {
-      "type_key": "blog_post",
-      "title": "Content Marketing Institute",
-      "url": "https://contentmarketinginstitute.com/",
-      "description": "Research-backed strategies for blog content and audience engagement",
+      "type_key": "github_issue",
+      "title": "Google Engineering Practices - Bug Reports",
+      "url": "https://google.github.io/eng-practices/review/reviewer/looking-for.html",
+      "description": "Engineering review guidance for correctness, clarity, and testable behavior",
       "category": null,
-      "display_order": 4
-    },
-    {
-      "type_key": "outline",
-      "title": "Plain Language Guidelines — Organize",
-      "url": "https://www.plainlanguage.gov/guidelines/organize/",
-      "description": "Reader-centered organization principles for headings, order, and grouping",
-      "category": null,
-      "display_order": 4
-    },
-    {
-      "type_key": "academic_research",
-      "title": "IEEE Citation Reference",
-      "url": "https://ieee-dataport.org/sites/default/files/analysis/27/IEEE%20Citation%20Guidelines.pdf",
-      "description": "IEEE numbered citation format for engineering and CS",
-      "category": null,
-      "display_order": 4
-    },
-    {
-      "type_key": "general_request",
-      "title": "USDA FoodData Central",
-      "url": "https://fdc.nal.usda.gov",
-      "description": "USDA nutrient database — authoritative for recipe nutrition and ingredient substitutions",
-      "category": null,
-      "display_order": 4
-    },
-    {
-      "type_key": "linkedin_post",
-      "title": "Hootsuite LinkedIn Guide",
-      "url": "https://blog.hootsuite.com/linkedin-marketing/",
-      "description": "Comprehensive LinkedIn marketing and content creation playbook",
-      "category": null,
-      "display_order": 4
-    },
-    {
-      "type_key": "research_questions",
-      "title": "MindTools — 5 Whys",
-      "url": "https://www.mindtools.com/a3mi00v/5-whys",
-      "description": "Root-cause questioning method for moving from surface issues to underlying causes",
-      "category": null,
-      "display_order": 4
-    },
-    {
-      "type_key": "text_message",
-      "title": "Apple Human Interface Guidelines – Messaging",
-      "url": "https://developer.apple.com/design/human-interface-guidelines/messaging",
-      "description": "Apple's design patterns for message composition and display",
-      "category": null,
-      "display_order": 4
+      "display_order": 3
     },
     {
       "type_key": "podcast_script",
-      "title": "Transom.org – Techniques",
-      "url": "https://transom.org/topics/techniques/",
-      "description": "Public radio production techniques: pacing, editing, conversational flow",
+      "title": "Podcast Host – Script Templates",
+      "url": "https://www.thepodcasthost.com/planning/podcast-script/",
+      "description": "Practical script templates and structures for different podcast formats",
       "category": null,
-      "display_order": 4
-    },
-    {
-      "type_key": "rubric",
-      "title": "Cornell Center for Teaching Innovation — Rubrics",
-      "url": "https://teaching.cornell.edu/teaching-resources/assessment-evaluation/using-rubrics",
-      "description": "Rubric norming and grader-calibration guidance",
-      "category": null,
-      "display_order": 4
+      "display_order": 3
     },
     {
       "type_key": "quiz",
-      "title": "Purdue OWL — Writing Multiple-Choice Questions",
-      "url": "https://owl.purdue.edu/owl/teacher_and_tutor_resources/graduate_writing/graduate_writing_for_students_writing_studies_teaching_assistants/writing_multiple_choice_questions.html",
-      "description": "Writing centre guide for multiple-choice item design",
+      "title": "NBME Item-Writing Guide",
+      "url": "https://www.nbme.org/sites/default/files/2020-11/NBME_Item%20Writing%20Guide_2020.pdf",
+      "description": "Practical rules for writing clear multiple-choice stems and plausible distractors",
       "category": null,
-      "display_order": 4
+      "display_order": 3
+    },
+    {
+      "type_key": "freelancer_time_log",
+      "title": "Plain Language Guidelines",
+      "url": "https://www.plainlanguage.gov/guidelines/",
+      "description": "Guidance for clear descriptions suitable for invoices and client review",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "blog_post",
+      "title": "Yoast SEO Blog",
+      "url": "https://yoast.com/seo-blog/",
+      "description": "Practical SEO writing tips: structure, keywords, meta descriptions",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "slide_deck",
+      "title": "Guy Kawasaki — The 10/20/30 Rule",
+      "url": "https://guykawasaki.com/the_102030_rule/",
+      "description": "Classic presentation guidance: ten slides, twenty minutes, thirty-point type",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "quick_research",
+      "title": "CRAAP Test for Source Evaluation",
+      "url": "https://library.csuchico.edu/sites/default/files/craap-test.pdf",
+      "description": "Currency, Relevance, Authority, Accuracy, Purpose framework",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "outline",
+      "title": "Purdue OWL — Reverse Outlining",
+      "url": "https://owl.purdue.edu/owl/general_writing/the_writing_process/reverse_outlining.html",
+      "description": "Technique for mapping existing content into a logical structure",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "study_guide",
+      "title": "Make It Stick — Book Companion Site",
+      "url": "https://www.retrievalpractice.org/make-it-stick/",
+      "description": "Curated companion to Brown, Roediger & McDaniel's synthesis of retrieval-based learning",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "essay_explainer",
+      "title": "UNC Writing Center — Reading to Write",
+      "url": "https://writingcenter.unc.edu/tips-and-tools/reading-to-write/",
+      "description": "Strategies for understanding and responding to academic texts",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "bullet_points",
+      "title": "Microsoft Writing Style Guide",
+      "url": "https://learn.microsoft.com/en-us/style-guide/welcome/",
+      "description": "Plain, consistent writing guidance for technical and product communication",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "reference_list",
+      "title": "Carleton University — Evaluating Sources: Use the CRAAP Test",
+      "url": "https://library.carleton.ca/guides/subject/evaluating-sources-use-craap-test",
+      "description": "Applying the CRAAP criteria to decide whether an online source is worth citing",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "linkedin_post",
+      "title": "Buffer – LinkedIn Strategy",
+      "url": "https://buffer.com/library/linkedin-marketing/",
+      "description": "Data-backed LinkedIn posting strategies, timing, and engagement tactics",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "lesson_plan",
+      "title": "EEF Teaching and Learning Toolkit",
+      "url": "https://educationendowmentfoundation.org.uk/education-evidence/teaching-learning-toolkit",
+      "description": "Research summaries on instructional approaches and impact in classrooms",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "adhd_plan",
+      "title": "CHADD — Managing Adult ADHD",
+      "url": "https://chadd.org/for-adults/managing-adult-adhd/",
+      "description": "Practical adult ADHD strategies for planning, structure, routines, and executive-function supports",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "argumentative_essay",
+      "title": "Harvard College Writing Center — Counterargument",
+      "url": "https://writingcenter.fas.harvard.edu/pages/counter-argument",
+      "description": "Guidance on representing opposing views fairly and using rebuttal effectively",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "calendar_event",
+      "title": "ISO 8601 Date and Time Format",
+      "url": "https://www.iso.org/iso-8601-date-and-time-format.html",
+      "description": "International standard for unambiguous date and time representation",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "prompt",
+      "title": "Chain-of-Thought Prompting",
+      "url": "https://arxiv.org/abs/2201.11903",
+      "description": "Research paper on step-by-step reasoning in language models",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "scaffolded_project_plan",
+      "title": "CHADD — Workplace Issues",
+      "url": "https://chadd.org/for-adults/workplace-issues/",
+      "description": "Practical adult ADHD workplace guidance for structure, communication, planning, and accommodations",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "action_items",
+      "title": "GTD — Clarifying Next Actions",
+      "url": "https://gettingthingsdone.com/what-is-gtd/",
+      "description": "Next-action framework for converting open loops into executable tasks",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "todo_list",
+      "title": "SMART Goals Framework",
+      "url": "https://www.mindtools.com/a4wo118/smart-goals",
+      "description": "Criteria for making tasks specific, measurable, achievable, relevant, and time-bound",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "statistics",
+      "title": "UCLA Statistical Consulting Guides",
+      "url": "https://stats.oarc.ucla.edu/other/mult-pkg/whatstat/",
+      "description": "Decision support for selecting appropriate statistical tests by variable type",
+      "category": null,
+      "display_order": 3
     },
     {
       "type_key": "scaffolded_action_items",
-      "title": "GTD — Natural Planning Model",
-      "url": "https://gettingthingsdone.com/what-is-gtd/",
-      "description": "Task-capture and next-action framework useful for reducing open loops and clarifying executable actions",
+      "title": "CHADD — Managing Adult ADHD",
+      "url": "https://chadd.org/for-adults/managing-adult-adhd/",
+      "description": "Practical adult ADHD strategies for organization, reminders, and executive-function supports",
       "category": null,
-      "display_order": 4
+      "display_order": 3
+    },
+    {
+      "type_key": "office_memo",
+      "title": "Grammarly — How to Write a Memo",
+      "url": "https://www.grammarly.com/blog/business-writing/how-to-write-memo",
+      "description": "Practical memo structure: heading, opening statement, context, call to action, discussion, closing",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "flashcards",
+      "title": "Twenty Rules of Formulating Knowledge (Wozniak)",
+      "url": "https://super-memory.com/articles/20rules.htm",
+      "description": "The canonical guide to writing flashcards that work with spaced repetition",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "academic_research",
+      "title": "Chicago Manual of Style",
+      "url": "https://www.chicagomanualofstyle.org/tools_citationguide.html",
+      "description": "Chicago/Turabian citation quick guide",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "project_plan",
+      "title": "Scrum Guide",
+      "url": "https://scrumguides.org/scrum-guide.html",
+      "description": "Official Scrum framework: sprints, roles, ceremonies, artifacts",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "course_syllabus",
+      "title": "Quality Matters – Course Design Standards",
+      "url": "https://www.qualitymatters.org/qa-resources/rubric-standards/higher-ed-rubric/eighth-edition-specific-review-standards",
+      "description": "Widely used standards for aligning objectives, assessments, materials, and learner support",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "discussion_questions",
+      "title": "Brookfield & Preskill — Discussion as a Way of Teaching",
+      "url": "https://www.wiley.com/en-us/Discussion+as+a+Way+of+Teaching%3A+Tools+and+Techniques+for+Democratic+Classrooms%2C+2nd+Edition-p-9780787978082",
+      "description": "The reference text on structuring classroom discussion for learning",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "rubric",
+      "title": "Susan Brookhart — How to Create and Use Rubrics",
+      "url": "https://www.ascd.org/books/how-to-create-and-use-rubrics-for-formative-assessment-and-grading",
+      "description": "ASCD reference on rubric design as formative and summative assessment",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "general_request",
+      "title": "Merriam-Webster Dictionary",
+      "url": "https://www.merriam-webster.com",
+      "description": "Authoritative definitions, usage, and spelling for word-related asks",
+      "category": null,
+      "display_order": 3
+    },
+    {
+      "type_key": "bibliography",
+      "title": "Chicago Manual of Style",
+      "url": "https://www.chicagomanualofstyle.org/tools_citationguide.html",
+      "description": "Chicago/Turabian citation quick guide",
+      "category": null,
+      "display_order": 3
     },
     {
       "type_key": "study_guide",
       "title": "CAST — Universal Design for Learning Guidelines",
       "url": "https://udlguidelines.cast.org/",
       "description": "UDL principles for study materials that work across neurodivergent learners",
-      "category": null,
-      "display_order": 4
-    },
-    {
-      "type_key": "scaffolded_project_plan",
-      "title": "PMI — Work Breakdown Structure",
-      "url": "https://www.pmi.org/learning/library/work-breakdown-structure-practice-standard-7361",
-      "description": "Project-management guidance for decomposing project work into manageable deliverables",
-      "category": null,
-      "display_order": 4
-    },
-    {
-      "type_key": "statistics",
-      "title": "Purdue OWL – Statistics in Writing",
-      "url": "https://owl.purdue.edu/owl/general_writing/common_writing_assignments/argument_papers/statistics.html",
-      "description": "Guidance for presenting and interpreting statistics clearly in written reports",
-      "category": null,
-      "display_order": 4
-    },
-    {
-      "type_key": "nonfiction_draft",
-      "title": "Purdue OWL — Creative Nonfiction",
-      "url": "https://owl.purdue.edu/owl/subject_specific_writing/creative_writing/creative_nonfiction/index.html",
-      "description": "Guidance on fact-based storytelling, scene, reflection, and narrative structure",
-      "category": null,
-      "display_order": 4
-    },
-    {
-      "type_key": "requirements",
-      "title": "Requirements Engineering – Volere",
-      "url": "https://www.volere.org/templates/volere-requirements-specification-template/",
-      "description": "Comprehensive requirements specification template and process",
-      "category": null,
-      "display_order": 4
-    },
-    {
-      "type_key": "adhd_plan",
-      "title": "APA — Attention-Deficit/Hyperactivity Disorder",
-      "url": "https://www.apa.org/topics/adhd",
-      "description": "Psychology-backed ADHD overview emphasizing evidence-based support and treatment approaches",
-      "category": null,
-      "display_order": 4
-    },
-    {
-      "type_key": "calendar_event",
-      "title": "IANA Time Zone Database",
-      "url": "https://www.iana.org/time-zones",
-      "description": "Canonical time zone names and daylight-saving-time handling for scheduling",
-      "category": null,
-      "display_order": 4
-    },
-    {
-      "type_key": "notes",
-      "title": "Microsoft Writing Style Guide",
-      "url": "https://learn.microsoft.com/en-us/style-guide/welcome/",
-      "description": "Style guidance for concise headings, lists, and reusable reference content",
-      "category": null,
-      "display_order": 4
-    },
-    {
-      "type_key": "course_syllabus",
-      "title": "CAST Universal Design for Learning Guidelines",
-      "url": "https://udlguidelines.cast.org/",
-      "description": "Accessibility and inclusive-design framework for course materials, participation, and assessment",
-      "category": null,
-      "display_order": 4
-    },
-    {
-      "type_key": "slide_deck",
-      "title": "Nielsen Norman Group — F-Shaped Pattern",
-      "url": "https://www.nngroup.com/articles/f-shaped-pattern-reading-web-content/",
-      "description": "How readers scan content — supports short, front-loaded slide bullets",
-      "category": null,
-      "display_order": 4
-    },
-    {
-      "type_key": "action_items",
-      "title": "SMART Goals Framework",
-      "url": "https://www.mindtools.com/a4wo118/smart-goals",
-      "description": "Criteria for making commitments specific, measurable, achievable, relevant, and time-bound",
-      "category": null,
-      "display_order": 4
-    },
-    {
-      "type_key": "office_memo",
-      "title": "Indeed — Memo Writing Guide",
-      "url": "https://www.indeed.com/career-advice/career-development/memo-writing-guide",
-      "description": "Step-by-step memo guide covering headers, tone, subject lines, and timing",
-      "category": null,
-      "display_order": 4
-    },
-    {
-      "type_key": "summary",
-      "title": "Nielsen Norman Group — F-Shaped Pattern",
-      "url": "https://www.nngroup.com/articles/f-shaped-pattern-reading-web-content/",
-      "description": "UX research on how readers scan content and why summaries should front-load key information",
-      "category": null,
-      "display_order": 4
-    },
-    {
-      "type_key": "lesson_plan",
-      "title": "NICE SEND Classroom Practice",
-      "url": "https://www.nice.org.uk/guidance/ng87",
-      "description": "Evidence-informed recommendations for supporting children and young people with neurodevelopmental differences",
-      "category": null,
-      "display_order": 4
-    },
-    {
-      "type_key": "project_plan",
-      "title": "Gantt Chart Best Practices",
-      "url": "https://www.teamgantt.com/guide-to-project-management/how-to-plan-a-project",
-      "description": "Visual project timeline planning and milestone tracking",
-      "category": null,
-      "display_order": 4
-    },
-    {
-      "type_key": "bullet_points",
-      "title": "Purdue OWL — Conciseness",
-      "url": "https://owl.purdue.edu/owl/general_writing/academic_writing/conciseness.html",
-      "description": "Guidance for removing wordiness while preserving meaning",
-      "category": null,
-      "display_order": 4
-    },
-    {
-      "type_key": "spreadsheet",
-      "title": "Data Organization Best Practices",
-      "url": "https://www.tandfonline.com/doi/full/10.1080/00031305.2017.1375989",
-      "description": "Peer-reviewed paper on organizing data in spreadsheets",
       "category": null,
       "display_order": 4
     },
@@ -3693,26 +3469,146 @@
       "display_order": 4
     },
     {
-      "type_key": "essay_explainer",
-      "title": "CAST Universal Design for Learning Guidelines",
-      "url": "https://udlguidelines.cast.org/",
-      "description": "Inclusive design guidance for predictable structure, multiple representations, and learner supports",
+      "type_key": "blog_post",
+      "title": "Content Marketing Institute",
+      "url": "https://contentmarketinginstitute.com/",
+      "description": "Research-backed strategies for blog content and audience engagement",
       "category": null,
       "display_order": 4
     },
     {
-      "type_key": "discussion_questions",
-      "title": "Cornell CTI — Discussion in the Classroom",
-      "url": "https://teaching.cornell.edu/teaching-resources/active-collaborative-learning/leading-effective-discussions",
-      "description": "Practical facilitation techniques for whole-group and small-group discussion",
+      "type_key": "linkedin_post",
+      "title": "Hootsuite LinkedIn Guide",
+      "url": "https://blog.hootsuite.com/linkedin-marketing/",
+      "description": "Comprehensive LinkedIn marketing and content creation playbook",
       "category": null,
       "display_order": 4
     },
     {
-      "type_key": "white_paper",
-      "title": "Wikipedia — White Paper",
-      "url": "https://en.wikipedia.org/wiki/White_paper",
-      "description": "History and definition of the white paper as an authoritative, informative report",
+      "type_key": "notes",
+      "title": "Microsoft Writing Style Guide",
+      "url": "https://learn.microsoft.com/en-us/style-guide/welcome/",
+      "description": "Style guidance for concise headings, lists, and reusable reference content",
+      "category": null,
+      "display_order": 4
+    },
+    {
+      "type_key": "summary",
+      "title": "Nielsen Norman Group — F-Shaped Pattern",
+      "url": "https://www.nngroup.com/articles/f-shaped-pattern-reading-web-content/",
+      "description": "UX research on how readers scan content and why summaries should front-load key information",
+      "category": null,
+      "display_order": 4
+    },
+    {
+      "type_key": "bullet_points",
+      "title": "Purdue OWL — Conciseness",
+      "url": "https://owl.purdue.edu/owl/general_writing/academic_writing/conciseness.html",
+      "description": "Guidance for removing wordiness while preserving meaning",
+      "category": null,
+      "display_order": 4
+    },
+    {
+      "type_key": "outline",
+      "title": "Plain Language Guidelines — Organize",
+      "url": "https://www.plainlanguage.gov/guidelines/organize/",
+      "description": "Reader-centered organization principles for headings, order, and grouping",
+      "category": null,
+      "display_order": 4
+    },
+    {
+      "type_key": "podcast_script",
+      "title": "Transom.org – Techniques",
+      "url": "https://transom.org/topics/techniques/",
+      "description": "Public radio production techniques: pacing, editing, conversational flow",
+      "category": null,
+      "display_order": 4
+    },
+    {
+      "type_key": "text_message",
+      "title": "Apple Human Interface Guidelines – Messaging",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/messaging",
+      "description": "Apple's design patterns for message composition and display",
+      "category": null,
+      "display_order": 4
+    },
+    {
+      "type_key": "general_request",
+      "title": "USDA FoodData Central",
+      "url": "https://fdc.nal.usda.gov",
+      "description": "USDA nutrient database — authoritative for recipe nutrition and ingredient substitutions",
+      "category": null,
+      "display_order": 4
+    },
+    {
+      "type_key": "office_memo",
+      "title": "Indeed — Memo Writing Guide",
+      "url": "https://www.indeed.com/career-advice/career-development/memo-writing-guide",
+      "description": "Step-by-step memo guide covering headers, tone, subject lines, and timing",
+      "category": null,
+      "display_order": 4
+    },
+    {
+      "type_key": "action_items",
+      "title": "SMART Goals Framework",
+      "url": "https://www.mindtools.com/a4wo118/smart-goals",
+      "description": "Criteria for making commitments specific, measurable, achievable, relevant, and time-bound",
+      "category": null,
+      "display_order": 4
+    },
+    {
+      "type_key": "calendar_event",
+      "title": "IANA Time Zone Database",
+      "url": "https://www.iana.org/time-zones",
+      "description": "Canonical time zone names and daylight-saving-time handling for scheduling",
+      "category": null,
+      "display_order": 4
+    },
+    {
+      "type_key": "adhd_plan",
+      "title": "APA — Attention-Deficit/Hyperactivity Disorder",
+      "url": "https://www.apa.org/topics/adhd",
+      "description": "Psychology-backed ADHD overview emphasizing evidence-based support and treatment approaches",
+      "category": null,
+      "display_order": 4
+    },
+    {
+      "type_key": "scaffolded_project_plan",
+      "title": "PMI — Work Breakdown Structure",
+      "url": "https://www.pmi.org/learning/library/work-breakdown-structure-practice-standard-7361",
+      "description": "Project-management guidance for decomposing project work into manageable deliverables",
+      "category": null,
+      "display_order": 4
+    },
+    {
+      "type_key": "scaffolded_action_items",
+      "title": "GTD — Natural Planning Model",
+      "url": "https://gettingthingsdone.com/what-is-gtd/",
+      "description": "Task-capture and next-action framework useful for reducing open loops and clarifying executable actions",
+      "category": null,
+      "display_order": 4
+    },
+    {
+      "type_key": "project_plan",
+      "title": "Gantt Chart Best Practices",
+      "url": "https://www.teamgantt.com/guide-to-project-management/how-to-plan-a-project",
+      "description": "Visual project timeline planning and milestone tracking",
+      "category": null,
+      "display_order": 4
+    },
+    {
+      "type_key": "requirements",
+      "title": "Requirements Engineering – Volere",
+      "url": "https://www.volere.org/templates/volere-requirements-specification-template/",
+      "description": "Comprehensive requirements specification template and process",
+      "category": null,
+      "display_order": 4
+    },
+    {
+      "type_key": "spreadsheet",
+      "title": "Data Organization Best Practices",
+      "url": "https://www.tandfonline.com/doi/full/10.1080/00031305.2017.1375989",
+      "description": "Peer-reviewed paper on organizing data in spreadsheets",
       "category": null,
       "display_order": 4
     },
@@ -3725,18 +3621,42 @@
       "display_order": 4
     },
     {
-      "type_key": "christian_prayer",
-      "title": "The Way of Perfection — St. Teresa of Avila",
-      "url": "https://www.ccel.org/ccel/teresa/way.html",
-      "description": "St. Teresa's foundational handbook on mental prayer, humility, and the Our Father",
-      "category": "carmelite",
+      "type_key": "prompt",
+      "title": "Few-Shot Prompting Patterns",
+      "url": "https://www.promptingguide.ai/techniques/fewshot",
+      "description": "Using examples to guide model behavior and output format",
+      "category": null,
       "display_order": 4
     },
     {
-      "type_key": "bibliography",
+      "type_key": "white_paper",
+      "title": "Wikipedia — White Paper",
+      "url": "https://en.wikipedia.org/wiki/White_paper",
+      "description": "History and definition of the white paper as an authoritative, informative report",
+      "category": null,
+      "display_order": 4
+    },
+    {
+      "type_key": "slide_deck",
+      "title": "Nielsen Norman Group — F-Shaped Pattern",
+      "url": "https://www.nngroup.com/articles/f-shaped-pattern-reading-web-content/",
+      "description": "How readers scan content — supports short, front-loaded slide bullets",
+      "category": null,
+      "display_order": 4
+    },
+    {
+      "type_key": "academic_research",
       "title": "IEEE Citation Reference",
       "url": "https://ieee-dataport.org/sites/default/files/analysis/27/IEEE%20Citation%20Guidelines.pdf",
       "description": "IEEE numbered citation format for engineering and CS",
+      "category": null,
+      "display_order": 4
+    },
+    {
+      "type_key": "statistics",
+      "title": "Purdue OWL – Statistics in Writing",
+      "url": "https://owl.purdue.edu/owl/general_writing/common_writing_assignments/argument_papers/statistics.html",
+      "description": "Guidance for presenting and interpreting statistics clearly in written reports",
       "category": null,
       "display_order": 4
     },
@@ -3749,124 +3669,92 @@
       "display_order": 4
     },
     {
-      "type_key": "academic_research",
-      "title": "Purdue OWL",
-      "url": "https://owl.purdue.edu/owl/",
-      "description": "Writing lab with guides for APA, MLA, Chicago, and academic writing",
-      "category": null,
-      "display_order": 5
-    },
-    {
-      "type_key": "email",
-      "title": "Email Etiquette – Indeed Career Guide",
-      "url": "https://www.indeed.com/career-advice/career-development/email-etiquette",
-      "description": "Professional email conventions: subject lines, greetings, closings",
-      "category": null,
-      "display_order": 5
-    },
-    {
-      "type_key": "statistics",
-      "title": "GraphPad Statistics Guide",
-      "url": "https://www.graphpad.com/guides/prism/latest/statistics/index.htm",
-      "description": "Practical reference for hypothesis testing, p-values, confidence intervals, and effect sizes",
-      "category": null,
-      "display_order": 5
-    },
-    {
-      "type_key": "project_plan",
-      "title": "Work Breakdown Structure Guide",
-      "url": "https://www.workbreakdownstructure.com/",
-      "description": "Decomposing projects into manageable deliverables and tasks",
-      "category": null,
-      "display_order": 5
-    },
-    {
-      "type_key": "argumentative_essay",
-      "title": "Google Scholar",
-      "url": "https://scholar.google.com/",
-      "description": "Academic search engine for locating scholarly articles and primary research sources",
-      "category": null,
-      "display_order": 5
-    },
-    {
-      "type_key": "discussion_questions",
-      "title": "Harvard Bok Center — Facilitating Discussion",
-      "url": "https://bokcenter.harvard.edu/discussion",
-      "description": "Harvard's teaching centre guide to preparing discussion questions and opening prompts",
-      "category": null,
-      "display_order": 5
-    },
-    {
       "type_key": "nonfiction_draft",
-      "title": "Purdue OWL — Evaluating Sources",
-      "url": "https://owl.purdue.edu/owl/research_and_citation/conducting_research/evaluating_sources_of_information/index.html",
-      "description": "Source-quality framework for credible nonfiction claims",
+      "title": "Purdue OWL — Creative Nonfiction",
+      "url": "https://owl.purdue.edu/owl/subject_specific_writing/creative_writing/creative_nonfiction/index.html",
+      "description": "Guidance on fact-based storytelling, scene, reflection, and narrative structure",
       "category": null,
-      "display_order": 5
+      "display_order": 4
     },
     {
       "type_key": "course_syllabus",
-      "title": "Bloom's Taxonomy Verb Chart",
-      "url": "https://cft.vanderbilt.edu/guides-sub-pages/blooms-taxonomy/",
-      "description": "Reference for writing measurable learning outcomes with appropriate action verbs",
+      "title": "CAST Universal Design for Learning Guidelines",
+      "url": "https://udlguidelines.cast.org/",
+      "description": "Accessibility and inclusive-design framework for course materials, participation, and assessment",
       "category": null,
-      "display_order": 5
-    },
-    {
-      "type_key": "linkedin_post",
-      "title": "LinkedIn Engineering Blog",
-      "url": "https://engineering.linkedin.com/blog",
-      "description": "Technical insights from LinkedIn's own engineering and data teams",
-      "category": null,
-      "display_order": 5
+      "display_order": 4
     },
     {
       "type_key": "lesson_plan",
-      "title": "IRIS Center: Differentiated Instruction",
-      "url": "https://iris.peabody.vanderbilt.edu/module/di/",
-      "description": "Practical, research-aligned guidance for planning differentiated and accessible instruction",
+      "title": "NICE SEND Classroom Practice",
+      "url": "https://www.nice.org.uk/guidance/ng87",
+      "description": "Evidence-informed recommendations for supporting children and young people with neurodevelopmental differences",
       "category": null,
-      "display_order": 5
+      "display_order": 4
     },
     {
       "type_key": "essay_explainer",
-      "title": "Purdue OWL — Logic in Argumentative Writing",
-      "url": "https://owl.purdue.edu/owl/general_writing/academic_writing/logic_in_argumentative_writing/index.html",
-      "description": "Guide to premises, conclusions, assumptions, and logical fallacies",
+      "title": "CAST Universal Design for Learning Guidelines",
+      "url": "https://udlguidelines.cast.org/",
+      "description": "Inclusive design guidance for predictable structure, multiple representations, and learner supports",
       "category": null,
-      "display_order": 5
+      "display_order": 4
     },
     {
       "type_key": "bibliography",
-      "title": "Purdue OWL – Research and Citation",
-      "url": "https://owl.purdue.edu/owl/research_and_citation/resources.html",
-      "description": "Comprehensive citation guides for APA, MLA, Chicago, and more",
+      "title": "IEEE Citation Reference",
+      "url": "https://ieee-dataport.org/sites/default/files/analysis/27/IEEE%20Citation%20Guidelines.pdf",
+      "description": "IEEE numbered citation format for engineering and CS",
       "category": null,
-      "display_order": 5
+      "display_order": 4
     },
     {
-      "type_key": "general_request",
-      "title": "How-To Geek",
-      "url": "https://www.howtogeek.com",
-      "description": "Practical, tested explanations of how consumer technology and software work",
+      "type_key": "research_questions",
+      "title": "MindTools — 5 Whys",
+      "url": "https://www.mindtools.com/a3mi00v/5-whys",
+      "description": "Root-cause questioning method for moving from surface issues to underlying causes",
       "category": null,
-      "display_order": 5
+      "display_order": 4
     },
     {
       "type_key": "quiz",
-      "title": "Center for Teaching Innovation — Assessing Student Learning",
-      "url": "https://teaching.cornell.edu/teaching-resources/assessment-evaluation/measuring-student-learning",
-      "description": "Cornell CTI overview of aligning assessment format with learning objectives",
+      "title": "Purdue OWL — Writing Multiple-Choice Questions",
+      "url": "https://owl.purdue.edu/owl/teacher_and_tutor_resources/graduate_writing/graduate_writing_for_students_writing_studies_teaching_assistants/writing_multiple_choice_questions.html",
+      "description": "Writing centre guide for multiple-choice item design",
       "category": null,
-      "display_order": 5
+      "display_order": 4
     },
     {
-      "type_key": "study_guide",
-      "title": "Purdue OWL — Study Skills",
-      "url": "https://owl.purdue.edu/owl/general_writing/general_writing_introduction/index.html",
-      "description": "Writing lab resources on active reading, note-taking, and study preparation",
+      "type_key": "rubric",
+      "title": "Cornell Center for Teaching Innovation — Rubrics",
+      "url": "https://teaching.cornell.edu/teaching-resources/assessment-evaluation/using-rubrics",
+      "description": "Rubric norming and grader-calibration guidance",
       "category": null,
-      "display_order": 5
+      "display_order": 4
+    },
+    {
+      "type_key": "flashcards",
+      "title": "Testing Effect (Karpicke & Roediger)",
+      "url": "https://www.science.org/doi/10.1126/science.1152408",
+      "description": "Research base for why active recall — the mechanism flashcards leverage — beats re-reading",
+      "category": null,
+      "display_order": 4
+    },
+    {
+      "type_key": "discussion_questions",
+      "title": "Cornell CTI — Discussion in the Classroom",
+      "url": "https://teaching.cornell.edu/teaching-resources/active-collaborative-learning/leading-effective-discussions",
+      "description": "Practical facilitation techniques for whole-group and small-group discussion",
+      "category": null,
+      "display_order": 4
+    },
+    {
+      "type_key": "christian_prayer",
+      "title": "The Way of Perfection — St. Teresa of Avila",
+      "url": "https://www.ccel.org/ccel/teresa/way.html",
+      "description": "St. Teresa's foundational handbook on mental prayer, humility, and the Our Father",
+      "category": "carmelite",
+      "display_order": 4
     },
     {
       "type_key": "podcast_script",
@@ -3877,18 +3765,18 @@
       "display_order": 5
     },
     {
-      "type_key": "blog_post",
-      "title": "Grammarly Writing Guidelines",
-      "url": "https://www.grammarly.com/blog/writing-tips/",
-      "description": "Grammar, tone, and clarity tips for web writing",
+      "type_key": "academic_research",
+      "title": "Purdue OWL",
+      "url": "https://owl.purdue.edu/owl/",
+      "description": "Writing lab with guides for APA, MLA, Chicago, and academic writing",
       "category": null,
       "display_order": 5
     },
     {
-      "type_key": "rubric",
-      "title": "Purdue OWL — Creating Rubrics",
-      "url": "https://owl.purdue.edu/owl/teacher_and_tutor_resources/graduate_writing/graduate_writing_for_students_writing_studies_teaching_assistants/creating_rubrics.html",
-      "description": "Writing-centre guide to translating expectations into observable criteria",
+      "type_key": "quiz",
+      "title": "Center for Teaching Innovation — Assessing Student Learning",
+      "url": "https://teaching.cornell.edu/teaching-resources/assessment-evaluation/measuring-student-learning",
+      "description": "Cornell CTI overview of aligning assessment format with learning objectives",
       "category": null,
       "display_order": 5
     },
@@ -3909,18 +3797,18 @@
       "display_order": 5
     },
     {
-      "type_key": "flashcards",
-      "title": "RFC 4180 — Common Format for CSV Files",
-      "url": "https://datatracker.ietf.org/doc/html/rfc4180",
-      "description": "The CSV specification the output must conform to for reliable import",
-      "category": null,
-      "display_order": 5
-    },
-    {
       "type_key": "spreadsheet",
       "title": "ISO 8601 – Date/Time Format",
       "url": "https://www.iso.org/iso-8601-date-and-time-format.html",
       "description": "International standard for consistent date and time representation",
+      "category": null,
+      "display_order": 5
+    },
+    {
+      "type_key": "study_guide",
+      "title": "Purdue OWL — Study Skills",
+      "url": "https://owl.purdue.edu/owl/general_writing/general_writing_introduction/index.html",
+      "description": "Writing lab resources on active reading, note-taking, and study preparation",
       "category": null,
       "display_order": 5
     },
@@ -3933,18 +3821,154 @@
       "display_order": 5
     },
     {
+      "type_key": "linkedin_post",
+      "title": "LinkedIn Engineering Blog",
+      "url": "https://engineering.linkedin.com/blog",
+      "description": "Technical insights from LinkedIn's own engineering and data teams",
+      "category": null,
+      "display_order": 5
+    },
+    {
+      "type_key": "rubric",
+      "title": "Purdue OWL — Creating Rubrics",
+      "url": "https://owl.purdue.edu/owl/teacher_and_tutor_resources/graduate_writing/graduate_writing_for_students_writing_studies_teaching_assistants/creating_rubrics.html",
+      "description": "Writing-centre guide to translating expectations into observable criteria",
+      "category": null,
+      "display_order": 5
+    },
+    {
       "type_key": "project_plan",
-      "title": "SMART Goals Framework",
-      "url": "https://www.mindtools.com/a4wo118/smart-goals",
-      "description": "Setting Specific, Measurable, Achievable, Relevant, Time-bound objectives",
+      "title": "Work Breakdown Structure Guide",
+      "url": "https://www.workbreakdownstructure.com/",
+      "description": "Decomposing projects into manageable deliverables and tasks",
+      "category": null,
+      "display_order": 5
+    },
+    {
+      "type_key": "flashcards",
+      "title": "RFC 4180 — Common Format for CSV Files",
+      "url": "https://datatracker.ietf.org/doc/html/rfc4180",
+      "description": "The CSV specification the output must conform to for reliable import",
+      "category": null,
+      "display_order": 5
+    },
+    {
+      "type_key": "general_request",
+      "title": "How-To Geek",
+      "url": "https://www.howtogeek.com",
+      "description": "Practical, tested explanations of how consumer technology and software work",
+      "category": null,
+      "display_order": 5
+    },
+    {
+      "type_key": "blog_post",
+      "title": "Grammarly Writing Guidelines",
+      "url": "https://www.grammarly.com/blog/writing-tips/",
+      "description": "Grammar, tone, and clarity tips for web writing",
+      "category": null,
+      "display_order": 5
+    },
+    {
+      "type_key": "discussion_questions",
+      "title": "Harvard Bok Center — Facilitating Discussion",
+      "url": "https://bokcenter.harvard.edu/discussion",
+      "description": "Harvard's teaching centre guide to preparing discussion questions and opening prompts",
+      "category": null,
+      "display_order": 5
+    },
+    {
+      "type_key": "email",
+      "title": "Email Etiquette – Indeed Career Guide",
+      "url": "https://www.indeed.com/career-advice/career-development/email-etiquette",
+      "description": "Professional email conventions: subject lines, greetings, closings",
+      "category": null,
+      "display_order": 5
+    },
+    {
+      "type_key": "essay_explainer",
+      "title": "Purdue OWL — Logic in Argumentative Writing",
+      "url": "https://owl.purdue.edu/owl/general_writing/academic_writing/logic_in_argumentative_writing/index.html",
+      "description": "Guide to premises, conclusions, assumptions, and logical fallacies",
+      "category": null,
+      "display_order": 5
+    },
+    {
+      "type_key": "lesson_plan",
+      "title": "IRIS Center: Differentiated Instruction",
+      "url": "https://iris.peabody.vanderbilt.edu/module/di/",
+      "description": "Practical, research-aligned guidance for planning differentiated and accessible instruction",
+      "category": null,
+      "display_order": 5
+    },
+    {
+      "type_key": "course_syllabus",
+      "title": "Bloom's Taxonomy Verb Chart",
+      "url": "https://cft.vanderbilt.edu/guides-sub-pages/blooms-taxonomy/",
+      "description": "Reference for writing measurable learning outcomes with appropriate action verbs",
+      "category": null,
+      "display_order": 5
+    },
+    {
+      "type_key": "nonfiction_draft",
+      "title": "Purdue OWL — Evaluating Sources",
+      "url": "https://owl.purdue.edu/owl/research_and_citation/conducting_research/evaluating_sources_of_information/index.html",
+      "description": "Source-quality framework for credible nonfiction claims",
+      "category": null,
+      "display_order": 5
+    },
+    {
+      "type_key": "bibliography",
+      "title": "Purdue OWL – Research and Citation",
+      "url": "https://owl.purdue.edu/owl/research_and_citation/resources.html",
+      "description": "Comprehensive citation guides for APA, MLA, Chicago, and more",
+      "category": null,
+      "display_order": 5
+    },
+    {
+      "type_key": "argumentative_essay",
+      "title": "Google Scholar",
+      "url": "https://scholar.google.com/",
+      "description": "Academic search engine for locating scholarly articles and primary research sources",
+      "category": null,
+      "display_order": 5
+    },
+    {
+      "type_key": "statistics",
+      "title": "GraphPad Statistics Guide",
+      "url": "https://www.graphpad.com/guides/prism/latest/statistics/index.htm",
+      "description": "Practical reference for hypothesis testing, p-values, confidence intervals, and effect sizes",
+      "category": null,
+      "display_order": 5
+    },
+    {
+      "type_key": "general_request",
+      "title": "Plain Language Guidelines",
+      "url": "https://www.plainlanguage.gov/guidelines/",
+      "description": "Clear-communication guidelines for explanations and how-tos",
       "category": null,
       "display_order": 6
     },
     {
-      "type_key": "podcast_script",
-      "title": "Spotify for Podcasters – Best Practices",
-      "url": "https://podcasters.spotify.com/resources",
-      "description": "Spotify's official guide to podcast creation, episode structure, and audience engagement",
+      "type_key": "requirements",
+      "title": "Acceptance Criteria Guide",
+      "url": "https://www.altexsoft.com/blog/acceptance-criteria-purposes-formats-and-best-practices/",
+      "description": "Writing testable acceptance criteria in Given/When/Then format",
+      "category": null,
+      "display_order": 6
+    },
+    {
+      "type_key": "bibliography",
+      "title": "Purdue OWL – Annotated Bibliographies",
+      "url": "https://owl.purdue.edu/owl/general_writing/common_writing_assignments/annotated_bibliographies/index.html",
+      "description": "Guide to writing annotated bibliographies with examples",
+      "category": null,
+      "display_order": 6
+    },
+    {
+      "type_key": "prompt",
+      "title": "Google Gemini Prompting Guide",
+      "url": "https://ai.google.dev/gemini-api/docs/prompting-intro",
+      "description": "Google's guide to structured prompting for Gemini models",
       "category": null,
       "display_order": 6
     },
@@ -3965,26 +3989,18 @@
       "display_order": 6
     },
     {
-      "type_key": "bibliography",
-      "title": "Purdue OWL – Annotated Bibliographies",
-      "url": "https://owl.purdue.edu/owl/general_writing/common_writing_assignments/annotated_bibliographies/index.html",
-      "description": "Guide to writing annotated bibliographies with examples",
+      "type_key": "project_plan",
+      "title": "SMART Goals Framework",
+      "url": "https://www.mindtools.com/a4wo118/smart-goals",
+      "description": "Setting Specific, Measurable, Achievable, Relevant, Time-bound objectives",
       "category": null,
       "display_order": 6
     },
     {
-      "type_key": "requirements",
-      "title": "Acceptance Criteria Guide",
-      "url": "https://www.altexsoft.com/blog/acceptance-criteria-purposes-formats-and-best-practices/",
-      "description": "Writing testable acceptance criteria in Given/When/Then format",
-      "category": null,
-      "display_order": 6
-    },
-    {
-      "type_key": "prompt",
-      "title": "Google Gemini Prompting Guide",
-      "url": "https://ai.google.dev/gemini-api/docs/prompting-intro",
-      "description": "Google's guide to structured prompting for Gemini models",
+      "type_key": "podcast_script",
+      "title": "Spotify for Podcasters – Best Practices",
+      "url": "https://podcasters.spotify.com/resources",
+      "description": "Spotify's official guide to podcast creation, episode structure, and audience engagement",
       "category": null,
       "display_order": 6
     },
@@ -3998,25 +4014,9 @@
     },
     {
       "type_key": "general_request",
-      "title": "Plain Language Guidelines",
-      "url": "https://www.plainlanguage.gov/guidelines/",
-      "description": "Clear-communication guidelines for explanations and how-tos",
-      "category": null,
-      "display_order": 6
-    },
-    {
-      "type_key": "general_request",
       "title": "Better Homes & Gardens — Recipe Basics",
       "url": "https://www.bhg.com/recipes/how-to/bake/",
       "description": "Established recipe structure and baking technique references",
-      "category": null,
-      "display_order": 7
-    },
-    {
-      "type_key": "bibliography",
-      "title": "Google Scholar",
-      "url": "https://scholar.google.com/",
-      "description": "Academic search engine for finding and citing scholarly sources",
       "category": null,
       "display_order": 7
     },
@@ -4025,6 +4025,14 @@
       "title": "Apple Podcasts – Show Guidelines",
       "url": "https://podcasters.apple.com/support/823-podcast-requirements",
       "description": "Apple's requirements and best practices for podcast show structure and metadata",
+      "category": null,
+      "display_order": 7
+    },
+    {
+      "type_key": "bibliography",
+      "title": "Google Scholar",
+      "url": "https://scholar.google.com/",
+      "description": "Academic search engine for finding and citing scholarly sources",
       "category": null,
       "display_order": 7
     },
@@ -4045,14 +4053,6 @@
       "display_order": 8
     },
     {
-      "type_key": "podcast_script",
-      "title": "Conversational Duo Format Guide",
-      "url": "https://www.buzzsprout.com/blog/co-hosted-podcast",
-      "description": "Best practices for two-host podcast dynamics, banter, and role distribution",
-      "category": null,
-      "display_order": 8
-    },
-    {
       "type_key": "bibliography",
       "title": "Semantic Scholar",
       "url": "https://www.semanticscholar.org/",
@@ -4062,11 +4062,11 @@
     },
     {
       "type_key": "podcast_script",
-      "title": "Interview Podcast Format",
-      "url": "https://www.thepodcasthost.com/planning/interview-podcast-format/",
-      "description": "Structuring interview-style episodes: question flow, guest dynamics, prep techniques",
+      "title": "Conversational Duo Format Guide",
+      "url": "https://www.buzzsprout.com/blog/co-hosted-podcast",
+      "description": "Best practices for two-host podcast dynamics, banter, and role distribution",
       "category": null,
-      "display_order": 9
+      "display_order": 8
     },
     {
       "type_key": "general_request",
@@ -4081,6 +4081,14 @@
       "title": "ZoteroBib",
       "url": "https://zbib.org/",
       "description": "Free citation generator supporting 10,000+ citation styles",
+      "category": null,
+      "display_order": 9
+    },
+    {
+      "type_key": "podcast_script",
+      "title": "Interview Podcast Format",
+      "url": "https://www.thepodcasthost.com/planning/interview-podcast-format/",
+      "description": "Structuring interview-style episodes: question flow, guest dynamics, prep techniques",
       "category": null,
       "display_order": 9
     },
@@ -4129,6 +4137,48 @@
       ]
     },
     {
+      "type_key": "ocia_planning",
+      "step_number": 1,
+      "question_en": "Select the Catechetical Approach:",
+      "question_es": "Selecciona el Enfoque Catequético:",
+      "context_hint_en": "How the teaching is delivered across the plan.",
+      "context_hint_es": "Cómo se presenta la enseñanza a lo largo del plan.",
+      "options_json": [
+        {
+          "option_key": "liturgical_lectionary",
+          "label_en": "Liturgical / Lectionary",
+          "label_es": "Litúrgica / Leccionaria",
+          "subtitle_en": "Teaching anchored to the readings and seasons of the liturgical year",
+          "subtitle_es": "Enseñanza anclada a las lecturas y tiempos del año litúrgico",
+          "prompt_injection": "Anchor each session to the Sunday lectionary readings and the current season of the liturgical year."
+        },
+        {
+          "option_key": "kerygmatic",
+          "label_en": "Kerygmatic",
+          "label_es": "Kerygmática",
+          "subtitle_en": "Proclamation-first: the kerygma before moral and doctrinal catechesis",
+          "subtitle_es": "Kerygma primero: proclamación antes de la catequesis moral y doctrinal",
+          "prompt_injection": "Lead with the kerygma: the proclamation of Christ's saving love precedes moral and doctrinal catechesis."
+        },
+        {
+          "option_key": "contemplative_mystagogical",
+          "label_en": "Contemplative / Mystagogical",
+          "label_es": "Contemplativa / Mistagógica",
+          "subtitle_en": "Prayer, symbols, and rites as the doorway for encountering Christ",
+          "subtitle_es": "La oración, los signos y los ritos como puerta al encuentro con Cristo",
+          "prompt_injection": "Build each session from prayer, liturgical signs, and the lived experience of the mysteries toward understanding."
+        },
+        {
+          "option_key": "traditional_doctrinal",
+          "label_en": "Traditional Doctrinal",
+          "label_es": "Doctrinal Tradicional",
+          "subtitle_en": "Systematic instruction in the Creed, Sacraments, Commandments, and Prayer",
+          "subtitle_es": "Instrucción sistemática en el Credo, los sacramentos, los mandamientos y la oración",
+          "prompt_injection": "Follow the four pillars of the Catechism: Creed, Sacraments, Moral Life, and Prayer, taught systematically."
+        }
+      ]
+    },
+    {
       "type_key": "christian_prayer",
       "step_number": 2,
       "question_en": "Select the Spiritual Method:",
@@ -4159,6 +4209,48 @@
           "subtitle_en": "Gospel scene contemplation, Examen of conscience, or intimate colloquy",
           "subtitle_es": "Contemplación evangélica, Examen de conciencia o coloquio íntimo",
           "prompt_injection": "Apply Ignatian contemplation and Teresian colloquy: examine movements of consolation/desolation and converse with Christ as a friend."
+        }
+      ]
+    },
+    {
+      "type_key": "ocia_planning",
+      "step_number": 2,
+      "question_en": "Select the Period of the OCIA:",
+      "question_es": "Selecciona el Periodo del RICA:",
+      "context_hint_en": "Which period of initiation the plan serves.",
+      "context_hint_es": "A qué periodo de iniciación sirve el plan.",
+      "options_json": [
+        {
+          "option_key": "precatechumenate",
+          "label_en": "Evangelization & Pre-Catechumenate",
+          "label_es": "Evangelización y Precatecumenado",
+          "subtitle_en": "Inquiry and welcome: answering the initial searching of inquirers",
+          "subtitle_es": "Bienvenida e indagación: responder la búsqueda inicial de los interesados",
+          "prompt_injection": "Shape the plan for the Period of Evangelization and the Pre-Catechumenate: proclamation of the kerygma, welcome, and initial inquiry."
+        },
+        {
+          "option_key": "catechumenate",
+          "label_en": "Catechumenate",
+          "label_es": "Catecumenado",
+          "subtitle_en": "Extended formation in doctrine, liturgy, and apostolic life",
+          "subtitle_es": "Formación prolongada en doctrina, liturgia y vida apostólica",
+          "prompt_injection": "Shape the plan for the Catechumenate: extended catechesis on the four pillars, liturgical rites, and the role of sponsors."
+        },
+        {
+          "option_key": "purification_enlightenment",
+          "label_en": "Purification & Enlightenment",
+          "label_es": "Purificación e Iluminación",
+          "subtitle_en": "Lent: scrutinies, presentations, and preparation for the Easter Vigil",
+          "subtitle_es": "Cuaresma: escrutinios, presentaciones y preparación para la Vigilia Pascual",
+          "prompt_injection": "Shape the plan for the Period of Purification and Enlightenment: Lenten spiritual preparation, the scrutinies, and the presentations."
+        },
+        {
+          "option_key": "mystagogy",
+          "label_en": "Mystagogy",
+          "label_es": "Mistagogia",
+          "subtitle_en": "Eastertide deepening for the newly initiated and their community",
+          "subtitle_es": "Profundización pascual para los recién iniciados y su comunidad",
+          "prompt_injection": "Shape the plan for the Period of Mystagogy: sustaining the neophytes after initiation and integrating them into parish life."
         }
       ]
     },

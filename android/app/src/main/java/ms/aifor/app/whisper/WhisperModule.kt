@@ -1,6 +1,7 @@
 package ms.aifor.app.whisper
 
 import com.facebook.react.bridge.*
+import ms.aifor.app.audio.AudioToWavDecoder
 
 /**
  * React Native bridge for on-device Whisper.

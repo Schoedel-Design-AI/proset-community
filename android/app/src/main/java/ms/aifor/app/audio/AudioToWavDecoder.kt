@@ -1,4 +1,4 @@
-package ms.aifor.app.whisper
+package ms.aifor.app.audio
 
 import android.media.AudioFormat
 import android.media.MediaCodec

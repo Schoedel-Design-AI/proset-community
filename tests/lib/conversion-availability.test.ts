@@ -154,6 +154,9 @@ test("a menu lists the catalog's packs until the server answers, then only what 
   const unknown = listablePackModules({ tier: "pro", moduleStatesLoaded: false });
   assert.equal(unknown.has("academic"), true, "a menu must not go empty just because a fetch is pending");
   assert.equal(unknown.has("saint"), false, "an unready pack is never listed");
+  // The super admin's menu previews the unshipped pack even with no server data.
+  const superUnknown = listablePackModules({ tier: "pro", isSuperAdmin: true, moduleStatesLoaded: false });
+  assert.equal(superUnknown.has("saint"), true, "the super admin previews the unshipped pack");
   const known = listablePackModules({ tier: "pro", moduleStates: statesWithAcademic });
   assert.deepEqual([...known], ["academic", "music"], "once answered, the server's list is the list");
 });

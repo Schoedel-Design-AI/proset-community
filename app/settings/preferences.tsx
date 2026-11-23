@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -17,6 +17,7 @@ import { useResponsiveLayout } from "@/lib/useResponsiveLayout";
 import { useLanguage, type Language } from "@/lib/i18n";
 import { useTextScale, useTextSizePref, sf, type TextScale, type TextSizePreference } from "@/lib/typography";
 import { useClarifyMode, type ClarifyMode } from "@/lib/clarify-mode";
+import { prepareOnDeviceTranscription, isModelDownloaded } from "@/lib/parakeet";
 
 
 function TextSizeSetting() {
@@ -102,6 +103,64 @@ function ClarifyModeSetting() {
   );
 }
 
+
+function OnDeviceTranscriptionSetting() {
+  const { t } = useLanguage();
+  const ts = useTextScale();
+  const aStyles = useMemo(() => makeAStyles(ts), [ts]);
+  const [prepState, setPrepState] = useState<"idle" | "working" | "ready">("idle");
+  const [prepPercent, setPrepPercent] = useState<number | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      const prepared = await isModelDownloaded();
+      if (live) setPrepState(prepared ? "ready" : "idle");
+    })();
+    return () => { live = false; };
+  }, []);
+
+  const startPreparation = () => {
+    setPrepState("working");
+    setPrepPercent(0);
+    void prepareOnDeviceTranscription((percent) => setPrepPercent(percent)).then((result) => {
+      setPrepState(result === "ready" ? "ready" : "idle");
+      setPrepPercent(null);
+    });
+  };
+
+  return (
+    <View style={aStyles.section}>
+      <View style={aStyles.menuRow}>
+        <Feather name="smartphone" size={18} color={Colors.textSecondary} />
+        <Text style={[aStyles.menuLabel, { flex: 1 }]}>{t("settings.prepareOnDeviceTitle" as any)}</Text>
+      </View>
+      <Text style={[aStyles.menuLabel, { fontSize: ts.body2, color: Colors.textMuted, paddingHorizontal: 16, paddingBottom: 10 }]}>
+        {t("settings.prepareOnDeviceDesc" as any)}
+      </Text>
+      {prepState === "ready" ? (
+        <Text style={[aStyles.menuLabel, { fontSize: ts.body2, paddingHorizontal: 16 }]}>
+          {t("settings.prepareOnDeviceReady" as any)}
+        </Text>
+      ) : prepState === "working" ? (
+        <Text style={[aStyles.menuLabel, { fontSize: ts.body2, paddingHorizontal: 16 }]}>
+          {t("settings.prepareOnDevicePreparing" as any, { percent: prepPercent ?? 0 })}
+        </Text>
+      ) : (
+        <Pressable
+          style={[aStyles.langPill, { alignSelf: "flex-start", marginBottom: 14, marginHorizontal: 16 }]}
+          onPress={startPreparation}
+          accessibilityRole="button"
+          accessibilityLabel={t("settings.prepareOnDeviceAction" as any)}
+          testID="prepare-on-device-transcription"
+        >
+          <Text style={aStyles.langPillText}>{t("settings.prepareOnDeviceAction" as any)}</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
 export default function PreferencesScreen() {
   const insets = useSafeAreaInsets();
   const layout = useResponsiveLayout();
@@ -166,6 +225,8 @@ export default function PreferencesScreen() {
         <TextSizeSetting />
 
         <ClarifyModeSetting />
+
+        {Platform.OS === "android" ? <OnDeviceTranscriptionSetting /> : null}
 
         <Pressable
           style={styles.privacyCard}

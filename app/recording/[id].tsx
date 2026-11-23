@@ -3420,20 +3420,15 @@ export default function RecordingDetailScreen() {
             ) : isElectivePending ? (
               <View style={styles.electiveCard} testID="elective-transcribe-card">
                 <View style={styles.electiveHeader}>
-                  <View style={styles.electiveIconBadge}>
-                    <Feather name="mic" size={18} color={Colors.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.electiveTitle}>{t("detail.transcribeElectiveTitle")}</Text>
-                  </View>
                   <Pressable
                     onPress={() => setShowElectiveTooltip((v) => !v)}
                     hitSlop={8}
                     accessibilityRole="button"
                     accessibilityLabel={t("detail.transcribeElectiveDesc")}
                     testID="elective-transcribe-info"
+                    style={styles.electiveInfoButton}
                   >
-                    <Feather name="info" size={16} color={Colors.textSecondary} />
+                    <Feather name="info" size={16} color={Colors.textMuted} />
                   </Pressable>
                 </View>
                 {showElectiveTooltip && (
@@ -3450,10 +3445,10 @@ export default function RecordingDetailScreen() {
                   testID="elective-transcribe-button"
                 >
                   {retryingTranscription ? (
-                    <ActivityIndicator size="small" color={Colors.white} />
+                    <ActivityIndicator size="small" color={Colors.textMuted} />
                   ) : (
                     <>
-                      <Feather name="file-text" size={16} color={Colors.white} />
+                      <Feather name="file-text" size={16} color={Colors.textMuted} />
                       <Text style={styles.electiveBtnText}>{t("detail.transcribeAction")}</Text>
                     </>
                   )}
@@ -3472,7 +3467,7 @@ export default function RecordingDetailScreen() {
                     >
                       {localTranscribing ? (
                         <>
-                          <ActivityIndicator size="small" color={Colors.white} />
+                          <ActivityIndicator size="small" color={Colors.textMuted} />
                           <Text style={styles.electiveBtnText}>
                             {localTranscriptionPhase === "downloading-model"
                               ? t("detail.localFallbackDownloading" as any, { percent: localTranscriptionPercent })
@@ -3481,7 +3476,7 @@ export default function RecordingDetailScreen() {
                         </>
                       ) : (
                         <>
-                          <Feather name="smartphone" size={16} color={Colors.white} />
+                          <Feather name="smartphone" size={16} color={Colors.textMuted} />
                           <Text style={styles.electiveBtnText}>{t("detail.localFallbackAction" as any)}</Text>
                         </>
                       )}
@@ -3951,7 +3946,7 @@ export default function RecordingDetailScreen() {
                         setShowDeckStylePicker(true);
                         return;
                       }
-                      runConversion(type, citationStyle, undefined, bibliographyType, undefined, undefined, includeWebSources);
+                      handleConvert(type, citationStyle, bibliographyType);
                     }}
                     accessibilityRole="button"
                     testID="conversion-retry-button"
@@ -4688,7 +4683,9 @@ export default function RecordingDetailScreen() {
               contentContainerStyle={[styles.fullModalContent, { maxWidth: layout.contentMaxWidth, alignSelf: "center", width: "100%" }]}
               showsVerticalScrollIndicator={false}
             >
-              <ConversionContent content={selectedConversion?.content || ""} conversionType={selectedConversion?.type} codeView={codeViewActive} />
+              <View style={styles.fullModalCard}>
+                <ConversionContent content={selectedConversion?.content || ""} conversionType={selectedConversion?.type} codeView={codeViewActive} />
+              </View>
             </ScrollView>
           </View>
         </View>
@@ -5402,50 +5399,42 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
   transcribingCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 20,
+    backgroundColor: "transparent",
+    borderRadius: 0,
+    padding: 8,
     gap: 12,
-    borderWidth: 0,
+    borderWidth: 1,
+    borderColor: "rgba(126, 153, 184, 0.18)",
     marginBottom: 28,
   },
   transcribingLabel: {
     fontSize: sf(14, ts),
     fontFamily: "Inter_500Medium",
-    color: Colors.primary,
+    color: Colors.textMuted,
   },
   transcriptCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 0,
+    backgroundColor: Colors.conversionCard,
+    borderRadius: 0,
+    padding: 8,
     marginBottom: 28,
   },
   electiveCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: "transparent",
+    borderRadius: 0,
+    padding: 0,
     borderWidth: 0,
     marginBottom: 28,
   },
   electiveHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 12,
+    justifyContent: "flex-end",
   },
-  electiveIconBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(0, 180, 216, 0.12)",
+  electiveInfoButton: {
+    width: 32,
+    height: 32,
     alignItems: "center",
     justifyContent: "center",
-  },
-  electiveTitle: {
-    fontSize: sf(15, ts),
-    fontFamily: "Inter_600SemiBold",
-    color: Colors.text,
-    marginBottom: 4,
   },
   electiveDescription: {
     fontSize: sf(13, ts),
@@ -5454,7 +5443,7 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
     lineHeight: 19,
   },
   electiveTooltip: {
-    backgroundColor: "rgba(0, 180, 216, 0.06)",
+    backgroundColor: "rgba(126, 153, 184, 0.06)",
     borderRadius: 8,
     padding: 10,
     marginTop: 10,
@@ -5466,8 +5455,10 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
     gap: 8,
     marginTop: 14,
     paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: Colors.primary,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(126, 153, 184, 0.32)",
+    backgroundColor: "transparent",
   },
   electiveBtnPressed: {
     opacity: 0.85,
@@ -5475,7 +5466,7 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
   electiveBtnText: {
     fontSize: sf(15, ts),
     fontFamily: "Inter_600SemiBold",
-    color: Colors.white,
+    color: Colors.textMuted,
   },
   transcriptText: {
     fontSize: sf(16, ts),
@@ -5743,6 +5734,7 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
     color: Colors.textMuted,
   },
   conversionCard: {
+    backgroundColor: Colors.conversionCard,
     paddingVertical: 14,
     paddingHorizontal: 4,
     borderBottomWidth: 1,
@@ -6129,6 +6121,11 @@ const makeStyles = (ts: TextScale) => StyleSheet.create({
   },
   fullModalContent: {
     padding: 24,
+  },
+  fullModalCard: {
+    backgroundColor: Colors.surfaceLight,
+    borderRadius: 14,
+    padding: 16,
   },
   fullModalText: {
     fontSize: sf(15, ts),

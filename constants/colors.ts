@@ -26,6 +26,7 @@ const Colors = {
   cardBorder: "#1E3355",
   cardGradientStart: "#132240",
   cardGradientEnd: "#0E1B33",
+  conversionCard: "#1A2D50",
 };
 
 export default Colors;

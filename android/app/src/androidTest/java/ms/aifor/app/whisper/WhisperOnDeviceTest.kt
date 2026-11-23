@@ -9,6 +9,7 @@ import org.junit.runner.RunWith
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import ms.aifor.app.audio.AudioToWavDecoder
 
 /**
  * Hardware verification of the on-device transcription path: model download,

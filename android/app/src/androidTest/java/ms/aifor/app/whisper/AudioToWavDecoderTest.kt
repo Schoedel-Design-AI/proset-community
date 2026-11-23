@@ -12,6 +12,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.charset.StandardCharsets
 import kotlin.math.sqrt
+import ms.aifor.app.audio.AudioToWavDecoder
 
 /**
  * Instrumented verification of the on-device transcription decode path.
